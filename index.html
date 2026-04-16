@@ -217,6 +217,105 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 .dgt-panel { display: none !important; }
 details[id="dynGreekThresholds"] { display: none !important; }
 
+/* ══ TELEGRAM INTEGRATION PANEL ══ */
+#tgPanel {
+  position: fixed; bottom: 80px; right: 14px; z-index: 10000;
+  width: 320px; max-width: calc(100vw - 28px);
+  background: rgba(20,22,30,0.97);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  font-family: inherit; color: #f1f5f9;
+  overflow: hidden;
+  transition: all .3s cubic-bezier(.22,1,.36,1);
+}
+#tgPanel.tg-hidden { opacity:0; transform:translateY(16px) scale(.97); pointer-events:none; }
+#tgPanelHeader {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+#tgPanelHeader .tg-title { font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+#tgPanelHeader .tg-title span { font-size:18px; }
+#tgCloseBtn { background:none; border:none; color:rgba(255,255,255,0.4); font-size:18px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+#tgCloseBtn:hover { color:#fff; background:rgba(255,255,255,0.08); }
+#tgPanelBody { padding: 12px 14px 14px; display:flex; flex-direction:column; gap:10px; }
+.tg-field label { font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:rgba(255,255,255,0.45); display:block; margin-bottom:4px; }
+.tg-field input {
+  width:100%; padding:7px 10px; border-radius:8px;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+  color:#f1f5f9; font-size:12px; font-family:inherit; outline:none;
+  transition: border-color .2s;
+}
+.tg-field input:focus { border-color:#229ED9; }
+.tg-field input::placeholder { color: rgba(255,255,255,0.25); }
+.tg-status-row { display:flex; align-items:center; gap:6px; font-size:11px; color:rgba(255,255,255,0.5); min-height:18px; }
+#tgStatusDot { width:7px; height:7px; border-radius:50%; background:#6b7280; flex-shrink:0; transition:background .3s; }
+#tgStatusDot.tg-ok { background:#22c55e; }
+#tgStatusDot.tg-err { background:#ef4444; }
+#tgStatusDot.tg-sending { background:#f59e0b; animation: tgPulse 0.8s infinite; }
+@keyframes tgPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.tg-btn-row { display:flex; gap:8px; }
+.tg-btn {
+  flex:1; padding:8px 10px; border-radius:9px; border:none;
+  font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  transition: opacity .2s, transform .1s;
+}
+.tg-btn:active { transform: scale(.97); }
+.tg-btn-primary { background:#229ED9; color:#fff; }
+.tg-btn-primary:hover { opacity:.88; }
+.tg-btn-secondary { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.12); }
+.tg-btn-secondary:hover { background:rgba(255,255,255,0.13); }
+.tg-divider { height:1px; background:rgba(255,255,255,0.07); margin: 2px 0; }
+.tg-alerts-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,0.4); }
+.tg-alert-toggle { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.tg-alert-toggle label { font-size:11px; color:rgba(255,255,255,0.7); cursor:pointer; flex:1; display:flex; align-items:center; gap:6px; }
+.tg-alert-toggle label span { font-size:14px; }
+.tg-toggle {
+  width:34px; height:18px; border-radius:9px; background:rgba(255,255,255,0.15);
+  position:relative; cursor:pointer; border:none; flex-shrink:0; transition: background .2s;
+  appearance:none; -webkit-appearance:none;
+}
+.tg-toggle:checked { background:#229ED9; }
+.tg-toggle::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:14px; height:14px; border-radius:50%; background:#fff;
+  transition: left .2s;
+}
+.tg-toggle:checked::after { left:18px; }
+#tgFab {
+  position:fixed; bottom:14px; right:14px; z-index:10001;
+  width:52px; height:52px; border-radius:50%; border:none;
+  background:linear-gradient(135deg,#229ED9,#1a7fb5);
+  color:#fff; font-size:22px; cursor:pointer;
+  box-shadow: 0 4px 18px rgba(34,158,217,0.55);
+  display:flex; align-items:center; justify-content:center;
+  transition: transform .2s, box-shadow .2s;
+}
+#tgFab:hover { transform:scale(1.08); box-shadow: 0 6px 24px rgba(34,158,217,0.7); }
+#tgFab .tg-fab-badge {
+  position:absolute; top:4px; right:4px;
+  width:10px; height:10px; border-radius:50%;
+  background:#22c55e; border:2px solid rgba(20,22,30,0.9);
+  display:none;
+}
+#tgFab .tg-fab-badge.tg-badge-show { display:block; }
+#tgAlertLog {
+  max-height: 90px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:4px;
+  scrollbar-width:thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.tg-log-item {
+  font-size:10px; color:rgba(255,255,255,0.5);
+  padding:3px 7px; border-radius:5px;
+  background:rgba(255,255,255,0.04);
+  border-left:2px solid rgba(34,158,217,0.5);
+  line-height:1.4;
+}
+.tg-log-item.tg-log-ok { border-left-color:#22c55e; color:rgba(134,239,172,0.8); }
+.tg-log-item.tg-log-err { border-left-color:#ef4444; color:rgba(252,165,165,0.8); }
+
 /* ── Overall Master Checklist ── */
 .ovcl-panel{border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary)}
 .ovcl-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
@@ -14516,6 +14615,59 @@ setInterval(()=>{
   </button>
 </div>
 
+<!-- ══ TELEGRAM INTEGRATION FAB ══ -->
+<button id="tgFab" title="Telegram Alerts">
+  <div class="tg-fab-badge" id="tgFabBadge"></div>
+  ✈️
+</button>
+
+<!-- ══ TELEGRAM PANEL ══ -->
+<div id="tgPanel" class="tg-hidden">
+  <div id="tgPanelHeader">
+    <div class="tg-title"><span>✈️</span> Telegram Alerts</div>
+    <button id="tgCloseBtn">✕</button>
+  </div>
+  <div id="tgPanelBody">
+    <div class="tg-field">
+      <label>Bot Token</label>
+      <input type="password" id="tgBotToken" placeholder="123456:ABC-DEF1234..." autocomplete="off" />
+    </div>
+    <div class="tg-field">
+      <label>Chat ID</label>
+      <input type="text" id="tgChatId" placeholder="-100123456789 or @channel" autocomplete="off" />
+    </div>
+    <div class="tg-status-row">
+      <div id="tgStatusDot"></div>
+      <span id="tgStatusText">Enter credentials above</span>
+    </div>
+    <div class="tg-btn-row">
+      <button class="tg-btn tg-btn-primary" id="tgSendNowBtn">📤 Send Summary Now</button>
+      <button class="tg-btn tg-btn-secondary" id="tgTestBtn">🔗 Test</button>
+    </div>
+    <div class="tg-divider"></div>
+    <div class="tg-alerts-title">🔔 Auto-Alert Triggers</div>
+    <div class="tg-alert-toggle">
+      <label><span>📡</span> Trade signal change</label>
+      <input type="checkbox" class="tg-toggle" id="alertSignal" checked />
+    </div>
+    <div class="tg-alert-toggle">
+      <label><span>📊</span> IV spike / drop (≥3%)</label>
+      <input type="checkbox" class="tg-toggle" id="alertIV" checked />
+    </div>
+    <div class="tg-alert-toggle">
+      <label><span>₿</span> BTC sharp move (≥0.8%)</label>
+      <input type="checkbox" class="tg-toggle" id="alertBTC" checked />
+    </div>
+    <div class="tg-alert-toggle">
+      <label><span>🌊</span> VoV regime change</label>
+      <input type="checkbox" class="tg-toggle" id="alertVoV" checked />
+    </div>
+    <div class="tg-divider"></div>
+    <div class="tg-alerts-title">📋 Recent Alerts</div>
+    <div id="tgAlertLog"><div class="tg-log-item" style="border-left-color:rgba(255,255,255,0.15)">No alerts sent yet</div></div>
+  </div>
+</div>
+
 <script>
 (function(){
   /* ── helpers to scrape live dashboard state from DOM ── */
@@ -14769,6 +14921,276 @@ Move: ${velMove}  |  Status: ${velStatus}`;
     }
   });
   close.addEventListener('click',()=>{ win.style.display='none'; });
+})();
+</script>
+
+<!-- ══ TELEGRAM INTEGRATION SCRIPT ══ -->
+<script>
+(function(){
+  'use strict';
+
+  // ── Storage helpers ──
+  function tgSave(){ localStorage.setItem('tg_token', document.getElementById('tgBotToken').value.trim()); localStorage.setItem('tg_chat', document.getElementById('tgChatId').value.trim()); }
+  function tgLoad(){ const t=localStorage.getItem('tg_token')||''; const c=localStorage.getItem('tg_chat')||''; if(t) document.getElementById('tgBotToken').value=t; if(c) document.getElementById('tgChatId').value=c; }
+
+  function getToken(){ return document.getElementById('tgBotToken').value.trim(); }
+  function getChatId(){ return document.getElementById('tgChatId').value.trim(); }
+
+  // ── Status helpers ──
+  function setStatus(state, msg){
+    const dot = document.getElementById('tgStatusDot');
+    const txt = document.getElementById('tgStatusText');
+    dot.className = state === 'ok' ? 'tg-ok' : state === 'err' ? 'tg-err' : state === 'sending' ? 'tg-sending' : '';
+    txt.textContent = msg;
+  }
+
+  // ── Log helper ──
+  function addLog(msg, type){
+    const log = document.getElementById('tgAlertLog');
+    // clear placeholder
+    const placeholder = log.querySelector('[style]');
+    if(placeholder && placeholder.textContent === 'No alerts sent yet') placeholder.remove();
+    const item = document.createElement('div');
+    item.className = 'tg-log-item' + (type === 'ok' ? ' tg-log-ok' : type === 'err' ? ' tg-log-err' : '');
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    item.textContent = `[${time}] ${msg}`;
+    log.prepend(item);
+    // keep max 10 items
+    while(log.children.length > 10) log.removeChild(log.lastChild);
+    // badge pulse
+    document.getElementById('tgFabBadge').classList.add('tg-badge-show');
+  }
+
+  // ── Send message to Telegram ──
+  async function sendTelegram(text){
+    const token = getToken();
+    const chatId = getChatId();
+    if(!token || !chatId){ setStatus('err','No token/chat ID set'); return false; }
+    tgSave();
+    setStatus('sending','Sending…');
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ chat_id: chatId, text: text, parse_mode:'HTML', disable_web_page_preview:true })
+      });
+      const d = await r.json();
+      if(d.ok){
+        setStatus('ok','✅ Sent successfully');
+        return true;
+      } else {
+        setStatus('err','❌ ' + (d.description||'Error'));
+        addLog('❌ Send failed: ' + (d.description||'Error'), 'err');
+        return false;
+      }
+    } catch(e){
+      setStatus('err','❌ Network error');
+      addLog('❌ Network error: ' + e.message, 'err');
+      return false;
+    }
+  }
+
+  // ── Get live snapshot from dashboard ──
+  function txt(id){ const e=document.getElementById(id); return e ? e.textContent.trim() : ''; }
+
+  function getSnapshot(){
+    const spot      = txt('btcSpot') || txt('spotPrice') || '—';
+    const chg24     = txt('btcChg24h') || txt('btcChange') || '—';
+    const dvol      = txt('dvolVal') || '—';
+    const funding   = txt('fundingRate') || '—';
+    const oi        = txt('openInterest') || txt('btcOI') || '—';
+    const signal    = txt('tsbStatusLabel') || txt('dpTitle') || '—';
+    const signalSub = txt('tsbSubtitle') || txt('dpSubtitle') || '—';
+    const verdict   = txt('fvbAnswer') || '—';
+    const score     = txt('ovclScorePill') || '—';
+    const ovclVerdict = txt('ovclVerdictText') || '—';
+    const atmIV     = (() => { const e=document.querySelector('.atm-iv'); return e?e.textContent.trim():'—'; })();
+    const atmStrike = (() => { const e=document.querySelector('.atm-strike-pill'); return e?e.textContent.trim():'—'; })();
+    const vovRegime = (() => { const e=document.querySelector('.vov-regime-pill'); return e?e.textContent.trim():'—'; })();
+    const vovTrend  = (() => { const e=document.querySelector('.vov-regime-trend'); return e?e.textContent.trim():'—'; })();
+    const vovVal    = (() => { const e=document.querySelector('.vov-regime-val'); return e?e.textContent.trim():'—'; })();
+    const rsi       = txt('tvSigRSI') || '—';
+    const adx       = txt('tvSigADX') || '—';
+    const velMove   = (() => { const e=document.querySelector('.vel-move'); return e?e.textContent.trim():'—'; })();
+    const ivCards   = Array.from(document.querySelectorAll('.iv-card')).slice(0,4).map(c=>{
+      const lbl = c.querySelector('.expiry-label') ? c.querySelector('.expiry-label').textContent.trim() : '?';
+      const val = c.querySelector('.iv-val') ? c.querySelector('.iv-val').textContent.trim() : '?';
+      const chg = c.querySelector('.iv-chg') ? c.querySelector('.iv-chg').textContent.trim() : '?';
+      const cls = c.className.includes('rising') ? '↑ Rising' : c.className.includes('falling') ? '↓ Falling' : c.className.includes('flat') ? '→ Flat' : 'Expired';
+      return `  • <b>${lbl}</b>: ${val} (${chg}) [${cls}]`;
+    }).join('\n');
+    const now = new Date().toLocaleString('en-IN', {timeZone:'Asia/Kolkata',hour12:true});
+
+    // Determine signal emoji
+    const sigLow = signal.toLowerCase();
+    const sigEmoji = sigLow.includes('enter') ? '🟢' : sigLow.includes('wait') ? '🟡' : sigLow.includes('alert') || sigLow.includes('avoid') ? '🔴' : '⚪';
+
+    return `🔱 <b>BRAHMASTRA v20 — Dashboard Summary</b>
+🕐 ${now} IST
+
+<b>💰 BTC Market</b>
+Spot: <b>${spot}</b>  |  24h: ${chg24}
+DVOL: ${dvol}  |  Funding: ${funding}  |  OI: ${oi}
+
+<b>${sigEmoji} Trade Signal</b>
+Status: <b>${signal}</b>
+${signalSub}
+Verdict: ${verdict}
+
+<b>📋 Master Checklist</b>
+Score: <b>${score}</b>  |  ${ovclVerdict}
+
+<b>📊 ATM Panel</b>
+Strike: ${atmStrike}  |  ATM IV: <b>${atmIV}</b>
+
+<b>🌊 VoV Regime</b>
+${vovRegime} ${vovTrend}  |  Value: ${vovVal}
+
+<b>📈 IV Expiry Cards</b>
+${ivCards || '  (loading…)'}
+
+<b>⚙️ Technicals</b>
+RSI: ${rsi}  |  ADX: ${adx}  |  Velocity: ${velMove}`;
+  }
+
+  // ── Alert state tracking ──
+  let _lastSignal = '';
+  let _lastVovRegime = '';
+  let _lastBTCSpot = 0;
+  let _lastATMIV = 0;
+  let _alertCooldown = {}; // key → timestamp
+
+  function canAlert(key, minMs){ const now = Date.now(); if(_alertCooldown[key] && now - _alertCooldown[key] < minMs) return false; _alertCooldown[key]=now; return true; }
+
+  async function checkAndAlert(){
+    const token = getToken();
+    const chatId = getChatId();
+    if(!token || !chatId) return;
+
+    const spot      = txt('btcSpot') || txt('spotPrice') || '';
+    const signal    = txt('tsbStatusLabel') || txt('dpTitle') || '';
+    const vovRegime = (() => { const e=document.querySelector('.vov-regime-pill'); return e?e.textContent.trim():''; })();
+    const atmIVStr  = (() => { const e=document.querySelector('.atm-iv'); return e?e.textContent.trim():''; })();
+
+    // Parse numbers
+    const spotNum  = parseFloat(spot.replace(/[,$]/g,'')) || 0;
+    const atmIVNum = parseFloat(atmIVStr) || 0;
+
+    const now = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:true});
+
+    // ── 1. Trade signal change ──
+    if(document.getElementById('alertSignal').checked && signal && signal !== _lastSignal && _lastSignal !== ''){
+      if(canAlert('signal', 60000)){
+        const sigEmoji = signal.toLowerCase().includes('enter') ? '🟢' : signal.toLowerCase().includes('wait') ? '🟡' : '🔴';
+        const msg = `${sigEmoji} <b>SIGNAL CHANGE — BRAHMASTRA</b>
+⚡ ${_lastSignal} → <b>${signal}</b>
+🕐 ${now} IST
+
+${getSnapshot()}`;
+        const ok = await sendTelegram(msg);
+        addLog(`${sigEmoji} Signal: ${_lastSignal} → ${signal}`, ok ? 'ok' : 'err');
+      }
+    }
+    if(signal) _lastSignal = signal;
+
+    // ── 2. VoV regime change ──
+    if(document.getElementById('alertVoV').checked && vovRegime && vovRegime !== _lastVovRegime && _lastVovRegime !== ''){
+      if(canAlert('vov', 120000)){
+        const msg = `🌊 <b>VoV REGIME CHANGE — BRAHMASTRA</b>
+🔄 ${_lastVovRegime} → <b>${vovRegime}</b>
+🕐 ${now} IST
+
+${getSnapshot()}`;
+        const ok = await sendTelegram(msg);
+        addLog(`🌊 VoV: ${_lastVovRegime} → ${vovRegime}`, ok ? 'ok' : 'err');
+      }
+    }
+    if(vovRegime) _lastVovRegime = vovRegime;
+
+    // ── 3. BTC sharp move (≥0.8%) ──
+    if(document.getElementById('alertBTC').checked && spotNum > 0 && _lastBTCSpot > 0){
+      const pct = Math.abs((spotNum - _lastBTCSpot) / _lastBTCSpot * 100);
+      if(pct >= 0.8 && canAlert('btc', 300000)){
+        const dir = spotNum > _lastBTCSpot ? '🚀' : '📉';
+        const msg = `${dir} <b>BTC SHARP MOVE — BRAHMASTRA</b>
+₿ ${_lastBTCSpot.toFixed(0)} → <b>${spotNum.toFixed(0)}</b> (${pct.toFixed(2)}% move)
+🕐 ${now} IST
+
+${getSnapshot()}`;
+        const ok = await sendTelegram(msg);
+        addLog(`${dir} BTC: ${_lastBTCSpot.toFixed(0)} → ${spotNum.toFixed(0)} (+${pct.toFixed(2)}%)`, ok ? 'ok' : 'err');
+      }
+    }
+    if(spotNum > 0) _lastBTCSpot = spotNum;
+
+    // ── 4. IV spike / drop (≥3%) ──
+    if(document.getElementById('alertIV').checked && atmIVNum > 0 && _lastATMIV > 0){
+      const ivDiff = Math.abs(atmIVNum - _lastATMIV);
+      if(ivDiff >= 3 && canAlert('iv', 180000)){
+        const dir = atmIVNum > _lastATMIV ? '📈 IV SPIKE' : '📉 IV DROP';
+        const msg = `📊 <b>${dir} — BRAHMASTRA</b>
+ATM IV: ${_lastATMIV.toFixed(1)}% → <b>${atmIVNum.toFixed(1)}%</b> (Δ${ivDiff.toFixed(1)}%)
+🕐 ${now} IST
+
+${getSnapshot()}`;
+        const ok = await sendTelegram(msg);
+        addLog(`📊 IV ${_lastATMIV.toFixed(1)}% → ${atmIVNum.toFixed(1)}%`, ok ? 'ok' : 'err');
+      }
+    }
+    if(atmIVNum > 0) _lastATMIV = atmIVNum;
+  }
+
+  // ── Panel open/close ──
+  document.getElementById('tgFab').addEventListener('click', function(){
+    const panel = document.getElementById('tgPanel');
+    panel.classList.toggle('tg-hidden');
+    if(!panel.classList.contains('tg-hidden')){
+      document.getElementById('tgFabBadge').classList.remove('tg-badge-show');
+    }
+  });
+  document.getElementById('tgCloseBtn').addEventListener('click', function(){
+    document.getElementById('tgPanel').classList.add('tg-hidden');
+  });
+
+  // ── Test button ──
+  document.getElementById('tgTestBtn').addEventListener('click', async function(){
+    tgSave();
+    const ok = await sendTelegram('✅ <b>BRAHMASTRA Telegram Integration Active!</b>\n\nYour bot is connected successfully. You will now receive summaries and alerts from the dashboard. 🔱');
+    if(ok) addLog('✅ Test message sent', 'ok');
+  });
+
+  // ── Send Now button ──
+  document.getElementById('tgSendNowBtn').addEventListener('click', async function(){
+    tgSave();
+    const msg = getSnapshot();
+    const ok = await sendTelegram(msg);
+    if(ok) addLog('📤 Full summary sent manually', 'ok');
+  });
+
+  // ── Auto-save on input ──
+  document.getElementById('tgBotToken').addEventListener('change', tgSave);
+  document.getElementById('tgChatId').addEventListener('change', tgSave);
+
+  // ── Load saved credentials ──
+  tgLoad();
+  if(getToken() && getChatId()) setStatus('ok', 'Credentials loaded ✓');
+
+  // ── Start monitoring loop (every 8 seconds) ──
+  setInterval(checkAndAlert, 8000);
+
+  // ── Seed initial values after 5s so we don't false-alarm on load ──
+  setTimeout(function(){
+    const spot = parseFloat((txt('btcSpot')||txt('spotPrice')||'0').replace(/[,$]/g,'')) || 0;
+    const iv   = parseFloat((()=>{ const e=document.querySelector('.atm-iv'); return e?e.textContent.trim():'0'; })()) || 0;
+    const sig  = txt('tsbStatusLabel') || txt('dpTitle') || '';
+    const vov  = (()=>{ const e=document.querySelector('.vov-regime-pill'); return e?e.textContent.trim():''; })();
+    _lastBTCSpot = spot;
+    _lastATMIV = iv;
+    _lastSignal = sig;
+    _lastVovRegime = vov;
+  }, 5000);
+
 })();
 </script>
 </body>
