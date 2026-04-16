@@ -14425,5 +14425,351 @@ setInterval(()=>{
 }, 12000);
 
 </script>
+
+<!-- ═══════════════════════════════════════════════════════
+     BRAHMASTRA GUIDE BOT  —  reads live DOM only, no APIs
+     ═══════════════════════════════════════════════════════ -->
+<style>
+#gbBot{position:fixed;bottom:22px;right:22px;z-index:99999;display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-sans,sans-serif)}
+
+/* FAB */
+#gbFab{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#2563eb);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 22px rgba(124,58,237,.5);transition:transform .2s;position:relative;flex-shrink:0}
+#gbFab:hover{transform:scale(1.09)}
+#gbFab .gb-ring{position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(124,58,237,.45);animation:gbRing 2.2s infinite}
+@keyframes gbRing{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.6);opacity:0}}
+
+/* Window */
+#gbWin{width:320px;max-width:calc(100vw - 28px);background:var(--color-background-primary,#fff);border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:18px;box-shadow:0 16px 56px rgba(0,0,0,.22);margin-bottom:12px;display:none;flex-direction:column;overflow:hidden;max-height:500px;animation:gbUp .22s cubic-bezier(.22,1,.36,1)}
+@keyframes gbUp{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Header */
+#gbHead{background:linear-gradient(135deg,#7c3aed,#2563eb);padding:11px 14px;display:flex;align-items:center;gap:9px}
+.gb-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.gb-info{flex:1}
+.gb-name{font-size:13px;font-weight:700;color:#fff}
+.gb-sub{font-size:10px;color:rgba(255,255,255,.65);display:flex;align-items:center;gap:4px}
+.gb-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
+#gbClose{background:none;border:none;color:rgba(255,255,255,.65);cursor:pointer;font-size:17px;line-height:1;transition:color .15s}
+#gbClose:hover{color:#fff}
+
+/* Chips */
+#gbChips{padding:8px 11px 5px;display:flex;gap:5px;flex-wrap:wrap;border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb)}
+.gb-chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid rgba(124,58,237,.3);color:#7c3aed;background:rgba(124,58,237,.06);transition:all .15s;white-space:nowrap}
+.gb-chip:hover{background:#7c3aed;color:#fff;border-color:#7c3aed}
+
+/* Messages */
+#gbMsgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:160px;max-height:280px}
+.gb-row{display:flex;gap:7px;align-items:flex-start}
+.gb-row.gb-user{flex-direction:row-reverse}
+.gb-bubble{max-width:84%;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:12px}
+.gb-row:not(.gb-user) .gb-bubble{background:var(--color-background-secondary,#f3f4f6);color:var(--color-text-primary,#111);border-bottom-left-radius:3px}
+.gb-user .gb-bubble{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-bottom-right-radius:3px}
+.gb-av2{width:25px;height:25px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+.gb-row:not(.gb-user) .gb-av2{background:rgba(124,58,237,.12)}
+.gb-user .gb-av2{background:rgba(37,99,235,.14)}
+.gb-dots{display:flex;align-items:center;gap:4px;padding:3px 0}
+.gb-dots span{width:7px;height:7px;border-radius:50%;background:var(--color-text-secondary,#6b7280);animation:gbDot .9s infinite ease-in-out}
+.gb-dots span:nth-child(2){animation-delay:.15s}
+.gb-dots span:nth-child(3){animation-delay:.3s}
+@keyframes gbDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* Input */
+#gbInRow{display:flex;gap:7px;padding:9px 11px;border-top:0.5px solid var(--color-border-tertiary,#e5e7eb);background:var(--color-background-primary,#fff)}
+#gbIn{flex:1;font-size:12px;padding:7px 11px;border-radius:20px;border:1px solid var(--color-border-tertiary,#e5e7eb);background:var(--color-background-secondary,#f3f4f6);color:var(--color-text-primary,#111);outline:none;transition:border-color .15s}
+#gbIn:focus{border-color:#7c3aed}
+#gbSend{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .2s}
+#gbSend:hover{opacity:.85}
+#gbSend:disabled{opacity:.4;cursor:default}
+</style>
+
+<div id="gbBot">
+  <div id="gbWin">
+    <div id="gbHead">
+      <div class="gb-av">🤖</div>
+      <div class="gb-info">
+        <div class="gb-name">BRAHMASTRA Guide</div>
+        <div class="gb-sub"><span class="gb-dot"></span>Reads your live dashboard data</div>
+      </div>
+      <button id="gbClose">✕</button>
+    </div>
+
+    <div id="gbChips">
+      <span class="gb-chip" data-q="Give me a full overview of this dashboard">Overview</span>
+      <span class="gb-chip" data-q="What is the current trade signal and should I trade?">Trade Signal</span>
+      <span class="gb-chip" data-q="What does IV mean and what is it right now?">IV / Vol</span>
+      <span class="gb-chip" data-q="Explain VoV and current regime">VoV</span>
+      <span class="gb-chip" data-q="Explain the Option Chain and Max Pain">Option Chain</span>
+      <span class="gb-chip" data-q="What do the dashboard colors mean?">Colors</span>
+    </div>
+
+    <div id="gbMsgs"></div>
+
+    <div id="gbInRow">
+      <input id="gbIn" type="text" placeholder="Ask anything about the dashboard…" autocomplete="off"/>
+      <button id="gbSend">➤</button>
+    </div>
+  </div>
+
+  <button id="gbFab" title="Dashboard Guide">
+    <div class="gb-ring"></div>
+    🤖
+  </button>
+</div>
+
+<script>
+(function(){
+  /* ── helpers to scrape live dashboard state from DOM ── */
+  function txt(id){ const e=document.getElementById(id); return e ? e.textContent.trim() : '—'; }
+  function attr(id,a){ const e=document.getElementById(id); return e ? (e.getAttribute(a)||'').trim() : ''; }
+
+  function getLiveDashboardSnapshot(){
+    // Spot & market
+    const spot        = txt('btcSpot')     || txt('spotPrice')   || '—';
+    const change24h   = txt('btcChg24h')   || txt('btcChange')   || '—';
+    const dvol        = txt('dvolVal')     || txt('dvorValue')   || '—';
+    const funding     = txt('fundingRate') || txt('fundingVal')  || '—';
+    const openInt     = txt('openInterest')|| txt('btcOI')       || '—';
+
+    // Trade signal / decision panel
+    const tsbLabel    = txt('tsbStatusLabel') || txt('dpTitle')  || '—';
+    const tsbSub      = txt('tsbSubtitle')    || txt('dpSubtitle')|| '—';
+    const fvbAnswer   = txt('fvbAnswer')      || '—';
+
+    // Overall checklist
+    const ovclVerdict = txt('ovclVerdictText') || '—';
+    const ovclSub     = txt('ovclVerdictSub')  || '—';
+    const ovclScore   = txt('ovclScorePill')   || '—';
+
+    // ATM panel
+    const atmStrike   = (() => { const e=document.querySelector('.atm-strike-pill'); return e?e.textContent.trim():'—'; })();
+    const atmCallIV   = (() => { const e=document.querySelector('.atm-iv'); return e?e.textContent.trim():'—'; })();
+
+    // VoV
+    const vovRegime   = (() => { const e=document.querySelector('.vov-regime-pill'); return e?e.textContent.trim():'—'; })();
+    const vovTrend    = (() => { const e=document.querySelector('.vov-regime-trend'); return e?e.textContent.trim():'—'; })();
+    const vovVal      = (() => { const e=document.querySelector('.vov-regime-val'); return e?e.textContent.trim():'—'; })();
+    const vovDesc     = (() => { const e=document.querySelector('.vov-regime-desc'); return e?e.textContent.trim().slice(0,120):'—'; })();
+
+    // IV cards — first 4 expiries
+    const ivCards = Array.from(document.querySelectorAll('.iv-card')).slice(0,4).map(c=>{
+      const lbl = c.querySelector('.expiry-label') ? c.querySelector('.expiry-label').textContent.trim() : '?';
+      const val = c.querySelector('.iv-val')       ? c.querySelector('.iv-val').textContent.trim()       : '?';
+      const chg = c.querySelector('.iv-chg')       ? c.querySelector('.iv-chg').textContent.trim()       : '?';
+      const cls = c.className.includes('rising')?'↑ Rising':c.className.includes('falling')?'↓ Falling':c.className.includes('flat')?'→ Flat':'Expired';
+      return `${lbl}: IV ${val} (${chg}) [${cls}]`;
+    }).join(' | ');
+
+    // Technical signals
+    const rsi  = txt('tvSigRSI')   || '—';
+    const adx  = txt('tvSigADX')   || '—';
+    const trend= txt('tvSigTrend') || txt('tvSigMom') || '—';
+
+    // Velocity
+    const velMove = (() => { const e=document.querySelector('.vel-move'); return e?e.textContent.trim():'—'; })();
+    const velStatus=(() => { const e=document.querySelector('.vel-status'); return e?e.textContent.trim():'—'; })();
+
+    // WS status
+    const wsBadge = txt('wsBadge') || '—';
+    const lastUpd = txt('lastUpdate') || '—';
+
+    // OVCL checklist items
+    const checkItems = Array.from(document.querySelectorAll('.ovcl-item')).slice(0,8).map(i=>{
+      const name = i.querySelector('.ovcl-name') ? i.querySelector('.ovcl-name').textContent.trim() : '';
+      const val  = i.querySelector('.ovcl-val')  ? i.querySelector('.ovcl-val').textContent.trim()  : '';
+      const st   = i.className.includes('ovcl-pass')?'✅':i.className.includes('ovcl-fail')?'❌':i.className.includes('ovcl-warn')?'⚠️':'⏳';
+      return `${st} ${name}: ${val}`;
+    }).join('\n');
+
+    return `=== BRAHMASTRA v20 LIVE SNAPSHOT ===
+BTC Spot: ${spot}  |  24h Change: ${change24h}  |  DVOL: ${dvol}
+Funding: ${funding}  |  Open Interest: ${openInt}
+WS Status: ${wsBadge}  |  Last update: ${lastUpd}
+
+--- TRADE SIGNAL ---
+Status: ${tsbLabel}
+Detail: ${tsbSub}
+Verdict: ${fvbAnswer}
+
+--- MASTER CHECKLIST ---
+Verdict: ${ovclVerdict}
+Detail: ${ovclSub}
+Score: ${ovclScore}
+${checkItems}
+
+--- ATM PANEL ---
+ATM Strike: ${atmStrike}  |  ATM IV: ${atmCallIV}
+
+--- VoV (Volatility of Volatility) ---
+Regime: ${vovRegime} ${vovTrend}  |  Value: ${vovVal}
+${vovDesc}
+
+--- IV EXPIRY CARDS ---
+${ivCards || '(loading…)'}
+
+--- TECHNICAL SIGNALS ---
+RSI: ${rsi}  |  ADX: ${adx}  |  Trend/Mom: ${trend}
+
+--- VELOCITY ---
+Move: ${velMove}  |  Status: ${velStatus}`;
+  }
+
+  /* ── knowledge base: answers that need NO live data ── */
+  const KB = {
+    overview: `BRAHMASTRA v20 is a real-time Bitcoin options trading desk. It connects via WebSocket to Binance (spot price), Deribit (IV & options data), and Delta Exchange. The dashboard helps you decide when to sell options (short straddle/strangle strategy) by monitoring Implied Volatility (IV), Greeks, market conditions, and technical signals — all updating live.`,
+    iv: `IV (Implied Volatility) is the market's expectation of future price movement, priced into options. Higher IV = options are more expensive = better premium for sellers. Lower IV = cheaper options. The IV Grid cards show IV for each expiry, colour-coded: 🔴 Red border = IV Rising (dangerous), 🟢 Green = IV Falling (good to sell), 🟡 Yellow = Flat, ⚫ Grey = Expired.`,
+    vov: `VoV (Volatility of Volatility) measures how unstable IV itself is. If VoV is high, IV is jumping around — risky to sell options since you can't predict premium decay. Low VoV means IV is stable — safer environment for short straddles. The regime bar shows: Low/Medium/High/Extreme with a trend arrow.`,
+    decision: `The Decision Panel (top of dashboard) shows the main signal: 🔴 ALERT = IV spiking, avoid selling; 🟡 WAIT = uncertain conditions; 🟢 AVOID = IV is low/stable, favourable to sell premium; ⚪ NORMAL = baseline. Below it, the Trade Status Banner summarises: ENTER / WAIT / NO TRADE with a colour-coded verdict and reasoning.`,
+    checklist: `The Overall Master Checklist (OVCL) scores multiple conditions: IV Rank, VoV, RSI, ADX, trend direction, ATM Greeks (delta, gamma, theta, vega), time of day, and velocity. Each item gets ✅ Pass / ⚠️ Warn / ❌ Fail. The final verdict is ENTER / WAIT / AVOID with a score like "7/10".`,
+    greeks: `Greeks measure option sensitivity: Delta = sensitivity to BTC price move; Gamma = rate of change of delta; Theta = daily time decay (profit for sellers per day); Vega = sensitivity to IV change (risk for sellers when IV spikes). The ATM Live Panel shows real-time call & put Greeks at the nearest ATM strike.`,
+    optionchain: `The Option Chain section shows all strikes for a chosen expiry — each row has call bid/ask/IV/OI/volume and put bid/ask/IV/OI/volume. Max Pain shows the strike where the most options expire worthless (market makers are incentivised to pin price there at expiry). PCR (Put-Call Ratio) > 1 = bearish pressure; < 1 = bullish.`,
+    colors: `Color coding: 🔴 Red = Danger/Rising IV/Fail; 🟢 Green = Safe/Falling IV/Pass; 🟡 Yellow = Neutral/Flat/Warn; ⚫ Grey = Expired/Inactive. Border colors on IV cards: left border color = IV trend. Badge colors: red background = high risk, green = low risk, yellow = moderate.`,
+    velocity: `The Velocity Bar shows the speed of recent BTC price moves. CALM (green) = slow, stable moves. WARN (yellow) = moderate speed. ALERT (red, pulsing) = fast directional moves = dangerous for short options as delta can swing quickly.`,
+    ws: `WebSocket connections: Binance WS for BTC spot price (real-time tick), Deribit WS for IV and options data, Delta Exchange WS for additional data. The WS badge shows active connections (e.g. "3/3 WS" = all connected). If disconnected, REST API fallback fires every 60 seconds.`,
+    rsi: `RSI (Relative Strength Index) 14-period using Wilder's smoothing. >70 = overbought (possible reversal down), <30 = oversold (possible bounce). Best for short straddles: RSI between 40-60 (neutral momentum). ❌ means extreme, ✅ means neutral zone.`,
+    sessions: `Session Ranges show Asian / London / NY session high-low price bands. Price inside a range = consolidating. Price breaking a session range = directional momentum = risky for short options.`,
+    simulator: `The Trade Simulator (accessible via trade rows) lets you paper-trade a short straddle. Enter a trade at current market prices and it tracks live P&L, theta earned, vega P&L, spot move, and progress toward 50% profit target / 2× stop loss.`
+  };
+
+  /* ── simple keyword matcher for instant answers ── */
+  function localAnswer(q){
+    const lq = q.toLowerCase();
+    if(/(overview|what is|dashboard|what does|brahmastra|explain this)/.test(lq)) return KB.overview;
+    if(/(vov|volatility of vol)/.test(lq)) return KB.vov;
+    if(/(decision|trade signal|should i|enter|wait|avoid|no trade)/.test(lq)) return KB.decision;
+    if(/(checklist|ovcl|master check|score)/.test(lq)) return KB.checklist;
+    if(/(greek|delta|gamma|theta|vega)/.test(lq)) return KB.greeks;
+    if(/(option chain|chain|max pain|pcr|put.call)/.test(lq)) return KB.optionchain;
+    if(/(color|colour|red|green|badge|border)/.test(lq)) return KB.colors;
+    if(/(velocity|vel|speed|fast|slow|move)/.test(lq)) return KB.velocity;
+    if(/(websocket|ws|connection|live feed|socket)/.test(lq)) return KB.ws;
+    if(/(rsi|adx|indicator|signal card|technical)/.test(lq)) return KB.rsi;
+    if(/(session|asian|london|ny|range)/.test(lq)) return KB.sessions;
+    if(/(simulator|paper|pnl|p&l|strangle|straddle)/.test(lq)) return KB.simulator;
+    if(/(iv |implied vol|what is iv|iv mean|current iv)/.test(lq)) return KB.iv;
+    return null;
+  }
+
+  /* ── build a live-data answer by injecting snapshot into response ── */
+  function liveAnswer(q){
+    const snap = getLiveDashboardSnapshot();
+    const lq   = q.toLowerCase();
+
+    // Trade signal questions
+    if(/(signal|should i|trade|enter|wait|verdict|now)/.test(lq)){
+      const lines = snap.split('\n');
+      const sig   = lines.find(l=>l.startsWith('Status:'))  || '';
+      const det   = lines.find(l=>l.startsWith('Detail:'))  || '';
+      const verd  = lines.find(l=>l.startsWith('Verdict:')) || '';
+      const scr   = lines.find(l=>l.startsWith('Score:'))   || '';
+      const btc   = lines.find(l=>l.startsWith('BTC Spot')) || '';
+      return `📡 Live signal right now:\n\n${btc}\n${sig}\n${det}\n${verd}\n${scr}\n\n${KB.decision}`;
+    }
+
+    // IV live question
+    if(/(iv|implied vol)/.test(lq)){
+      const lines = snap.split('\n');
+      const cards = lines.find(l=>l.includes('IV ')&&l.includes('|')) || '';
+      const atm   = lines.find(l=>l.startsWith('ATM')) || '';
+      return `📊 Live IV Data:\n\n${atm}\n\nExpiry IV cards:\n${cards}\n\n${KB.iv}`;
+    }
+
+    // VoV live
+    if(/(vov|volatility of vol)/.test(lq)){
+      const lines = snap.split('\n');
+      const r1 = lines.find(l=>l.startsWith('Regime:')) || '';
+      const r2 = lines.find(l=>l.trim().length>10&&!l.startsWith('---')&&lines.indexOf(l)>lines.indexOf(r1)&&lines.indexOf(l)<lines.indexOf(r1)+3) || '';
+      return `🌊 Live VoV:\n\n${r1}\n${r2}\n\n${KB.vov}`;
+    }
+
+    // General live snapshot
+    return `📡 Live snapshot:\n\n${snap.slice(0,900)}\n\n— Ask me about any specific section for a deeper explanation!`;
+  }
+
+  /* ── main answer function ── */
+  function getAnswer(q){
+    const instant = localAnswer(q);
+    const snap    = getLiveDashboardSnapshot();
+    const hasLive = snap.includes('BTC Spot:') && !snap.includes('BTC Spot: —');
+
+    // Always try to blend live data with knowledge
+    if(/(live|current|right now|what is.*now|show me|status|snapshot)/.test(q.toLowerCase())){
+      return liveAnswer(q);
+    }
+    if(instant) return instant + (hasLive ? `\n\n📡 Live: ${snap.split('\n').slice(2,5).join(' | ')}` : '');
+    return liveAnswer(q);
+  }
+
+  /* ── UI logic ── */
+  const win   = document.getElementById('gbWin');
+  const msgs  = document.getElementById('gbMsgs');
+  const inp   = document.getElementById('gbIn');
+  const send  = document.getElementById('gbSend');
+  const fab   = document.getElementById('gbFab');
+  const close = document.getElementById('gbClose');
+
+  function addMsg(text, isUser){
+    const row = document.createElement('div');
+    row.className = 'gb-row' + (isUser ? ' gb-user' : '');
+    row.innerHTML = `<div class="gb-av2">${isUser?'👤':'🤖'}</div><div class="gb-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+    msgs.appendChild(row);
+    msgs.scrollTop = msgs.scrollHeight;
+    return row;
+  }
+
+  function addTyping(){
+    const row = document.createElement('div');
+    row.className = 'gb-row';
+    row.id = 'gbTyping';
+    row.innerHTML = `<div class="gb-av2">🤖</div><div class="gb-bubble"><div class="gb-dots"><span></span><span></span><span></span></div></div>`;
+    msgs.appendChild(row);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping(){
+    const t = document.getElementById('gbTyping');
+    if(t) t.remove();
+  }
+
+  function handleQuestion(q){
+    if(!q.trim()) return;
+    addMsg(q, true);
+    inp.value=''; send.disabled=true;
+    addTyping();
+    // Small delay to feel natural, then answer from live DOM
+    setTimeout(()=>{
+      removeTyping();
+      const ans = getAnswer(q);
+      addMsg(ans, false);
+      send.disabled = false;
+      inp.focus();
+    }, 420);
+  }
+
+  // Chips
+  document.querySelectorAll('.gb-chip').forEach(c=>{
+    c.addEventListener('click',()=>{ handleQuestion(c.dataset.q); });
+  });
+
+  // Send button & enter key
+  send.addEventListener('click',()=>handleQuestion(inp.value));
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') handleQuestion(inp.value); });
+
+  // Open/close
+  fab.addEventListener('click',()=>{
+    const open = win.style.display==='flex';
+    win.style.display = open ? 'none' : 'flex';
+    if(!open && msgs.children.length===0){
+      // Welcome message
+      setTimeout(()=>{
+        const snap = getLiveDashboardSnapshot();
+        const spot = snap.match(/BTC Spot: ([^\s|]+)/)?.[1] || '—';
+        const sig  = snap.match(/Status: (.+)/)?.[1] || '—';
+        addMsg(`👋 Hi! I'm your BRAHMASTRA Guide.\n\n📡 Right now: BTC ${spot} · Signal: ${sig}\n\nTap a chip above or ask me anything about this dashboard — IV, VoV, Greeks, the Decision Panel, Option Chain, or what any section means. I read your live data!`, false);
+      }, 80);
+    }
+  });
+  close.addEventListener('click',()=>{ win.style.display='none'; });
+})();
+</script>
 </body>
 </html>
