@@ -6122,14 +6122,23 @@ const _ws = {
   lastTick: { binance: 0, deribit: 0, delta: 0 },
 };
 
-// ── Shared WS factory with auto-reconnect ──────────────────────────
+// ── Shared WS factory with per-socket auto-reconnect (no cascade) ──
+// Stores per-socket init functions so each socket reconnects independently
+const _wsInitFns = {};
+
 function _wsOpen(key, url, onMsg, onOpen){
   if(_ws[key] && (_ws[key].readyState===0||_ws[key].readyState===1)){
     try{ _ws[key].close(); }catch(e){}
   }
   let sock;
   try{ sock = new WebSocket(url); }
-  catch(e){ console.warn('[WS] Cannot open', key, e.message); return null; }
+  catch(e){ console.warn('[WS] Cannot open', key, e.message);
+    // Schedule individual retry
+    const delay = Math.min(_ws.backoff[key]||1000, 30000);
+    _ws.backoff[key] = Math.min((delay)*2, 30000);
+    setTimeout(()=>{ try{ if(_wsInitFns[key]) _wsInitFns[key](); }catch(ex){} }, delay);
+    return null;
+  }
   sock.onopen = ()=>{
     _ws.backoff[key] = 1000; // reset back-off on success
     _ws.status[key] = true;
@@ -6145,10 +6154,11 @@ function _wsOpen(key, url, onMsg, onOpen){
   sock.onclose = (ev)=>{
     _ws.status[key] = false;
     _wsUpdateStatusDot();
-    const delay = Math.min(_ws.backoff[key], 30000);
+    const delay = Math.min(_ws.backoff[key]||1000, 30000);
     _ws.backoff[key] = Math.min(delay * 2, 30000);
-    console.log('[WS] Reconnecting', key, 'in', delay/1000+'s');
-    setTimeout(()=>_wsInitAll(), delay);
+    console.log('[WS] Reconnecting', key, 'in', delay/1000+'s (individual)');
+    // ✅ FIXED: reconnect only THIS socket, not all 3
+    setTimeout(()=>{ try{ if(_wsInitFns[key]) _wsInitFns[key](); }catch(ex){} }, delay);
   };
   _ws[key] = sock;
   return sock;
@@ -6530,15 +6540,20 @@ function _wsInitAll(){
   try{ _wsInitDeribit(); }catch(e){ console.warn('[WS] Deribit init failed:', e.message); }
   try{ _wsInitDelta();   }catch(e){ console.warn('[WS] Delta init failed:', e.message); }
 }
+// ✅ Register per-socket init fns for individual reconnects
+_wsInitFns.binance = _wsInitBinance;
+_wsInitFns.deribit = _wsInitDeribit;
+_wsInitFns.delta   = _wsInitDelta;
 
 // ── Health watchdog: restart stale connections ───────────────────────
 setInterval(()=>{
   const now = Date.now();
-  const STALE = 45000; // 45s without message = consider stale
+  const STALE = 60000; // ✅ FIXED: 60s (was 45s) — less aggressive reconnects
   ['binance','deribit','delta'].forEach(key=>{
     const ws = _ws[key];
     const stale = (now - _ws.lastTick[key]) > STALE;
-    if(ws && ws.readyState === 1 && stale && _ws.lastTick[key] > 0){
+    // ✅ FIXED: only reconnect if socket is actually open but stale (not during reconnect/boot)
+    if(ws && ws.readyState === 1 && stale && _ws.lastTick[key] > 0 && (now - _ws.lastTick[key]) < 300000){
       console.warn('[WS] Stale feed detected for', key, '— forcing reconnect');
       try{ ws.close(); }catch(e){}
     }
@@ -6546,7 +6561,7 @@ setInterval(()=>{
     if(_ws.lastTick[key] === 0) _ws.lastTick[key] = now;
   });
   _wsUpdateStatusDot();
-}, 15000);
+}, 20000); // ✅ FIXED: check every 20s instead of 15s
 
 // ── Launch immediately ───────────────────────────────────────────────
 _wsInitAll();
@@ -8125,14 +8140,19 @@ async function _fetchDeltaATMTickers(exLabel, atmStrike, spot){
 }
 
 let _atmLiveFetching = false; // guard against concurrent fetches getting stuck
+let _atmLiveFetchStarted = 0; // ✅ FIXED: timestamp when fetch started
 
 async function fetchATMLiveData(force=false){
   const now = Date.now();
   if(!force && now - atmLive.lastFetch < 8000){ updateATMLivePanel(); return; }
-  // Guard: if a fetch is already running >12s, reset the lock (stuck prevention)
-  if(_atmLiveFetching && now - atmLive.lastFetch < 12000) return;
-  if(_atmLiveFetching && now - atmLive.lastFetch >= 12000){ _atmLiveFetching = false; }
+  // ✅ FIXED: Guard: if a fetch is already running >10s, reset the lock (stuck prevention, was 12s)
+  if(_atmLiveFetching && (now - _atmLiveFetchStarted) < 10000) return;
+  if(_atmLiveFetching && (now - _atmLiveFetchStarted) >= 10000){
+    console.warn('[ATM] Force-releasing stale _atmLiveFetching lock');
+    _atmLiveFetching = false;
+  }
   _atmLiveFetching = true;
+  _atmLiveFetchStarted = now;
   atmLive.lastFetch = now;
 
   // Always ensure a valid selectedIdx
@@ -12855,14 +12875,21 @@ function buildTradeChecklist(){
 }
 
 let _fetchAllRunning = false;
+let _fetchAllStarted = 0; // ✅ FIXED: track when fetch started to detect deadlocks
 
 // Auto-fetch interval constant (must be declared before use)
 const AUTO_FETCH_INTERVAL = 15000;
 let _tickerNextFetchAt = Date.now() + 3000; // First fetch fires at ~3s on boot
 
 async function fetchAllNow(){
-  if(_fetchAllRunning) return;
+  // ✅ FIXED: hard deadlock guard — if lock held >25s, force-release it
+  if(_fetchAllRunning && (Date.now() - _fetchAllStarted) < 25000) return;
+  if(_fetchAllRunning && (Date.now() - _fetchAllStarted) >= 25000){
+    console.warn('[BRAHMASTRA] Force-releasing stale fetchAllNow lock');
+    _fetchAllRunning = false;
+  }
   _fetchAllRunning = true;
+  _fetchAllStarted = Date.now();
   const btn = document.getElementById('fetchAllBtn');
   const status = document.getElementById('fetchAllStatus');
   const cdEl = document.getElementById('fetchCountdown');
@@ -12870,20 +12897,15 @@ async function fetchAllNow(){
   if(cdEl){ cdEl.textContent = '…'; cdEl.style.color = '#f59e0b'; }
 
   try {
-    const steps = [
-      ['BTC Spot + Mark Price', ()=>fetchDeltaSpot().catch(()=>{})],
-      ['DVOL Index (Deribit)', ()=>fetchLiveDVOL().catch(()=>{})],
-      ['ATM IV — All Expiries (Delta/Deribit)', ()=>fetchDeltaLiveIV().catch(()=>{})],
-      ['Open Interest + PCR (Deribit)', ()=>fetchLiveOI().catch(()=>{})],
-      ['Market Expiries (Delta Exchange)', ()=>fetchDeltaExpiries().catch(()=>{})],
-      ['ATM Live Panel (Delta Exchange)', ()=>fetchATMLiveData(true).catch(()=>{})],
-
-    ];
-
-    for(const [label, fn] of steps){
-      if(status) status.textContent = `⬇️ Fetching: ${label}…`;
-      await fn();
-    }
+    // ✅ FIXED: run ALL fetches in parallel — no more sequential blocking
+    await Promise.allSettled([
+      fetchDeltaSpot().catch(()=>{}),
+      fetchLiveDVOL().catch(()=>{}),
+      fetchDeltaLiveIV().catch(()=>{}),
+      fetchLiveOI().catch(()=>{}),
+      fetchDeltaExpiries().catch(()=>{}),
+      fetchATMLiveData(true).catch(()=>{}),
+    ]);
 
     // Update all UI (each wrapped in try-catch so one failure doesn't block the rest)
     try{ fullUpdate(); }catch(e){ console.warn('[fetchAllNow] fullUpdate:', e); }
