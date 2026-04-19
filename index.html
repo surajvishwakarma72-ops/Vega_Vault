@@ -2289,12 +2289,12 @@ function _ciComputeADX(prices, period=14){
 
     // ── 3. VoV ──
     if(vov !== null){
-      const g = vov < 14 ? 'green' : vov < 20 ? 'yellow' : 'red';
+      const g = vov < 25 ? 'green' : vov < 45 ? 'yellow' : 'red'; // BTC-calibrated
       score(g);
       setTile('fnsConfVoV','fnsConfVoVVal',null,'fnsConfVoVStatus',
         vov.toFixed(1)+'%',
         null, g,
-        vov<14?'✓ STABLE': vov<20?'⚠ RISING':'✗ UNSTABLE'
+        vov<25?'✓ STABLE': vov<45?'⚠ ELEVATED':'✗ SPIKE — SKIP'
       );
     } else {
       setTile('fnsConfVoV','fnsConfVoVVal',null,'fnsConfVoVStatus','—',null,'grey','WAIT');
@@ -2748,7 +2748,7 @@ function _ciComputeADX(prices, period=14){
     <div class="usp-metric" style="--usp-m-col:#7c3aed"><div class="usp-m-lbl">ATM IV</div><div class="usp-m-val" id="uspMIV">—</div><div class="usp-m-sub">Near expiry</div></div>
     <div class="usp-metric" style="--usp-m-col:#06b6d4"><div class="usp-m-lbl">HV30</div><div class="usp-m-val" id="uspMHV">—</div><div class="usp-m-sub">Realised</div></div>
     <div class="usp-metric" style="--usp-m-col:#10b981"><div class="usp-m-lbl">IV−HV Edge</div><div class="usp-m-val" id="uspMEdge">—</div><div class="usp-m-sub">Sell if &gt;5%</div></div>
-    <div class="usp-metric" style="--usp-m-col:#a855f7"><div class="usp-m-lbl">VoV</div><div class="usp-m-val" id="uspMVoV">—</div><div class="usp-m-sub">Need &lt;14%</div></div>
+    <div class="usp-metric" style="--usp-m-col:#a855f7"><div class="usp-m-lbl">VoV</div><div class="usp-m-val" id="uspMVoV">—</div><div class="usp-m-sub" id="uspMVoVSub">BTC: &lt;35%=OK</div></div>
     <div class="usp-metric" style="--usp-m-col:#f59e0b"><div class="usp-m-lbl">DVOL</div><div class="usp-m-val" id="uspMDVOL">—</div><div class="usp-m-sub">Ideal 45–70</div></div>
     <div class="usp-metric" style="--usp-m-col:#3b82f6"><div class="usp-m-lbl">IVR</div><div class="usp-m-val" id="uspMIVR">—</div><div class="usp-m-sub">Sell if &gt;60</div></div>
     <div class="usp-metric" style="--usp-m-col:#22c55e"><div class="usp-m-lbl">Theta/Day</div><div class="usp-m-val" id="uspMTheta">—</div><div class="usp-m-sub">ATM straddle</div></div>
@@ -2927,16 +2927,16 @@ function uspUpdate(){
       },
       // GATE 3 — MTT: VoV Regime
       {
-        name:'VoV Regime <14%',
-        val:`${vov.toFixed(1)}% — ${vov<8?'CALM':vov<14?'NORMAL':vov<20?'ELEVATED':'SPIKE'}`,
-        pass:vov<14, warn:vov>=14&&vov<20,
+        name:'VoV Regime (BTC: <35% = OK)',
+        val:`${vov.toFixed(1)}% — ${vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':'SPIKE'}`,
+        pass:vov<35, warn:vov>=35&&vov<50,
         note:'Below 14% = theta dominates. Above 20% = vega overwhelms theta.',
         source:'MTT Conditions',
         icon:vov<14?'✅':vov<20?'⚠️':'❌'
       },
       // GATE 4 — MTT: VoV Trend
       {
-        name:'VoV Trend Stable',
+        name:'VoV Trend (Falling = Entry OK)',
         val:`${vovSlope>0.3?'↑ Rising':vovSlope<-0.3?'↓ Falling':'→ Flat'} (slope ${vovSlope.toFixed(2)}/bar)`,
         pass:vovTrendOk, warn:vovSlope>0.3&&vov<16,
         note:'Rising VoV = IV instability increasing. Pause entries.',
@@ -3119,7 +3119,7 @@ function uspUpdate(){
         const iv=(ivArr.at(-1)||ex.base);
         const str=_uspStraddle(iv,ex.dte,spot)*2;
         const th=_uspTheta(iv,ex.dte,spot);
-        const isBest=!ex.note&&ex.dte>=7&&ex.dte<=21&&ivHVEdge>=5&&vov<14;
+        const isBest=!ex.note&&ex.dte>=7&&ex.dte<=21&&ivHVEdge>=5&&vov<45;
         const isOk=!isBest&&ex.dte<=45&&!ex.note;
         const cls=isBest?'best':isOk?'ok':'skip';
         tiles.push(`<div class="usp-expiry-tile ${cls}">
@@ -3138,7 +3138,7 @@ function uspUpdate(){
       const chips=[
         {label:'IV/HV Analytics',ok:ivHVEdge>=5,warn:ivHVEdge>=2},
         {label:'Bennett Rules '+bennettScore+'/12',ok:bennettScore>=8,warn:bennettScore>=6},
-        {label:'VoV '+vov.toFixed(1)+'%',ok:vov<14,warn:vov<20},
+        {label:'VoV '+vov.toFixed(1)+'%',ok:vov<35,warn:vov<50},
         {label:'Big Move '+daysSince+'d ago',ok:daysSince>=7,warn:daysSince>=4},
         {label:'Term Structure',ok:tsSlope>=0,warn:tsSlope>=-2},
         {label:'News Risk',ok:newsRiskOk,warn:false},
@@ -3181,7 +3181,7 @@ function _uspBestExpiry(){
     let score=0;
     if(ex.dte>=7&&ex.dte<=21) score+=3;
     if(iv-hv30>=5) score+=3;
-    if(vov<14) score+=2;
+    if(vov<35) score+=2; // BTC: <35% = calm
     if(score>best.score) best={label:ex.label,dte:ex.dte,score};
   });
   return best;
@@ -3343,7 +3343,7 @@ setTimeout(()=>{
     <div class="vap-regime-pill vap-regime-rv">⬤ RV5: <span id="vapRV5Pill">—</span>%</div>
     <div class="vap-regime-pill vap-regime-hv">⬤ HV30: <span id="vapHV30Pill">—</span>%</div>
     <div class="vap-regime-pill vap-regime-edge">⬤ IV−HV Edge: <span id="vapEdgePill">—</span>%</div>
-    <div class="vap-regime-pill vap-regime-warn" id="vapVovRegimePill">VoV: <span id="vapVovVal">—</span>%</div>
+    <div class="vap-regime-pill vap-regime-warn" id="vapVovRegimePill">🌊 VoV: <span id="vapVovVal">—</span>% · <span id="vapVovRegimeLabel" style="font-weight:800">—</span></div>
   </div>
 
   <!-- ── Big Metrics ── -->
@@ -3760,10 +3760,10 @@ function vapUpdateVRPChecks(iv, rv5, hv30, vov, ivr){
       note:'Sinclair: sell when IV rank elevated. >60 = clear edge.'
     },
     {
-      label:'VoV < 20% (Stable IV)',
+      label:'VoV < 45% for BTC (Stable IV)',
       val:vovNum.toFixed(1)+'%',
       pass: vovNum<20, warn: vovNum>=20 && vovNum<30,
-      note:'Volatile IV destroys straddle edge. Sinclair: VoV<20 required.'
+      note:'BTC-calibrated: VoV<25% = ideal, <45% = acceptable, >50% = skip short vol.'
     },
     {
       label:'IV < 52W High × 90%',
@@ -3938,7 +3938,13 @@ function vapUpdate(){
     setpill('vapEdgePill', (atm_iv-hv30).toFixed(1));
     setpill('vapVovVal',   vov.toFixed(1));
     const vovPill=document.getElementById('vapVovRegimePill');
-    if(vovPill){ vovPill.className='vap-regime-pill '+(vov>=20?'vap-regime-warn':'vap-regime-edge'); }
+    if(vovPill){
+      const vovBTClabel = vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':vov<65?'HIGH':'SPIKE';
+      const vovBTCcls   = vov<35?'vap-regime-edge':vov<50?'vap-regime-warn':'vap-regime-sell';
+      vovPill.className = 'vap-regime-pill '+vovBTCcls;
+      const lblEl = document.getElementById('vapVovRegimeLabel');
+      if(lblEl){ lblEl.textContent=vovBTClabel; lblEl.style.color=vov<25?'#16a34a':vov<35?'#22c55e':vov<50?'#d97706':vov<65?'#f97316':'#dc2626'; }
+    }
 
     // Z-Score visual bar
     const zMarker=document.getElementById('vapZMarker');
@@ -3974,12 +3980,12 @@ function vapUpdate(){
     if(edgeBox&&edgeIcon&&edgeTitle&&edgeDesc){
       const ivHVEdge=atm_iv-hv30;
       let cls,icon,title,desc;
-      if(ivHVEdge>=15 && ivrRaw>=60 && vov<20){
+      if(ivHVEdge>=15 && ivrRaw>=60 && vov<35){
         cls='vap-edge-rich'; icon='🟢'; title='PREMIUM RICH — SELL STRADDLE';
         desc=`IV is ${ivHVEdge.toFixed(1)}% above HV30 — strong statistical edge. IVR ${ivrRaw} (elevated). VoV ${vov.toFixed(1)}% (stable). Per Jeff Augen: this is the target zone for short straddle entry. The market is pricing fear above realized volatility.`;
       } else if(ivHVEdge>=8 && ivrRaw>=40){
         cls='vap-edge-fair'; icon='🟡'; title='PREMIUM FAIR — MONITOR, PARTIAL SIZE';
-        desc=`IV is ${ivHVEdge.toFixed(1)}% above HV30 — moderate edge. Per Sinclair: edge exists but not peak conviction level. Consider reduced size or wider strangle strikes. IVR ${ivrRaw}.${vov>=20?' ⚠ VoV elevated — reduce size.':''}`;
+        desc=`IV is ${ivHVEdge.toFixed(1)}% above HV30 — moderate edge. Per Sinclair: edge exists but not peak conviction level. Consider reduced size or wider strangle strikes. IVR ${ivrRaw}.${vov>=45?' ⚠ VoV elevated for BTC — reduce size.':vov>=35?' ⚠ VoV rising — monitor closely.':''}`;
       } else {
         cls='vap-edge-poor'; icon='🔴'; title='PREMIUM POOR — WAIT OR SKIP';
         desc=`IV−HV gap only ${ivHVEdge.toFixed(1)}%. ${ivHVEdge<0?'IV BELOW HV — seller has NEGATIVE edge!':'Insufficient edge margin per Augen/Sinclair framework.'} IVR ${ivrRaw}. Do not sell straddle until IV premium expands above 10%.`;
@@ -3995,7 +4001,7 @@ function vapUpdate(){
           `<span class="vap-edge-stat" style="color:#06b6d4">HV30 ${hv30.toFixed(1)}%</span>`+
           `<span class="vap-edge-stat" style="color:${vrp>=5?'#10b981':'#ef4444'}">VRP ${vrp.toFixed(1)}%</span>`+
           `<span class="vap-edge-stat" style="color:${ivrRaw>=60?'#10b981':'#f59e0b'}">IVR ${ivrRaw}</span>`+
-          `<span class="vap-edge-stat" style="color:${vov<20?'#10b981':'#ef4444'}">VoV ${vov.toFixed(1)}%</span>`;
+          `<span class="vap-edge-stat" style="color:${vov<25?'#10b981':vov<35?'#22c55e':vov<50?'#f59e0b':vov<65?'#f97316':'#ef4444'}">🌊 VoV ${vov.toFixed(1)}% ${vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':vov<65?'HIGH':'SPIKE'}</span>`;
       }
     }
 
@@ -5358,11 +5364,50 @@ setTimeout(()=>{
   <div class="metric"><label>Mark Price</label><span id="markPrice">—</span><div class="metric-sub" id="markSub">Delta mark</div></div>
   <div class="metric"><label>DVOL Index</label><span id="dvolVal">—</span><div class="metric-sub">Deribit BTC DVOL</div></div>
   <div class="metric"><label>30D HV</label><span id="hv30">—</span><div class="metric-sub">Realised vol</div></div>
-  <div class="metric"><label>VoV (7D)</label><span id="vovVal">—</span><div class="metric-sub" id="vovSub">—</div></div>
-  <div class="metric" style="min-width:220px;flex:2">
-    <label>IV Trend + VoV Narration</label>
-    <span id="ivRiseNarration" class="iv-rise-narration ivn-flat" style="display:block;margin-top:3px">Loading IV trend…</span>
-    <span id="vovNarration" class="vov-narration vovn-calm" style="display:block;margin-top:3px">Loading VoV…</span>
+  <!-- VoV Seller Panel -->
+  <div class="metric" style="min-width:300px;flex:3;padding:0;background:transparent;border:none">
+    <div id="dashVoVPanel" style="border-radius:10px;border:1px solid var(--color-border-tertiary);overflow:hidden;background:var(--color-background-primary)">
+      <!-- Header row -->
+      <div id="dashVoVHeader" style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--color-background-secondary);border-bottom:1px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px">🌊</span>
+          <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-primary)">VoV — Seller Regime</span>
+          <span id="dashVoVRegimePill" class="vov-regime-pill" style="background:rgba(107,114,128,.1);color:#6b7280;border-color:rgba(107,114,128,.2)">Loading…</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="dashVoVTrend" class="vov-regime-trend" style="font-size:11px">—</span>
+          <span id="dashVoVVal" class="vov-regime-val" style="font-size:15px;font-weight:900;font-variant-numeric:tabular-nums">—</span>
+        </div>
+      </div>
+      <!-- Seller action bar -->
+      <div style="padding:6px 12px;border-bottom:1px solid var(--color-border-tertiary)">
+        <div id="dashVoVAction" style="font-size:10px;font-weight:700;color:var(--color-text-primary);line-height:1.4">—</div>
+        <div id="dashVoVDesc" class="vov-regime-desc" style="margin-top:2px">—</div>
+      </div>
+      <!-- 3-metric row -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--color-border-tertiary)">
+        <div style="flex:1;padding:6px 10px;text-align:center;border-right:1px solid var(--color-border-tertiary)">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Best Expiry</div>
+          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVExpiry">—</div>
+        </div>
+        <div style="flex:1;padding:6px 10px;text-align:center;border-right:1px solid var(--color-border-tertiary)">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Strike Width</div>
+          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVWidth">—</div>
+        </div>
+        <div style="flex:1;padding:6px 10px;text-align:center">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Size</div>
+          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVSize">—</div>
+        </div>
+      </div>
+      <!-- Narration row -->
+      <div style="padding:5px 12px">
+        <span id="ivRiseNarration" class="iv-rise-narration ivn-flat" style="display:block;font-size:9px;margin-bottom:3px">Loading IV trend…</span>
+        <span id="vovNarration" class="vov-narration vovn-calm" style="display:block;font-size:9px">Loading VoV…</span>
+      </div>
+    </div>
+    <!-- Keep hidden legacy elements for compatibility -->
+    <span id="vovVal" style="display:none">—</span>
+    <div id="vovSub" style="display:none">—</div>
   </div>
   <div class="metric"><label>Front−Back Skew</label><span id="ivSkew">—</span><div class="metric-sub" id="ivSkewSub">Loading expiries…</div></div>
 </div>
@@ -5433,7 +5478,7 @@ setTimeout(()=>{
 
   <div class="greeks-header">
     <div>
-      <div class="greeks-title">📐 ATM Options Greeks — Live Session (Δ · Γ · Θ · V)</div>
+      <div class="greeks-title">📐 ATM Greeks — Short Straddle Seller View (Δ · Γ · Θ · V)</div>
       <!-- Source selector toggle buttons -->
       <div class="gsrc-row">
         <span style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Source:</span>
@@ -5454,55 +5499,75 @@ setTimeout(()=>{
       <span class="atm-pill">ATM: <span id="atmStrikeDisplay">—</span></span>
       <label style="font-size:11px;color:var(--color-text-secondary)">Type:</label>
       <select id="greeksType" style="font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary)" onchange="onGreeksExpiryChange()">
+        <option value="straddle" selected>STRADDLE</option>
         <option value="call">CALL</option>
         <option value="put">PUT</option>
-        <option value="straddle">STRADDLE</option>
       </select>
     </div>
+  </div>
+
+  <!-- Seller Verdict Banner -->
+  <div id="greeksSellerVerdict" style="margin:8px 0;padding:10px 14px;border-radius:9px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px" id="gsvIcon">⏳</span>
+      <div>
+        <div style="font-size:11px;font-weight:900;letter-spacing:.03em" id="gsvTitle">LOADING SELLER METRICS…</div>
+        <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px" id="gsvSub">Reading theta, gamma, vega, theta/vega ratio</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="gsvPills"></div>
   </div>
 
   <!-- 4 Big Greek Tiles with Sparklines -->
   <div class="greeks-tiles">
 
-    <div class="greek-tile gt-delta">
-      <div class="gt-greek-sym">Δ DELTA</div>
-      <div class="gt-val" id="gvDelta">—</div>
-      <div class="gt-sub" id="gsDelta">ATM Call ≈ 0.50</div>
-      <div class="gt-chg neu" id="gcDelta">vs open: —</div>
-      <div class="gt-spark"><canvas id="spkDelta"></canvas></div>
-    </div>
-
-    <div class="greek-tile gt-gamma">
-      <div class="gt-greek-sym">Γ GAMMA</div>
-      <div class="gt-val" id="gvGamma">—</div>
-      <div class="gt-sub" id="gsGamma">$ per $1 spot move (0.01 lot)</div>
-      <div class="gt-chg neu" id="gcGamma">vs open: —</div>
-      <div class="gt-spark"><canvas id="spkGamma"></canvas></div>
-    </div>
-
-    <div class="greek-tile gt-theta">
-      <div class="gt-greek-sym">Θ THETA</div>
-      <div class="gt-val" id="gvTheta">—</div>
-      <div class="gt-sub" id="gsTheta">$ decay per day</div>
+    <!-- THETA — most important for seller, shown first -->
+    <div class="greek-tile gt-theta" style="border-top:3px solid #22c55e">
+      <div class="gt-greek-sym" style="color:#22c55e">Θ THETA — YOUR INCOME</div>
+      <div class="gt-val" id="gvTheta" style="color:#22c55e">—</div>
+      <div class="gt-sub" id="gsTheta">$ earned per day (seller keeps)</div>
       <div class="gt-chg neu" id="gcTheta">vs open: —</div>
+      <div style="font-size:8px;margin-top:3px;padding:2px 6px;border-radius:4px;background:rgba(34,197,94,.1);color:#16a34a;display:inline-block">✓ MORE NEGATIVE = BETTER FOR YOU</div>
       <div class="gt-spark"><canvas id="spkTheta"></canvas></div>
     </div>
 
-    <div class="greek-tile gt-vega">
-      <div class="gt-greek-sym">V VEGA</div>
-      <div class="gt-val" id="gvVega">—</div>
-      <div class="gt-sub" id="gsVega">$ per 1% IV move</div>
+    <!-- GAMMA — seller's enemy -->
+    <div class="greek-tile gt-gamma" style="border-top:3px solid #ef4444">
+      <div class="gt-greek-sym" style="color:#ef4444">Γ GAMMA — YOUR ENEMY</div>
+      <div class="gt-val" id="gvGamma" style="color:#ef4444">—</div>
+      <div class="gt-sub" id="gsGamma">$ loss per $1 BTC move (0.01 lot)</div>
+      <div class="gt-chg neu" id="gcGamma">vs open: —</div>
+      <div style="font-size:8px;margin-top:3px;padding:2px 6px;border-radius:4px;background:rgba(239,68,68,.1);color:#dc2626;display:inline-block">✗ RISING GAMMA = DANGER FOR SELLER</div>
+      <div class="gt-spark"><canvas id="spkGamma"></canvas></div>
+    </div>
+
+    <!-- VEGA — IV sensitivity -->
+    <div class="greek-tile gt-vega" style="border-top:3px solid #f59e0b">
+      <div class="gt-greek-sym" style="color:#f59e0b">V VEGA — IV RISK</div>
+      <div class="gt-val" id="gvVega" style="color:#f59e0b">—</div>
+      <div class="gt-sub" id="gsVega">$ loss per 1% IV spike</div>
       <div class="gt-chg neu" id="gcVega">vs open: —</div>
+      <div style="font-size:8px;margin-top:3px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.1);color:#d97706;display:inline-block">✗ IV SPIKE HURTS SHORT STRADDLE</div>
       <div class="gt-spark"><canvas id="spkVega"></canvas></div>
+    </div>
+
+    <!-- DELTA — directional exposure -->
+    <div class="greek-tile gt-delta" style="border-top:3px solid #3b82f6">
+      <div class="gt-greek-sym" style="color:#3b82f6">Δ DELTA — DIRECTIONAL RISK</div>
+      <div class="gt-val" id="gvDelta" style="color:#3b82f6">—</div>
+      <div class="gt-sub" id="gsDelta">Net Δ ≈ 0 = perfectly neutral</div>
+      <div class="gt-chg neu" id="gcDelta">vs open: —</div>
+      <div style="font-size:8px;margin-top:3px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,.1);color:#2563eb;display:inline-block">REBALANCE IF |Δ| REACHES 0.22</div>
+      <div class="gt-spark"><canvas id="spkDelta"></canvas></div>
     </div>
 
   </div>
 
   <!-- View Tabs -->
   <div class="greeks-view-tabs">
-    <button class="gvt active" id="gvtChart"  onclick="switchGreeksView('chart')">📈 Session History Chart</button>
-    <button class="gvt"        id="gvtTable"  onclick="switchGreeksView('table')">📋 All Expiries Table</button>
-    <button class="gvt"        id="gvtStrangle" onclick="switchGreeksView('strangle')">⚡ Straddle Net Greeks</button>
+    <button class="gvt active" id="gvtChart"    onclick="switchGreeksView('chart')">📈 Session History</button>
+    <button class="gvt"        id="gvtTable"    onclick="switchGreeksView('table')">📋 All Expiries — Seller Scan</button>
+    <button class="gvt"        id="gvtStrangle" onclick="switchGreeksView('strangle')">⚡ Short Straddle P&amp;L Greeks</button>
   </div>
 
   <!-- Session History Chart -->
@@ -5526,12 +5591,12 @@ setTimeout(()=>{
             <th>DTE</th>
             <th>ATM Strike</th>
             <th>IV %</th>
-            <th class="tbl-delta">Δ Delta</th>
-            <th class="tbl-gamma">Γ Gamma</th>
-            <th class="tbl-theta">Θ Theta $</th>
-            <th class="tbl-vega">V Vega $</th>
-            <th>Charm</th>
-            <th style="color:#f59e0b">ATM Greeks ↑↓</th>
+            <th class="tbl-theta" style="color:#22c55e">Θ Theta $ ↑ INCOME</th>
+            <th class="tbl-gamma" style="color:#ef4444">Γ Gamma $ ↓ ENEMY</th>
+            <th class="tbl-vega"  style="color:#f59e0b">V Vega $ ↓ IV RISK</th>
+            <th class="tbl-delta" style="color:#3b82f6">Δ Delta (≈0 = neutral)</th>
+            <th style="color:#a855f7">Θ/V Ratio</th>
+            <th style="color:#f59e0b">Seller Signal</th>
             <th>Source</th>
           </tr>
         </thead>
@@ -5543,7 +5608,7 @@ setTimeout(()=>{
   <!-- Straddle Net Greeks -->
   <div id="greeksStrangleView" style="display:none">
     <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:8px">
-      Net Greeks for ATM Short Straddle (short Call + short Put) at selected expiry — from session open to now
+      Short Straddle P&L Greeks — Short Call + Short Put at ATM. <b style="color:#22c55e">Theta = your daily income</b> · <b style="color:#ef4444">Gamma = your enemy</b> · <b style="color:#f59e0b">Vega = IV spike risk</b>
     </div>
     <div class="greeks-chart-wrap" style="height:200px"><canvas id="greeksStradleChart"></canvas></div>
     <div id="stradleInfo" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
@@ -5735,9 +5800,14 @@ setTimeout(()=>{
      ═══════════════════════════════════════════════════════════ -->
 <div id="marketDriverWindow" style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px 14px;margin-bottom:10px">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-primary)">⚙️ Market Driver — IV-Driven vs Gamma-Driven (All Expiries)</span>
-    <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:#0f3d2a;color:#6ee7b7" id="mdTs">● Live</span>
-    <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:#1e3a5f;color:#93c5fd;margin-left:4px" id="mdDataSrc">⬤ Connecting…</span>
+    <div>
+      <span style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-primary)">⚡ Seller Regime Scanner — When &amp; What to Sell</span>
+      <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px">IV-Driven = sell premium · Gamma-Driven = wait · Shows best expiry per regime</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:#0f3d2a;color:#6ee7b7" id="mdTs">● Live</span>
+      <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:#1e3a5f;color:#93c5fd" id="mdDataSrc">⬤ Connecting…</span>
+    </div>
   </div>
 
   <!-- Master Driver Banner -->
@@ -5755,15 +5825,15 @@ setTimeout(()=>{
 
   <!-- IV-Driven vs Gamma-Driven Detail Charts -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px" class="driver-chart-grid">
-    <div style="background:var(--color-background-secondary);border-radius:9px;padding:8px;border-left:3px solid #f59e0b">
-      <div style="font-size:10px;font-weight:700;color:#f59e0b;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">🌡 IV-Driven Regime</div>
-      <div style="font-size:9px;color:var(--color-text-secondary);margin-bottom:6px">DVOL &amp; VoV drive straddle price movement</div>
+    <div style="background:var(--color-background-secondary);border-radius:9px;padding:8px;border-left:3px solid #22c55e">
+      <div style="font-size:10px;font-weight:700;color:#16a34a;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">✅ IV-Driven = SELLER FAVOURED</div>
+      <div style="font-size:9px;color:var(--color-text-secondary);margin-bottom:6px">When IV > HV across expiries → theta income exceeds gamma risk → sell straddle/strangle</div>
       <div style="position:relative;height:90px"><canvas id="mdIVDrivenChart"></canvas></div>
       <div id="mdIVDrivenConclusion" style="font-size:9px;font-weight:700;margin-top:5px;padding:3px 7px;border-radius:4px;background:rgba(34,197,94,0.12);color:#15803d">Loading…</div>
     </div>
     <div style="background:var(--color-background-secondary);border-radius:9px;padding:8px;border-left:3px solid #ef4444">
-      <div style="font-size:10px;font-weight:700;color:#ef4444;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">⚡ Gamma-Driven Regime</div>
-      <div style="font-size:9px;color:var(--color-text-secondary);margin-bottom:6px">Gamma &amp; DTE drive straddle price movement</div>
+      <div style="font-size:10px;font-weight:700;color:#dc2626;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">🚫 Gamma-Driven = SELLER DANGER ZONE</div>
+      <div style="font-size:9px;color:var(--color-text-secondary);margin-bottom:6px">VoV + spot velocity overwhelm theta → straddle losses random → wait or use far DTE</div>
       <div style="position:relative;height:90px"><canvas id="mdGammaDrivenChart"></canvas></div>
       <div id="mdGammaDrivenConclusion" style="font-size:9px;font-weight:700;margin-top:5px;padding:3px 7px;border-radius:4px;background:rgba(239,68,68,0.12);color:#b91c1c">Loading…</div>
     </div>
@@ -5771,7 +5841,7 @@ setTimeout(()=>{
 
   <!-- Conclusion Box -->
   <div id="mdConclusion" style="padding:10px 14px;border-radius:9px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary)">
-    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:4px">📋 CONCLUSION — Sell Straddle Suitability by Driver</div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:4px">🎯 SELLER VERDICT — What to do RIGHT NOW</div>
     <div style="font-size:12px;font-weight:700" id="mdConclusionText">Evaluating market driver regime…</div>
     <div style="font-size:10px;margin-top:4px;color:var(--color-text-secondary)" id="mdConclusionSub"></div>
   </div>
@@ -6788,21 +6858,83 @@ function updateMetrics(){
   if(hv30El) hv30El.textContent = state.hv30.toFixed(1)+'%';
 
   const vov  = state.vovHistory.at(-1) ?? 8;
-  const vEl  = document.getElementById('vovVal');
-  if(vEl){
-    vEl.textContent  = vov.toFixed(1)+'%';
-    vEl.style.color  = vov>20?'#ef4444':vov>14?'#eab308':'var(--color-text-primary)';
-  }
-  // VoV sub simplified
-  const vovSubEl = document.getElementById('vovSub');
-  if(vovSubEl) vovSubEl.textContent = vov>20?'SPIKE':vov>14?'Elevated':'Normal';
+  const vovH2 = state.vovHistory;
+  const vov3Trend = vovH2.length>=3 ? vovH2.at(-1)-vovH2.at(-3) : 0;
+  const vov10avg  = vovH2.length>=5 ? vovH2.slice(-10).reduce((a,b)=>a+b,0)/Math.min(vovH2.length,10) : vov;
 
-  // VoV narration for short strangle
+  // Legacy elements (hidden but kept for compatibility)
+  const vEl = document.getElementById('vovVal');
+  if(vEl) vEl.textContent = vov.toFixed(1)+'%';
+  const vovSubEl = document.getElementById('vovSub');
+  if(vovSubEl) vovSubEl.textContent = vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':'SPIKE';
+
+  // ── BTC-calibrated VoV regime ──
+  const vovBTCRegime = vov<25?{
+    label:'CALM', col:'#16a34a', bg:'rgba(22,163,74,.08)', bd:'rgba(22,163,74,.3)',
+    action:'✅ IDEAL SELLER CONDITIONS — Enter any strategy confidently',
+    desc:'VoV below 25% is rare for BTC. Theta dominates. All 4 strategies active.',
+    expiry:'7 DTE Weekly', width:'±2% session H/L', size:'Full size', delta:'0.10Δ'
+  }:vov<35?{
+    label:'NORMAL', col:'#22c55e', bg:'rgba(34,197,94,.06)', bd:'rgba(34,197,94,.25)',
+    action:'✅ GOOD CONDITIONS — Standard entries on all strategies',
+    desc:'Normal BTC VoV range. Theta income reliable. S1+S2+S3 all active.',
+    expiry:'18 DTE', width:'±3.5% session H/L', size:'Full size', delta:'0.10-0.12Δ'
+  }:vov<50?{
+    label:'ELEVATED', col:'#f59e0b', bg:'rgba(245,158,11,.07)', bd:'rgba(245,158,11,.3)',
+    action:`${vov3Trend<-0.5?'⚠️ ELEVATED but FALLING — OK to enter with wider strikes':'⚠️ ELEVATED & RISING — Wait for VoV to stabilise'}`,
+    desc:`VoV ${vov.toFixed(1)}% vs 10-bar avg ${vov10avg.toFixed(1)}%. ${vov3Trend<-0.5?'Regime stabilising — theta still works.':'Regime heating up — vega may overwhelm theta soon.'}`,
+    expiry:'18 DTE (wider)', width:'±5%', size:'75% size', delta:'0.08-0.10Δ'
+  }:vov<65?{
+    label:'HIGH', col:'#f97316', bg:'rgba(249,115,22,.08)', bd:'rgba(249,115,22,.3)',
+    action:'🔶 HIGH VoV — S3 Monthly 45-60DTE ONLY. Skip S1 weekly.',
+    desc:`VoV ${vov.toFixed(1)}%. IV itself unpredictable. Only wide far-dated strangles justified. ${vov3Trend<0?'Falling — watch for re-entry signal below 50%.':'Still rising — wait.'}`,
+    expiry:'45-60 DTE only', width:'±10-12%', size:'50% size', delta:'0.12-0.15Δ'
+  }:{
+    label:'SPIKE', col:'#ef4444', bg:'rgba(239,68,68,.08)', bd:'rgba(239,68,68,.35)',
+    action:'🚫 VoV SPIKE >65% — SKIP ALL short vol strategies',
+    desc:`VoV ${vov.toFixed(1)}% = IV chaotic on BTC. Vega overwhelms theta on any DTE. Wait for VoV < 50% before re-entry.`,
+    expiry:'SKIP', width:'N/A', size:'No trade', delta:'—'
+  };
+
+  // Update regime pill
+  const pill = document.getElementById('dashVoVRegimePill');
+  if(pill){ pill.textContent=vovBTCRegime.label; pill.style.cssText=`font-size:10px;font-weight:700;padding:2px 9px;border-radius:5px;border:0.5px solid;background:${vovBTCRegime.bg};color:${vovBTCRegime.col};border-color:${vovBTCRegime.bd}`; }
+
+  // Trend arrow
+  const trendEl = document.getElementById('dashVoVTrend');
+  if(trendEl){ trendEl.textContent=vov3Trend>0.5?'↑ Rising':vov3Trend<-0.5?'↓ Falling':'→ Flat'; trendEl.style.color=vov3Trend>0.5?'#ef4444':vov3Trend<-0.5?'#22c55e':'#6b7280'; }
+
+  // Value
+  const valEl = document.getElementById('dashVoVVal');
+  if(valEl){ valEl.textContent=vov.toFixed(1)+'%'; valEl.style.color=vovBTCRegime.col; }
+
+  // Action + desc
+  const actEl = document.getElementById('dashVoVAction');
+  if(actEl){ actEl.textContent=vovBTCRegime.action; actEl.style.color=vovBTCRegime.col; }
+  const descEl = document.getElementById('dashVoVDesc');
+  if(descEl) descEl.textContent=vovBTCRegime.desc;
+
+  // 3 metric cells
+  const exEl   = document.getElementById('dashVoVExpiry');
+  const widthEl = document.getElementById('dashVoVWidth');
+  const sizeEl  = document.getElementById('dashVoVSize');
+  if(exEl){    exEl.textContent=vovBTCRegime.expiry; exEl.style.color=vovBTCRegime.col; }
+  if(widthEl){ widthEl.textContent=vovBTCRegime.width; widthEl.style.color=vovBTCRegime.col; }
+  if(sizeEl){  sizeEl.textContent=vovBTCRegime.size; sizeEl.style.color=vovBTCRegime.col; }
+
+  // Panel border/background
+  const panel = document.getElementById('dashVoVPanel');
+  if(panel){ panel.style.borderColor=vovBTCRegime.bd; }
+  const header= document.getElementById('dashVoVHeader');
+  if(header){ header.style.background=vovBTCRegime.bg; header.style.borderBottomColor=vovBTCRegime.bd; }
+
+  // VoV narration (seller-focused, BTC-calibrated)
   const vovNarrEl = document.getElementById('vovNarration');
   if(vovNarrEl){
-    if(vov>20){ vovNarrEl.textContent='⚠️ VoV SPIKE — Avoid selling. Vega > Theta now.'; vovNarrEl.className='vov-narration vovn-spike'; }
-    else if(vov>14){ vovNarrEl.textContent='⚡ VoV Elevated — Theta at risk from vega. Use smaller size.'; vovNarrEl.className='vov-narration vovn-elevated'; }
-    else { vovNarrEl.textContent='✅ VoV Stable — Theta decay dominant. Ideal to sell.'; vovNarrEl.className='vov-narration vovn-calm'; }
+    if(vov>65){      vovNarrEl.textContent='🚫 VoV CRISIS — Skip all short vol. IV chaotic for BTC.'; vovNarrEl.className='vov-narration vovn-spike'; }
+    else if(vov>50){ vovNarrEl.textContent='🔶 VoV SPIKE — S3 only (45-60DTE). No weekly/18DTE entries.'; vovNarrEl.className='vov-narration vovn-spike'; }
+    else if(vov>35){ vovNarrEl.textContent=vov3Trend<-0.5?'⚠️ VoV ELEVATED but falling — OK with wider strikes':'⚠️ VoV ELEVATED — watch for stabilisation before entry'; vovNarrEl.className='vov-narration vovn-elevated'; }
+    else {           vovNarrEl.textContent='✅ VoV in seller-friendly zone — Theta decay dominant. Enter confidently.'; vovNarrEl.className='vov-narration vovn-calm'; }
   }
 
   // IV Rise narration
@@ -8663,6 +8795,22 @@ function buildGreeksTable(){
     const srcLbl=(r.src||'BS').toUpperCase();
     const charm=r.charm!==undefined?r.charm.toFixed(5):'—';
     const prevRow=prev[i]||null;
+    // Seller metrics
+    const thetaDay  = Math.abs(r.theta||0);
+    const vegaRisk  = Math.abs(r.vega||0);
+    const thetaVega = vegaRisk>0 ? (thetaDay/vegaRisk) : 0;
+    const ivEdge    = (r.iv||0) - ((typeof state!=='undefined'&&state.hv30)||32);
+    const sellerGrade = ivEdge>=15&&thetaVega>0.08 ? 'RICH' : ivEdge>=5&&thetaVega>0.04 ? 'FAIR' : 'POOR';
+    const gradeCol  = sellerGrade==='RICH'?'#16a34a':sellerGrade==='FAIR'?'#d97706':'#dc2626';
+    const gradeBg   = sellerGrade==='RICH'?'rgba(22,163,74,.12)':sellerGrade==='FAIR'?'rgba(217,119,6,.12)':'rgba(220,38,38,.12)';
+    const gradeIcon = sellerGrade==='RICH'?'✅':sellerGrade==='FAIR'?'⚠️':'❌';
+    // Gamma safety: lower is better for seller
+    const gammaSafe = Math.abs(r.gamma||0) < 0.0003;
+    const gammaCls  = gammaSafe ? 'color:#16a34a' : Math.abs(r.gamma||0)<0.001 ? 'color:#d97706' : 'color:#dc2626';
+    // Delta neutral check
+    const deltaOK   = Math.abs(r.delta||0) < 0.05;
+    const deltaCls  = deltaOK ? 'color:#16a34a' : Math.abs(r.delta||0)<0.15 ? 'color:#d97706' : 'color:#dc2626';
+
     return `<tr>
       <td style="text-align:left">
         <b>${ex.label}</b>
@@ -8670,13 +8818,13 @@ function buildGreeksTable(){
       </td>
       <td><span class="tbl-dte-badge">${ex.dte}d</span></td>
       <td style="color:#f59e0b;font-weight:600">$${(r.strike||0).toLocaleString()}</td>
-      <td>${(r.iv||0).toFixed(1)}%</td>
-      <td class="tbl-delta">${(r.delta||0).toFixed(4)}</td>
-      <td class="tbl-gamma">${(r.gamma||0).toFixed(4)}</td>
-      <td class="tbl-theta">${(r.theta||0).toFixed(2)}</td>
-      <td class="tbl-vega">${(r.vega||0).toFixed(2)}</td>
-      <td style="color:#a855f7;font-size:10px">${charm}</td>
-      <td style="min-width:90px">${atmTrendBadge(r,prevRow)}</td>
+      <td style="${ivEdge>=10?'color:#16a34a':ivEdge>=5?'color:#d97706':'color:#dc2626'};font-weight:700">${(r.iv||0).toFixed(1)}% <span style="font-size:9px;opacity:.7">(${ivEdge>=0?'+':''}${ivEdge.toFixed(1)}%)</span></td>
+      <td class="tbl-theta" style="color:#22c55e;font-weight:700">+$${thetaDay.toFixed(2)}/d ${trendCellTheta(r.theta,prevRow?.theta)}</td>
+      <td class="tbl-gamma" style="${gammaCls};font-weight:600">${(r.gamma||0).toFixed(5)} ${trendCell(r.gamma,prevRow?.gamma)}</td>
+      <td class="tbl-vega"  style="color:#f59e0b;font-weight:600">$${vegaRisk.toFixed(2)} ${trendCell(r.vega,prevRow?.vega)}</td>
+      <td class="tbl-delta" style="${deltaCls};font-weight:600">${(r.delta||0).toFixed(4)} ${trendCell(r.delta,prevRow?.delta)}</td>
+      <td style="color:#a855f7;font-weight:700;font-size:11px">${thetaVega>0?thetaVega.toFixed(3):'—'}</td>
+      <td style="min-width:80px"><span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;background:${gradeBg};color:${gradeCol};border:0.5px solid ${gradeCol}">${gradeIcon} ${sellerGrade}</span></td>
       <td><span class="tbl-src ${srcCls}">${srcLbl}</span></td>
     </tr>`;
   }).join('');
@@ -8693,18 +8841,23 @@ function buildStradleInfo(callG, putG){
   const netGamma  = callG.gamma + putG.gamma;
   const netTheta  = callG.theta + putG.theta;
   const netVega   = callG.vega  + putG.vega;
+  const thetaVegaR = netVega!==0 ? Math.abs(netTheta/netVega) : 0;
+  const tvGrade = thetaVegaR>0.06?'IDEAL':thetaVegaR>0.03?'OK':'WEAK'; // BTC-calibrated
+  const tvCol   = thetaVegaR>0.08?'#16a34a':thetaVegaR>0.04?'#d97706':'#dc2626';
+  const deltaHold = Math.abs(netDelta)<0.05?'✅ NEUTRAL':Math.abs(netDelta)<0.15?'⚠️ WATCH':'🚨 REBALANCE';
+  const deltaHoldCol = Math.abs(netDelta)<0.05?'#16a34a':Math.abs(netDelta)<0.15?'#d97706':'#dc2626';
   const kv=[
-    {lbl:'Net Δ Delta',   val:netDelta.toFixed(4),  note:'≈0 at ATM (balanced)',     col:'#3b82f6'},
-    {lbl:'Net Γ Gamma',   val:netGamma.toFixed(4),  note:'Long gamma for buyer',       col:'#f97316'},
-    {lbl:'Net Θ Theta',   val:'$'+netTheta.toFixed(2), note:'Daily decay (seller gets)', col:'#ef4444'},
-    {lbl:'Net V Vega',    val:'$'+netVega.toFixed(2),  note:'IV sensitivity',           col:'#22c55e'},
-    {lbl:'Theta/Vega',    val: netVega!==0 ? (netTheta/netVega).toFixed(4) : '—', note:'Daily decay per IV point', col:'#a855f7'},
+    {lbl:'Θ THETA — Daily Income', val:'+$'+Math.abs(netTheta).toFixed(2)+'/day', note:'You earn this every day you hold · More negative = more income', col:'#22c55e', bg:'rgba(34,197,94,.08)', border:'rgba(34,197,94,.25)'},
+    {lbl:'Γ GAMMA — Enemy Risk',   val:'$'+Math.abs(netGamma).toFixed(4), note:'Loss per $1 BTC move · Keep this LOW · Spikes near expiry', col:'#ef4444', bg:'rgba(239,68,68,.08)', border:'rgba(239,68,68,.25)'},
+    {lbl:'V VEGA — IV Spike Risk', val:'$'+Math.abs(netVega).toFixed(2)+'/1%IV', note:'Loss if IV rises 1% · Short straddle LOSES when IV spikes', col:'#f59e0b', bg:'rgba(245,158,11,.08)', border:'rgba(245,158,11,.25)'},
+    {lbl:'Δ DELTA — Direction',    val:netDelta.toFixed(4)+' '+deltaHold, note:'Should be near 0 · Rebalance if |Δ| hits 0.22', col:deltaHoldCol, bg:'rgba(59,130,246,.06)', border:'rgba(59,130,246,.2)'},
+    {lbl:'Θ/V Ratio — Edge Score', val:thetaVegaR.toFixed(3)+' ('+tvGrade+')', note:'BTC calibrated: >0.06 = ideal · 0.03–0.06 = OK · <0.03 = avoid. Lower than equity due to BTC vol regime.', col:tvCol, bg:thetaVegaR>0.06?'rgba(34,197,94,.08)':thetaVegaR>0.03?'rgba(245,158,11,.08)':'rgba(239,68,68,.08)', border:tvCol},
   ];
   info.innerHTML=kv.map(k=>`
-    <div style="background:var(--color-background-secondary);border-radius:8px;padding:8px 12px;flex:1;min-width:120px">
-      <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em">${k.lbl}</div>
-      <div style="font-size:16px;font-weight:600;color:${k.col}">${k.val}</div>
-      <div style="font-size:9px;color:var(--color-text-secondary)">${k.note}</div>
+    <div style="background:${k.bg||'var(--color-background-secondary)'};border:1px solid ${k.border||'var(--color-border-tertiary)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px">
+      <div style="font-size:9px;font-weight:700;color:${k.col};text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${k.lbl}</div>
+      <div style="font-size:17px;font-weight:800;color:${k.col};font-variant-numeric:tabular-nums">${k.val}</div>
+      <div style="font-size:9px;color:var(--color-text-secondary);margin-top:3px;line-height:1.4">${k.note}</div>
     </div>`).join('');
 }
 
@@ -8756,6 +8909,51 @@ async function updateGreeks(){
 
   // Source badge
   updateSrcPills(g.src||'BS');
+
+  // ── Seller Verdict Banner ──────────────────────────────────────
+  (function(){
+    const theta  = eff.theta;   // negative = seller earns
+    const gamma  = eff.gamma;   // positive = exposure (bad for seller)
+    const vega   = eff.vega;    // positive = IV sensitivity (bad for seller)
+    const delta  = Math.abs(eff.delta);
+    const thetaDay  = Math.abs(theta);
+    const vegaRisk  = Math.abs(vega);
+    const tvRatio   = vegaRisk>0 ? thetaDay/vegaRisk : 0;
+    const ivEdge    = ((typeof state!=='undefined'&&state.ivHistory[idx]?.at(-1))||ex?.base||44) - ((typeof state!=='undefined'&&state.hv30)||32);
+    const gammaOK   = gamma<0.0003; // unchanged
+    const deltaOK   = delta<0.05;
+    const thetaOK   = thetaDay>30;
+    const tvOK      = tvRatio>0.04;
+    const edgeOK    = ivEdge>=5;
+
+    const greenCount= [gammaOK,deltaOK,thetaOK,tvOK,edgeOK].filter(Boolean).length;
+    const icon  = document.getElementById('gsvIcon');
+    const title = document.getElementById('gsvTitle');
+    const sub   = document.getElementById('gsvSub');
+    const pills = document.getElementById('gsvPills');
+    const banner= document.getElementById('greeksSellerVerdict');
+
+    if(pills) pills.innerHTML =
+      `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,.12);color:#16a34a">Θ $${thetaDay.toFixed(0)}/d</span>` +
+      `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${gammaOK?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)'};color:${gammaOK?'#16a34a':'#dc2626'}">Γ ${gammaOK?'LOW':'HIGH'}</span>` +
+      `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,.12);color:#d97706">V $${vegaRisk.toFixed(0)}/1%</span>` +
+      `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:${deltaOK?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)'};color:${deltaOK?'#16a34a':'#dc2626'}">Δ ${delta.toFixed(3)}</span>` +
+      `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(168,85,247,.12);color:#9333ea">Θ/V ${tvRatio.toFixed(3)}</span>`;
+
+    if(greenCount>=5){
+      if(icon)icon.textContent='✅';if(title)title.textContent='IDEAL SELLER CONDITIONS — SHORT STRADDLE FAVOURED';if(title)title.style.color='#16a34a';
+      if(sub)sub.textContent=`Theta $${thetaDay.toFixed(0)}/day · Gamma low · IV edge +${ivEdge.toFixed(1)}% · Θ/V ${tvRatio.toFixed(3)} · Delta neutral`;
+      if(banner){banner.style.background='rgba(34,197,94,.06)';banner.style.border='1px solid rgba(34,197,94,.3)';}
+    } else if(greenCount>=3){
+      if(icon)icon.textContent='⚠️';if(title)title.textContent='MODERATE CONDITIONS — PROCEED WITH CAUTION';if(title)title.style.color='#d97706';
+      if(sub)sub.textContent=`${greenCount}/5 seller checks green · Watch ${gammaOK?'':'gamma '} ${deltaOK?'':'delta '} ${edgeOK?'':'IV edge '}`;
+      if(banner){banner.style.background='rgba(245,158,11,.05)';banner.style.border='1px solid rgba(245,158,11,.3)';}
+    } else {
+      if(icon)icon.textContent='🚫';if(title)title.textContent='POOR SELLER CONDITIONS — WAIT OR SKIP';if(title)title.style.color='#dc2626';
+      if(sub)sub.textContent=`Only ${greenCount}/5 seller checks green · ${ivEdge<5?'IV edge thin. ':''} ${!gammaOK?'Gamma too high. ':''} ${!tvOK?'Theta/Vega ratio weak.':''}`;
+      if(banner){banner.style.background='rgba(220,38,38,.05)';banner.style.border='1px solid rgba(220,38,38,.3)';}
+    }
+  })();
 
   // Push to history
   const ts=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
@@ -9338,19 +9536,22 @@ function updateMarketDriver(){
   // ── Master Banner ──
   const mbEl = el('mdMasterBanner'), mbIcon=el('mdMasterIcon'), mbTitle=el('mdMasterTitle'), mbSub=el('mdMasterSub'), mbBadge=el('mdMasterBadge');
   if(mbEl && mbTitle){
+    // BTC-calibrated VoV thresholds for regime
+    const vovLabel = vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':vov<65?'HIGH':'SPIKE';
+    const ivEdge   = ivPremium.toFixed(1);
     const cfg = {
-      'IV-DRIVEN':    { bg:'rgba(124,58,237,0.08)', bc:'rgba(124,58,237,0.3)', icon:'📊', col:'#7c3aed',
-                        title:'IV-DRIVEN REGIME — DVOL Controls Straddle P&L',
-                        sub:`DVOL ${dvol.toFixed(1)}% vs HV ${hv30.toFixed(1)}% (+${ivPremium.toFixed(1)}%). VoV ${vov.toFixed(1)}% — stable. Straddle P&L driven by IV moves. SELL premium.`,
-                        badge:`IV ${Math.round(ivScore)}% / Gamma ${Math.round(gammaScore)}%`, bbg:'rgba(124,58,237,0.15)', bclr:'#d8b4fe' },
-      'GAMMA-DRIVEN': { bg:'rgba(239,68,68,0.08)', bc:'rgba(239,68,68,0.3)',   icon:'⚡', col:'#ef4444',
-                        title:'GAMMA-DRIVEN REGIME — Price Velocity Controls P&L',
-                        sub:`VoV ${vov.toFixed(1)}% elevated / BTC ${btcMovePct.toFixed(2)}% session move. Gamma acceleration near DTE ${nearDTE}. Straddle loss risk HIGH.`,
-                        badge:`Gamma ${Math.round(gammaScore)}%`, bbg:'rgba(239,68,68,0.15)', bclr:'#fca5a5' },
-      'BALANCED':     { bg:'rgba(59,130,246,0.07)', bc:'rgba(59,130,246,0.25)', icon:'⚖️', col:'#3b82f6',
-                        title:'BALANCED REGIME — IV & Gamma Co-Driving',
-                        sub:`IV score ${Math.round(ivScore)} vs Gamma score ${Math.round(gammaScore)}. Mixed — wait for IV-Driven confirmation before selling straddle.`,
-                        badge:`Balanced`, bbg:'rgba(59,130,246,0.15)', bclr:'#93c5fd' },
+      'IV-DRIVEN':    { bg:'rgba(22,163,74,0.08)',   bc:'rgba(22,163,74,0.3)',   icon:'✅', col:'#16a34a',
+                        title:'IV-DRIVEN — SELL PREMIUM NOW',
+                        sub:`IV +${ivEdge}% over HV30. VoV ${vov.toFixed(1)}% (${vovLabel}) — theta dominant. Your straddle P&L driven by IV compression, not spot moves. This is your edge.`,
+                        badge:`SELL EDGE: +${ivEdge}%`, bbg:'rgba(22,163,74,0.15)', bclr:'#86efac' },
+      'GAMMA-DRIVEN': { bg:'rgba(239,68,68,0.08)',   bc:'rgba(239,68,68,0.3)',   icon:'🚫', col:'#dc2626',
+                        title:'GAMMA-DRIVEN — DO NOT SELL SHORT DTE',
+                        sub:`BTC moved ${btcMovePct.toFixed(1)}% this session. Near expiry DTE ${nearDTE} — gamma acceleration makes short straddle P&L unpredictable. Wait for BTC to consolidate OR use 18-45 DTE instead.`,
+                        badge:`GAMMA RISK: ${Math.round(gammaScore)}%`, bbg:'rgba(239,68,68,0.15)', bclr:'#fca5a5' },
+      'BALANCED':     { bg:'rgba(245,158,11,0.07)',  bc:'rgba(245,158,11,0.25)', icon:'⚠️', col:'#d97706',
+                        title:'MIXED REGIME — WAIT OR USE WIDER STRIKES',
+                        sub:`IV edge +${ivEdge}% exists but gamma risk (${Math.round(gammaScore)}%) partially cancels it. If entering: use 18+ DTE, widen strikes by 1-2%, reduce size 75%.`,
+                        badge:`CAUTION: ${Math.round(ivScore)}vs${Math.round(gammaScore)}`, bbg:'rgba(245,158,11,0.15)', bclr:'#fde68a' },
     };
     const c = cfg[regime];
     mbEl.style.background=c.bg; mbEl.style.borderColor=c.bc;
@@ -9392,21 +9593,63 @@ function updateMarketDriver(){
       const isFresh = state.ivLiveFetchTs?.[i] && (Date.now() - state.ivLiveFetchTs[i]) < 120000;
       const srcDot  = isFresh ? '<span style="color:#22c55e;font-size:8px">● LIVE</span>' : '<span style="color:#f59e0b;font-size:8px">● EST</span>';
 
-      return `<div style="background:${driverBg};border:0.5px solid ${driverCol};border-radius:9px;padding:9px 11px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;flex-wrap:wrap;gap:4px">
-          <span style="font-size:11px;font-weight:700;color:var(--color-text-primary)">${ex.label} ${srcDot}${ex.note?` <span style="font-size:8px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px">${ex.note}</span>`:''}</span>
-          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${driverBg};color:${driverCol}">${driverLbl}</span>
+      // Seller-specific metrics
+      const exIVEdge   = (iv2 - hv30).toFixed(1);
+      const edgeCol    = parseFloat(exIVEdge)>=10?'#16a34a':parseFloat(exIVEdge)>=5?'#d97706':'#dc2626';
+      const thetaDaily = Math.abs(parseFloat(netT));
+      const ivQuality  = parseFloat(exIVEdge)>=15?'RICH':parseFloat(exIVEdge)>=5?'FAIR':'POOR';
+      const qCol       = ivQuality==='RICH'?'#16a34a':ivQuality==='FAIR'?'#d97706':'#dc2626';
+      // Recommended action with DTE-aware logic
+      const recAction  = ex.note
+        ? {icon:'⚠️', txt:'EVENT RISK — avoid or widen strikes +3%', col:'#d97706', bg:'rgba(245,158,11,0.1)'}
+        : sellOk && driverType==='IV'
+        ? {icon:'✅', txt:`SELL ${ex.dte<=10?'Weekly':ex.dte<=25?'18DTE':'Monthly'} SHORT STRANGLE`, col:'#16a34a', bg:'rgba(22,163,74,0.1)'}
+        : driverType==='GAMMA'
+        ? {icon:'🚫', txt:`SKIP — Gamma ${Math.round(exGamma)}% too high${ex.dte<=7?' (expiry gamma risk)':''}`, col:'#dc2626', bg:'rgba(220,38,38,0.08)'}
+        : parseFloat(exIVEdge)<5
+        ? {icon:'❌', txt:'POOR EDGE — IV premium < 5%. No seller advantage.', col:'#dc2626', bg:'rgba(220,38,38,0.08)'}
+        : {icon:'⏳', txt:'WAIT — IV edge exists but gamma not settled', col:'#d97706', bg:'rgba(245,158,11,0.1)'};
+
+      return `<div style="background:${driverBg};border:1px solid ${driverCol};border-radius:10px;padding:10px 12px;position:relative;overflow:hidden">
+        <!-- Top: expiry + driver label -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;font-weight:800;color:var(--color-text-primary)">${ex.label}</span>
+            ${srcDot}
+            ${ex.note?`<span style="font-size:8px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px;font-weight:700">${ex.note}</span>`:''}
+          </div>
+          <span style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;background:${driverBg};color:${driverCol};border:0.5px solid ${driverCol}">${driverLbl}</span>
         </div>
-        <div style="display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary);margin-bottom:5px;flex-wrap:wrap">
-          <span>DTE <b style="color:var(--color-text-primary)">${ex.dte}</b></span>
-          <span>IV <b style="color:#f59e0b">${iv2.toFixed(1)}%</b></span>
-          <span>Prem <b style="color:${parseFloat(prem2)>4?'#22c55e':parseFloat(prem2)>0?'#eab308':'#ef4444'}">${parseFloat(prem2)>=0?'+':''}${prem2}%</b></span>
-          <span>IV ${ivFalling2?'↓ Falling':'→ Stable'}</span>
-          <span>θ/day <b style="color:#ef4444">$${netT}</b></span>
+        <!-- Seller metrics row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px">
+          <div style="background:var(--color-background-secondary);border-radius:6px;padding:4px 6px;text-align:center">
+            <div style="font-size:7px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em">DTE</div>
+            <div style="font-size:12px;font-weight:900;color:${ex.dte<=3?'#dc2626':ex.dte<=7?'#d97706':'var(--color-text-primary)'}">${ex.dte}</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:6px;padding:4px 6px;text-align:center">
+            <div style="font-size:7px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em">IV Edge</div>
+            <div style="font-size:12px;font-weight:900;color:${edgeCol}">${parseFloat(exIVEdge)>=0?'+':''}${exIVEdge}%</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:6px;padding:4px 6px;text-align:center">
+            <div style="font-size:7px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em">Theta/Day</div>
+            <div style="font-size:12px;font-weight:900;color:#22c55e">+$${thetaDaily}</div>
+          </div>
+          <div style="background:var(--color-background-secondary);border-radius:6px;padding:4px 6px;text-align:center">
+            <div style="font-size:7px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em">Quality</div>
+            <div style="font-size:11px;font-weight:900;color:${qCol}">${ivQuality}</div>
+          </div>
         </div>
-        <span style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:5px;background:${sellOk?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.09)'};color:${sellOk?'#15803d':'#b91c1c'}">
-          ${sellOk?'✅ SELL STRADDLE — ideal':ex.note?'⚠ EVENT RISK — avoid':driverType==='GAMMA'?'🚫 GAMMA ZONE — skip':!ivFalling2?'⏳ Wait for IV to fall':'⏳ Wait for conditions'}
-        </span>
+        <!-- IV trend + ATM IV -->
+        <div style="display:flex;gap:8px;font-size:9px;color:var(--color-text-secondary);margin-bottom:6px;flex-wrap:wrap">
+          <span>ATM IV <b style="color:#f59e0b">${iv2.toFixed(1)}%</b></span>
+          <span>IV ${ivFalling2?'<span style="color:#22c55e">↓ Falling — good for seller</span>':'<span style="color:#6b7280">→ Stable</span>'}</span>
+          <span>Gamma risk <b style="color:${exGamma>55?'#dc2626':exGamma>35?'#d97706':'#16a34a'}">${Math.round(exGamma)}%</b></span>
+        </div>
+        <!-- Action badge -->
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;background:${recAction.bg};border:0.5px solid ${recAction.col}">
+          <span style="font-size:11px">${recAction.icon}</span>
+          <span style="font-size:9px;font-weight:800;color:${recAction.col}">${recAction.txt}</span>
+        </div>
       </div>`;
     }).filter(Boolean).join('');
   }
@@ -9457,26 +9700,28 @@ function updateMarketDriver(){
   }
 
   // ── IV-Driven conclusion ──
-  const ivFriendly = regime==='IV-DRIVEN' && ivPremium > 3 && vov < 15;
+  const ivFriendly = regime==='IV-DRIVEN' && ivPremium > 3 && vov < 50; // BTC-calibrated
   const ivConcEl = el('mdIVDrivenConclusion');
   if(ivConcEl){
     ivConcEl.textContent = ivFriendly
-      ? `✅ IV-Driven: DVOL +${ivPremium.toFixed(1)}% over HV. Sell for vega premium — straddle P&L tracks IV moves.`
+      ? `✅ SELL EDGE CONFIRMED — IV +${ivPremium.toFixed(1)}% over HV30. Theta income is real. Enter straddle/strangle on IV-driven expiries above.`
       : regime==='GAMMA-DRIVEN'
-      ? `⚠ Gamma dominant — IV-driven edge reduced. Wait for VoV ${vov.toFixed(1)}% to fall below 15%.`
-      : `⏳ IV premium +${ivPremium.toFixed(1)}% — marginal. Wait for DVOL to expand vs HV.`;
-    ivConcEl.style.background = ivFriendly?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.1)';
+      ? `🚫 GAMMA DOMINANT — IV edge exists (+${ivPremium.toFixed(1)}%) but gamma risk cancels it. Wait for BTC to stop moving, then enter 18-45 DTE.`
+      : `⏳ EDGE TOO THIN — IV premium +${ivPremium.toFixed(1)}%. Need >5% edge for straddle to make sense. Wait for DVOL to expand.`;
+    ivConcEl.style.background = ivFriendly?'rgba(22,163,74,0.1)':'rgba(245,158,11,0.08)';
     ivConcEl.style.color = ivFriendly?'#15803d':'#92400e';
   }
 
   // ── Gamma-Driven conclusion ──
-  const gammaSafe = nearDTE > 7 && vov < 15 && btcMovePct < 1.5;
+  const gammaSafe = nearDTE > 7 && vov < 50 && btcMovePct < 2.5; // BTC-calibrated
   const gConcEl = el('mdGammaDrivenConclusion');
   if(gConcEl){
     gConcEl.textContent = gammaSafe
-      ? `✅ Gamma benign — DTE ${nearDTE} safe zone. VoV ${vov.toFixed(1)}%, BTC ${btcMovePct.toFixed(2)}% session move. Manageable.`
-      : `🚫 Gamma ELEVATED — ${nearDTE<=7?`DTE ${nearDTE} in danger zone`:''}${vov>=15?` VoV ${vov.toFixed(1)}% high`:''}${btcMovePct>1.5?` BTC ${btcMovePct.toFixed(2)}% move`:''}. Avoid short ATM.`;
-    gConcEl.style.background = gammaSafe?'rgba(34,197,94,0.08)':'rgba(239,68,68,0.12)';
+      ? `✅ GAMMA SAFE — DTE ${nearDTE} manageable. VoV ${vov.toFixed(1)}% (BTC normal), BTC ${btcMovePct.toFixed(1)}% session move. Your theta income is protected.`
+      : nearDTE<=3
+      ? `🚫 EXPIRY GAMMA DANGER — DTE ${nearDTE}. Gamma explodes near expiry. Skip all short straddles on this expiry. Use 18+ DTE instead.`
+      : `🚫 SPOT VELOCITY TOO HIGH — BTC ${btcMovePct.toFixed(1)}% session${vov>=50?`, VoV ${vov.toFixed(1)}% elevated`:''} . Gamma P&L unpredictable. Wait for BTC to consolidate.`;
+    gConcEl.style.background = gammaSafe?'rgba(22,163,74,0.07)':'rgba(239,68,68,0.1)';
     gConcEl.style.color = gammaSafe?'#15803d':'#b91c1c';
   }
 
@@ -9484,13 +9729,21 @@ function updateMarketDriver(){
   const sellOkOverall = regime==='IV-DRIVEN' && ivPremium>3 && gammaSafe;
   const ovCon = el('mdConclusionText'), ovSub = el('mdConclusionSub');
   if(ovCon){
-    ovCon.textContent = sellOkOverall
-      ? `✅ SELL STRADDLE: ${regime} confirmed — IV premium +${ivPremium.toFixed(1)}%, Gamma contained, VoV ${vov.toFixed(1)}% normal.`
+    const bestSellEx = EXPIRIES.find((ex,i)=>{
+      if(ex.expired) return false;
+      const iv3 = state.ivHistory[i]?.at(-1)??ex.base;
+      const exGamma3 = Math.min(100,(ex.dte<=3?70:ex.dte<=7?50:ex.dte<=12?30:15)+btcMovePct*7+Math.max(0,vov-8)*2);
+      return !ex.note && iv3>hv30+5 && exGamma3<55 && ex.dte>=7;
+    });
+    ovCon.textContent = sellOkOverall && bestSellEx
+      ? `✅ ENTER NOW — Best expiry: ${bestSellEx.label} (${bestSellEx.dte}DTE). IV +${ivPremium.toFixed(1)}% edge. Gamma safe. VoV ${vov.toFixed(1)}%.`
+      : sellOkOverall
+      ? `✅ CONDITIONS GOOD — IV edge +${ivPremium.toFixed(1)}%. No perfect expiry found — use 18DTE with wider strikes ±5%.`
       : regime==='GAMMA-DRIVEN'
-      ? `🚫 WAIT: ${regime} active — spot velocity too high. VoV ${vov.toFixed(1)}%, BTC ${btcMovePct.toFixed(2)}% session.`
-      : `⏳ MONITOR: Mixed signals — IV prem +${ivPremium.toFixed(1)}%. Watch for IV-Driven confirmation.`;
+      ? `🚫 DO NOT SELL — Gamma dominant. BTC ${btcMovePct.toFixed(1)}% session move. ${nearDTE<=7?`DTE ${nearDTE} expiry gamma is lethal. Use 18+ DTE only.`:''} Wait for BTC to consolidate.`
+      : `⏳ WAIT — IV edge +${ivPremium.toFixed(1)}% is thin. Need >5% to justify gamma risk. Monitor for IV expansion.`;
     ovCon.style.color = sellOkOverall?'#15803d':regime==='GAMMA-DRIVEN'?'#b91c1c':'#92400e';
-    if(ovSub) ovSub.textContent = `Regime: ${regime} | IV Score: ${Math.round(ivScore)} | Gamma Score: ${Math.round(gammaScore)} | DVOL ${dvol.toFixed(1)}% | VoV ${vov.toFixed(1)}% | ${ts} IST`;
+    if(ovSub) ovSub.textContent = `IV Score ${Math.round(ivScore)} | Gamma Score ${Math.round(gammaScore)} | DVOL ${dvol.toFixed(1)}% | VoV ${vov.toFixed(1)}% (${vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':'HIGH'}) | ${ts} IST`;
   }
 }
 
@@ -11308,9 +11561,9 @@ function tvRefreshSignals(){
     else if(ivPrem > 3){ score+=1; signals.push({t:'DVOL Moderate',c:'warn'}); }
     else { signals.push({t:'DVOL Thin',c:'sell'}); }
     // VoV
-    if(vov < 8){ score+=2; signals.push({t:'VoV Calm',c:'ok'}); }
-    else if(vov < 14){ score+=1; signals.push({t:'VoV Elevated',c:'warn'}); }
-    else { signals.push({t:'VoV Spike',c:'sell'}); }
+    if(vov < 25){ score+=2; signals.push({t:'VoV Calm <25%',c:'ok'}); }
+    else if(vov < 45){ score+=1; signals.push({t:'VoV Normal <45%',c:'warn'}); }
+    else { signals.push({t:'VoV Spike >45%',c:'sell'}); }
     // Trend: ranging is best
     if(trendSignal==='RANGING'){ score+=1; signals.push({t:'Ranging',c:'ok'}); }
     else { signals.push({t:trendSignal,c:'warn'}); }
@@ -11993,6 +12246,22 @@ function initGCD(){
 // Initialise after existing bootstrap
 setTimeout(initGCD, 1200);
 
+// Auto-select STRADDLE type for seller perspective on load
+setTimeout(function(){
+  try{
+    const typeEl = document.getElementById('greeksType');
+    if(typeEl && typeEl.value !== 'straddle'){ typeEl.value='straddle'; }
+    if(typeof onGreeksExpiryChange === 'function') onGreeksExpiryChange();
+    // Show straddle net greeks tab by default
+    if(typeof switchGreeksView === 'function'){
+      switchGreeksView('strangle');
+      document.querySelectorAll('.gvt').forEach(b=>b.classList.remove('active'));
+      const btn = document.getElementById('gvtStrangle');
+      if(btn) btn.classList.add('active');
+    }
+  }catch(e){}
+}, 2500);
+
 /* ═══════════════════════════════════════════════════════════════
    LIVE IV COMPACT CHART ENGINE
    Renders sparkline for selected expiry + row of all expiry IVs
@@ -12286,13 +12555,13 @@ function detectBTCRegime(){
   const gammaDriven = !trending && nearDTE<=5 && nearIV>44;
 
   // IV-driven: DVOL or VoV significantly elevated
-  const ivDriven = !gammaDriven && !trending && (vov>12||dvol>50||(dvol-nearIV)>8);
+  const ivDriven = !gammaDriven && !trending && (vov>45||dvol>55||(dvol-nearIV)>8); // BTC: vov>45 = IV-driven
 
   const badges=[];
   if(dvol>50) badges.push({txt:`DVOL ${dvol.toFixed(0)}%`,col:'#ef4444'});
   else badges.push({txt:`DVOL ${dvol.toFixed(0)}%`,col:'#22c55e'});
-  if(vov>14) badges.push({txt:`VoV ${vov.toFixed(1)}% HIGH`,col:'#f97316'});
-  else badges.push({txt:`VoV ${vov.toFixed(1)}%`,col:'#6b7280'});
+  if(vov>45) badges.push({txt:`VoV ${vov.toFixed(1)}% HIGH`,col:'#f97316'});
+  else badges.push({txt:`VoV ${vov.toFixed(1)}%`,col:vov<35?'#22c55e':vov<45?'#f59e0b':'#6b7280'});
   badges.push({txt:`DTE ${nearDTE}d`,col:nearDTE<7?'#ef4444':'#3b82f6'});
   if(trending) badges.push({txt:`BTC ${trendDir} ${btcMove.toFixed(1)}%`,col:'#ef4444'});
 
@@ -12465,12 +12734,12 @@ function buildTradeChecklist(){
       warnNote:'DVOL elevated. Reduce size to 50%. IV may spike further.'
     },
     {
-      name:'VoV Falling / Stable',
-      pass: vovTrend<=0&&vov<14, warn: vov>=14&&vov<20,
-      val: `${vov.toFixed(1)}% (${vovTrend>0?'+':vovTrend<0?'':'0'}${vovTrend.toFixed(1)} trend)`,
-      passNote:'VoV stable/falling — IV regime calm. Theta collection working efficiently.',
-      failNote:'VoV rising or spiking — IV may jump unpredictably. Vega risk > theta income.',
-      warnNote:'VoV elevated but not spiking. Monitor. Theta still works but at reduced efficiency.'
+      name:'VoV BTC Regime (<35% = OK, falling = ideal)',
+      pass: vovTrend<=0&&vov<45, warn: vov>=45&&vov<60,
+      val: `${vov.toFixed(1)}% (${vovTrend>0?'+':vovTrend<0?'':'0'}${vovTrend.toFixed(1)} trend) — ${vov<25?'CALM':vov<35?'NORMAL':vov<50?'ELEVATED':'SPIKE'}`,
+      passNote:'BTC VoV in acceptable range and falling — theta collection reliable. Regime stable.',
+      failNote:'VoV spiking above 50%+ — IV itself unpredictable. Vega swings overwhelm theta. Skip entry.',
+      warnNote:'VoV elevated (45-60%) — theta still works but with reduced reliability. Wider strikes recommended.'
     },
     {
       name:'DTE Sweet Spot (7–21d)',
@@ -12569,14 +12838,14 @@ function buildTradeChecklist(){
     const vegaVal  = verdictState.vega  ?? 0;
     const thetaPerVega = (vegaVal!==0) ? Math.abs(thetaVal/vegaVal) : 0;
 
-    if(ivPrem>8&&vov<12&&!hasEvent&&!inNYOpen&&dvol<55){
+    if(ivPrem>8&&vov<35&&!hasEvent&&!inNYOpen&&dvol<60){
       narEl.className='tcl-narration tcl-narration-theta';
       narTitle.textContent='✅ THETA DOMINANT — Short Strangle Favoured';
       narText.textContent=`Theta is working strongly in your favour. IV premium ${ivPrem.toFixed(1)}% over HV, VoV stable (${vov.toFixed(1)}%), no events, outside NY open. Daily theta income ~$${Math.abs(Math.round(thetaVal)).toLocaleString()}/BTC overwhelms vega risk ($${Math.abs(Math.round(vegaVal)).toLocaleString()} per 1% IV move). Theta/Vega ratio: ${thetaPerVega.toFixed(3)} — higher = better theta edge. This is an IDEAL short strangle environment.`;
-    } else if(dvol>55||vov>18||hasEvent||inNYOpen){
+    } else if(dvol>60||vov>50||hasEvent||inNYOpen){
       narEl.className='tcl-narration tcl-narration-vega';
       narTitle.textContent='⚠️ VEGA DOMINANT — Short Strangle Risky';
-      narText.textContent=`Vega risk currently outweighs theta income. ${dvol>55?`DVOL at ${dvol.toFixed(1)}% is elevated — IV can spike further. `:''}${vov>18?`VoV at ${vov.toFixed(1)}% signals IV regime instability. `:''}${hasEvent?`Event risk in near expiry inflates IV artificially. `:''}${inNYOpen?`NY Open session — highest volatility window, avoid new entries. `:''}Daily theta $${Math.abs(Math.round(thetaVal)).toLocaleString()} is less reliable when vega ($${Math.abs(Math.round(vegaVal)).toLocaleString()}/1% IV) can overwhelm in seconds. WAIT for regime to stabilise.`;
+      narText.textContent=`Vega risk currently outweighs theta income. ${dvol>60?`DVOL at ${dvol.toFixed(1)}% is elevated — IV can spike further. `:''}${vov>50?`VoV at ${vov.toFixed(1)}% signals IV regime instability for BTC. `:''}${hasEvent?`Event risk in near expiry inflates IV artificially. `:''}${inNYOpen?`NY Open session — highest volatility window, avoid new entries. `:''}Daily theta $${Math.abs(Math.round(thetaVal)).toLocaleString()} is less reliable when vega ($${Math.abs(Math.round(vegaVal)).toLocaleString()}/1% IV) can overwhelm in seconds. WAIT for regime to stabilise.`;
     } else {
       narEl.className='tcl-narration tcl-narration-neutral';
       narTitle.textContent='⚖️ BALANCED — Theta Working, Watch Vega';
@@ -13646,13 +13915,13 @@ async function fetchMCNews(force = false) {
     });
 
     // VoV spike warning
-    if (vov > 16) {
+    if (vov > 50) {
       items.push({
         title: `🌊 VoV SPIKE: ${vov.toFixed(1)}% — Volatility-of-Volatility ELEVATED`,
-        desc: `High VoV means IV itself is unstable — vega P&L swings unpredictably. Short vega positions carry outsized risk. Prefer flat/neutral delta. Avoid new short options until VoV < 14%. India traders: exits before NSE close (3:30 PM IST) recommended.`,
+        desc: `High VoV means IV itself is unstable — vega P&L swings unpredictably for BTC. Short vega positions carry outsized risk. Avoid new short options until VoV < 45%. BTC-calibrated thresholds: <25% calm, <45% acceptable, >50% skip short vol.`,
         dt, cat: 'crypto', catLabel: '🌊 VoV Alert', col: '#dc2626',
         src: 'BRAHMASTRA VoV', srcCls: 'nsb-brahma', url: null, india: true,
-        impact: vov > 20 ? 'critical' : 'moderate',
+        impact: vov > 60 ? 'critical' : 'moderate',
         sortKey: Date.now() + 3000
       });
     }
@@ -14630,6 +14899,24 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
       <div class="ts-sig-row"><span class="ts-sig-lbl">Theta/Day (straddle)</span><span class="ts-sig-val" id="tsSnapTheta">—</span></div>
       <div class="ts-sig-row"><span class="ts-sig-lbl">Term Structure Slope</span><span class="ts-sig-val" id="tsSnapTS">—</span></div>
 
+      <!-- VoV Best Expiry Recommendation -->
+      <div class="ts-section-title">🌊 VoV Regime — Best Expiry for Current Conditions</div>
+      <div id="tsVoVRecommend" style="border-radius:10px;padding:10px 12px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:16px" id="tsVoVRegIcon">⏳</span>
+          <div>
+            <div style="font-size:11px;font-weight:900" id="tsVoVRegLabel">Reading VoV…</div>
+            <div style="font-size:9px;color:var(--color-text-secondary);margin-top:1px" id="tsVoVRegAction">—</div>
+          </div>
+        </div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">VoV Level & Trend</span><span class="ts-sig-val" id="tsVoVRegVal">—</span></div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">Recommended Expiry</span><span class="ts-sig-val" id="tsVoVRegExpiry">—</span></div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">Strike Width</span><span class="ts-sig-val" id="tsVoVRegWidth">—</span></div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">Target Delta</span><span class="ts-sig-val" id="tsVoVRegDelta">—</span></div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">Position Size</span><span class="ts-sig-val" id="tsVoVRegSize">—</span></div>
+        <div class="ts-sig-row"><span class="ts-sig-lbl">Which Strategy Active</span><span class="ts-sig-val" id="tsVoVRegStrat">—</span></div>
+      </div>
+
       <div style="display:flex;align-items:center;margin-top:8px;gap:8px">
         <button class="ts-refresh-btn" onclick="tsUpdate()">↻ Refresh</button>
         <span class="ts-update-ts" id="tsUpdateTs">—</span>
@@ -14961,6 +15248,69 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     return null;
   }
 
+  /* ── VoV-Based Best Expiry Selector ─────────────────────────────
+     BTC VoV Regimes:
+       < 25% CALM     → 7 DTE weekly (theta dominates, gamma manageable)
+       25-35% NORMAL  → 18 DTE (balanced theta + vega compression)
+       35-50% ELEVATED→ 45-60 DTE (wide strikes, vega compression over time)
+       > 50% SPIKE    → 45-60 DTE only + maximum width, or skip
+       > 65% CRISIS   → skip all short vol
+  ── */
+  function getBTCVoVRegime(vov, trend){
+    const falling = trend < -0.5;
+    const rising  = trend >  0.5;
+    if(vov < 25) return { regime:'CALM',     col:'#16a34a', grade:5, dtePref:7,  label:'<25% CALM — 7DTE weekly ideal',           action:'Enter S1 Friday confidently. Theta dominates.' };
+    if(vov < 35) return { regime:'NORMAL',   col:'#22c55e', grade:4, dtePref:18, label:vov.toFixed(1)+'% NORMAL — 18DTE ideal',   action:'S2 Monday 18DTE. Good theta/vega balance.' };
+    if(vov < 45) return { regime:'ELEVATED', col:'#f59e0b', grade:3, dtePref:18, label:vov.toFixed(1)+'% ELEVATED — widen strikes',action:falling?'VoV falling — OK to enter 18DTE with wider strikes (±4.5%)':'VoV rising — wait for falling trend before 18DTE entry.' };
+    if(vov < 55) return { regime:'HIGH',     col:'#f97316', grade:2, dtePref:45, label:vov.toFixed(1)+'% HIGH — 45DTE only',      action:'Only S3 monthly 45-60DTE. Skip S1 weekly. Wide strikes only (±12%).' };
+    if(vov < 65) return { regime:'SPIKE',    col:'#ef4444', grade:1, dtePref:60, label:vov.toFixed(1)+'% SPIKE — S3 or skip',     action:falling?'VoV falling from spike — S3 only at 0.10Δ. No S1/S2.':'VoV still spiking — skip all short vol. Wait for <50%.' };
+    return           { regime:'CRISIS',    col:'#dc2626', grade:0, dtePref:0,  label:vov.toFixed(1)+'% CRISIS — SKIP ALL',      action:'VoV >65% on BTC = IV chaotic. Skip all short straddle/strangle strategies.' };
+  }
+
+  function getVoVBasedBestExpiry(){
+    const ds   = getState();
+    const vovH = ds.vovH;
+    const vov  = ds.vov;
+    const trend= vovH.length>=3 ? vovH.at(-1)-vovH.at(-3) : 0;
+    const reg  = getBTCVoVRegime(vov, trend);
+
+    if(typeof EXPIRIES === 'undefined') return { reg, expiry:null, idx:-1, reason:'EXPIRIES not loaded' };
+
+    const active = EXPIRIES.filter((e,i)=>!e.expired);
+    if(!active.length) return { reg, expiry:null, idx:-1, reason:'No active expiries' };
+
+    // VoV-driven DTE target
+    let targetDTE = reg.dtePref;
+    let best = null, bestIdx = -1, bestDiff = 9999;
+
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(EXPIRIES[i].expired) continue;
+      const dte = EXPIRIES[i].dte;
+      // Crisis: no trade
+      if(reg.grade===0) break;
+      // Calm: prefer 7 DTE window
+      if(reg.grade===5 && dte>=5 && dte<=10){ best=EXPIRIES[i]; bestIdx=i; break; }
+      // Normal: prefer 14-21 DTE
+      if(reg.grade===4 && dte>=12 && dte<=25){ best=EXPIRIES[i]; bestIdx=i; break; }
+      // Elevated: 15-25 DTE with wider strikes
+      if(reg.grade===3 && dte>=12 && dte<=30){ best=EXPIRIES[i]; bestIdx=i; break; }
+      // High/Spike: 40-70 DTE only
+      if((reg.grade===1||reg.grade===2) && dte>=40 && dte<=75){ best=EXPIRIES[i]; bestIdx=i; break; }
+      // Fallback: closest to target
+      const diff = Math.abs(dte - targetDTE);
+      if(diff < bestDiff){ bestDiff=diff; best=EXPIRIES[i]; bestIdx=i; }
+    }
+
+    // Strike width recommendation based on VoV
+    const strikeWidth = vov<25?'±2% (Session H/L)':vov<35?'±3.5%':vov<50?'±5%':vov<65?'±10-12%':'N/A — Skip';
+    const deltaRec    = vov<25?'0.10Δ':vov<35?'0.10-0.12Δ':vov<50?'0.08-0.10Δ':vov<65?'0.12-0.15Δ':'Skip';
+    const sizeRec     = vov<25?'Full size':vov<35?'Full size':vov<50?'75% size':vov<65?'50% size (S3 only)':'No trade';
+
+    return { reg, expiry:best, idx:bestIdx, strikeWidth, deltaRec, sizeRec,
+             trend: trend>0.5?'↑ Rising':trend<-0.5?'↓ Falling':'→ Flat',
+             reason: best ? `VoV ${vov.toFixed(1)}% ${reg.regime} → ${best.label} (${best.dte}DTE)` : 'Skip — VoV too high' };
+  }
+
   function getIV(idx){
     const s = typeof state !== 'undefined' ? state : {};
     const arr = s.ivHistory && s.ivHistory[idx];
@@ -15109,7 +15459,7 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     const snapIVEl=$('tsSnapIV'); if(snapIVEl){snapIVEl.textContent=nearIV.toFixed(1)+'%';snapIVEl.className='ts-sig-val '+(nearIV>40?'ts-amber':'ts-green');}
     set('tsSnapHV',   ds.hv30.toFixed(1)+'%');
     const edgeEl=$('tsSnapEdge'); if(edgeEl){edgeEl.textContent=fmtPct(edge);edgeEl.className='ts-sig-val '+(edge>=10?'ts-green':edge>=5?'ts-amber':'ts-red');}
-    const vovEl=$('tsSnapVoV'); if(vovEl){vovEl.textContent=ds.vov.toFixed(1)+'%';vovEl.className='ts-sig-val '+(ds.vov<14?'ts-green':ds.vov<20?'ts-amber':'ts-red');}
+    const vovEl=$('tsSnapVoV'); if(vovEl){vovEl.textContent=ds.vov.toFixed(1)+'% ('+(ds.vov<25?'CALM':ds.vov<35?'NORMAL':ds.vov<50?'ELEVATED':'SPIKE')+')';vovEl.className='ts-sig-val '+(ds.vov<35?'ts-green':ds.vov<50?'ts-amber':'ts-red');}
     const dvolEl=$('tsSnapDVOL'); if(dvolEl){dvolEl.textContent=ds.dvol.toFixed(1)+'%';dvolEl.className='ts-sig-val '+(ds.dvol>=35&&ds.dvol<55?'ts-green':ds.dvol<55?'ts-amber':'ts-red');}
     const ivrEl=$('tsSnapIVR'); if(ivrEl){ivrEl.textContent=ivr+'%';ivrEl.className='ts-sig-val '+(ivr>=60?'ts-green':ivr>=40?'ts-amber':'ts-red');}
     const vrpEl=$('tsSnapVRP'); if(vrpEl){vrpEl.textContent=(vrp>=0?'+':'')+vrp.toFixed(0)+' var pts²';vrpEl.className='ts-sig-val '+(vrp>0?'ts-green':'ts-red');}
@@ -15140,12 +15490,12 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     }
 
     // Overall verdict
-    const canTrade = edge>=5 && ds.vov<20 && !inNY && vrp>0;
-    const shouldSkip = edge<2 || ds.vov>25 || reg.regime==='trending';
+    const canTrade = edge>=5 && ds.vov<55 && !inNY && vrp>0; // BTC-calibrated
+    const shouldSkip = edge<2 || ds.vov>65 || reg.regime==='trending'; // BTC: skip only if VoV > 65%
     const autoOpen = shouldAutoOpen();
     const ovVerdictEl=$('tsOverallVerdict');
     if(ovVerdictEl){
-      if(shouldSkip){ ovVerdictEl.className='ts-verdict tv-skip'; set('tsOVIcon','🚫'); set('tsOVTitle','DO NOT TRADE NOW'); set('tsOVSub',edge<2?'IV edge insufficient':ds.vov>25?'VoV too high — IV unstable':'BTC trending — no strangle edge'); }
+      if(shouldSkip){ ovVerdictEl.className='ts-verdict tv-skip'; set('tsOVIcon','🚫'); set('tsOVTitle','DO NOT TRADE NOW'); set('tsOVSub',edge<2?'IV edge insufficient':ds.vov>65?'VoV >65% — IV chaotic for BTC, skip entries':'BTC trending — no strangle edge'); }
       else if(canTrade && autoOpen){ ovVerdictEl.className='ts-verdict tv-enter'; set('tsOVIcon','✅'); set('tsOVTitle','TRADE WINDOW OPEN'); set('tsOVSub',`CME settled · ${autoOpen.toUpperCase()} entry window active · Check checklist`); }
       else if(canTrade){ ovVerdictEl.className='ts-verdict tv-wait'; set('tsOVIcon','⏳'); set('tsOVTitle','CONDITIONS GOOD — WAIT FOR ENTRY TIME'); set('tsOVSub','IV edge solid. Wait for CME settlement at 8:30 PM IST'); }
       else { ovVerdictEl.className='ts-verdict tv-idle'; set('tsOVIcon','👁'); set('tsOVTitle','MONITORING — NO TRADE YET'); set('tsOVSub','Watching signals. Edge forming but not ready.'); }
@@ -15166,7 +15516,7 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     const nyMoveOK   = sesHi&&sesLo&&ds.spot>0 ? ((sesHi-sesLo)/ds.spot*100)<4.5 : true;
     const insideRange= sesHi&&sesLo&&ds.spot>0 ? (ds.spot>=sesLo&&ds.spot<=sesHi) : null;
     const s1EdgeOK   = edge>=5;
-    const s1VoVOK    = ds.vov<20;
+    const s1VoVOK    = ds.vov<50; // BTC seller: <50% acceptable
     const s1NoEvent  = !hasEvent;
     const s1NoBear   = bearish.length===0;
 
@@ -15175,7 +15525,7 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
       { name:'Session Move 7–8:45 PM', val:sesHi&&sesLo&&ds.spot>0?((sesHi-sesLo)/ds.spot*100).toFixed(1)+'%':'Tracking…', pass:nyMoveOK, warn:false, note:'Must be <4.5%. If higher → skip this Friday.' },
       { name:'BTC Inside Session Range', val:insideRange===null?'Tracking…':insideRange?'Inside range':'Outside range', pass:insideRange, warn:insideRange===null, note:'BTC must be between 7 PM high and low — not breaking out.' },
       { name:'IV − HV Edge', val:fmtPct(edge), pass:s1EdgeOK, warn:edge>=2&&edge<5, note:'Minimum 5% edge to sell. 10%+ = confident entry.' },
-      { name:'VoV Stable', val:ds.vov.toFixed(1)+'%', pass:s1VoVOK, warn:ds.vov>=14&&ds.vov<20, note:'<14% = stable. >20% = IV unstable, skip.' },
+      { name:'VoV (BTC: <35% CALM, <50% OK)', val:ds.vov.toFixed(1)+'% '+(ds.vov<25?'CALM':ds.vov<35?'NORMAL':ds.vov<50?'ELEVATED':'SPIKE'), pass:s1VoVOK, warn:ds.vov>=45&&ds.vov<60, note:'BTC-calibrated: <25% calm, <50% acceptable. Falling direction matters more than level.' },
       { name:'No Event Risk', val:s1NoEvent?'Clear':'EVENT DETECTED', pass:s1NoEvent, warn:false, note:'Check EXPIRIES for scheduled events in near contracts.' },
       { name:'No Bearish Pattern', val:bearish.length===0?'Clear':confirmed.map(p=>p.name||'Pattern').join(', '), pass:s1NoBear, warn:confirmed.length>0&&!bearish.length, note:'Confirmed bearish patterns increase put-side risk.' },
     ];
@@ -15220,7 +15570,7 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
       { name:'Session Move Mon 7–8:45 PM', val:sesHi&&sesLo&&ds.spot>0?((sesHi-sesLo)/ds.spot*100).toFixed(1)+'%':'Tracking…', pass:nyMoveOK, warn:false, note:'Must be <4.5%.' },
       { name:'BTC Inside Range', val:insideRange===null?'Tracking…':insideRange?'Inside':'Outside', pass:insideRange, warn:insideRange===null, note:'Not trending — consolidating after CME.' },
       { name:'18 DTE IV Edge', val:fmtPct(edge18), pass:edge18>=8, warn:edge18>=5&&edge18<8, note:'Need IV−HV >8% on 18 DTE expiry for worthwhile hold.' },
-      { name:'VoV Stable', val:ds.vov.toFixed(1)+'%', pass:ds.vov<18, warn:ds.vov>=14&&ds.vov<18, note:'<14% ideal. Rising VoV = possible aftershocks.' },
+      { name:'VoV Stable (BTC: <45% = OK)', val:ds.vov.toFixed(1)+'%'+(ds.vov<25?' CALM':ds.vov<35?' NORMAL':ds.vov<50?' ELEVATED':' SPIKE'), pass:ds.vov<45, warn:ds.vov>=45&&ds.vov<60, note:'BTC: <25% = calm, <45% = acceptable, >50% = avoid entry. Falling trend matters more than absolute level.' },
       { name:'No Major Event (14 days)', val:hasEvent?'EVENT DETECTED':'Clear', pass:!hasEvent, warn:false, note:'1 event = widen strikes. 2+ events = skip.' },
       { name:'No Bearish Pattern', val:bearish.length===0?'Clear':bearish.map(p=>p.name||'Pattern').join(', '), pass:bearish.length===0, warn:confirmed.length>0&&bearish.length===0, note:'Confirmed bearish patterns increase risk on 1-week hold.' },
     ];
@@ -15252,7 +15602,7 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     const s3Checks = [
       { name:'Weekend Gap', val:bmr.daysSince>=3?'< 4% (estimated clean)':'Recent move — check manually', pass:weekendGapOK, warn:false, note:'Must confirm manually: BTC moved <4% Fri close to Mon open.' },
       { name:'45–60 DTE IV Edge', val:fmtPct(edge45), pass:edge45>=8, warn:edge45>=5&&edge45<8, note:'Need >8% IV−HV on 45–60 DTE expiry.' },
-      { name:'VoV < 18%', val:ds.vov.toFixed(1)+'%', pass:ds.vov<18, warn:ds.vov>=14&&ds.vov<18, note:'Unstable VoV on 2-week hold = vega risk dominates.' },
+      { name:'VoV BTC (falling + <50% = OK)', val:ds.vov.toFixed(1)+'%'+(ds.vov<25?' CALM':ds.vov<35?' NORMAL':ds.vov<50?' ELEVATED':' SPIKE'), pass:ds.vov<50, warn:ds.vov>=50&&ds.vov<65, note:'BTC 2-week hold: VoV must be falling or stable. <35% ideal. >60% = vega overwhelms theta. Direction matters most.' },
       { name:'No Major Events (14d)', val:hasEvent?'EVENT DETECTED':'Clear', pass:noEvents14, warn:false, note:'1 event = wider strikes. 2+ events = skip.' },
       { name:'BTC Ranging (Not Trending)', val:reg.title||reg.regime, pass:btcRanging, warn:false, note:'3+ consecutive trending weeks = skip entirely.' },
     ];
@@ -15297,14 +15647,14 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
        S4 — POST BIG MOVE
     ────────────────────────────────────────── */
     const s4Valid = bmr.daysSince>=3 && bmr.daysSince<=7;
-    const s4VoVFalling = vovTrend<=0;
+    const s4VoVFalling = vovTrend<=0 && ds.vov<65; // BTC post-big-move: must be declining
     const s4EdgeOK = edge18>=8;
 
     const s4Checks = [
       { name:'Big Move Confirmed (4%+)', val:bmr.daysSince>=999?'No recent move':bmr.daysSince+'d ago', pass:bmr.daysSince<=7&&bmr.daysSince>=3, warn:bmr.daysSince===8||bmr.daysSince===2, note:'Valid window: 3–7 days after 4%+ daily move. daysSince from BMR.' },
       { name:'Not Too Fresh (<3d)', val:bmr.daysSince<3?'TOO FRESH — aftershocks likely':'OK', pass:bmr.daysSince>=3, warn:bmr.daysSince===3, note:'Need at least 3 days for aftershock risk to pass.' },
       { name:'IV Still Elevated', val:fmtPct(edge18), pass:s4EdgeOK, warn:edge18>=5&&edge18<8, note:'After big move, IV should be HV30 + 12%+. If already collapsed = premium gone.' },
-      { name:'VoV Falling / Stable', val:ds.vov.toFixed(1)+'% ('+(vovTrend>=0?'+':'')+vovTrend.toFixed(1)+' trend)', pass:s4VoVFalling&&ds.vov<20, warn:!s4VoVFalling&&ds.vov<18, note:'VoV spiked during big move — must be declining by Monday night.' },
+      { name:'VoV Falling after Big Move', val:ds.vov.toFixed(1)+'% ('+(vovTrend>=0?'+':'')+vovTrend.toFixed(1)+' trend)', pass:s4VoVFalling, warn:!s4VoVFalling&&ds.vov<60, note:'After 4%+ BTC move, VoV spikes. Must see declining trend by Monday 8:45 PM. Entry = IV fear still elevated but stabilising.' },
       { name:'Not Volatile Month (big60≤6)', val:bmr.count60+' big moves (60D)', pass:bmr.count60<=6, warn:bmr.count60===7||bmr.count60===8, note:'Highly volatile months make fear premium unreliable.' },
     ];
     const s4Pass = s4Checks.filter(c=>c.pass===true).length;
@@ -15356,6 +15706,47 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     setSig('tsSigBMRGap', bmr.freq+' avg cycle', 'ts-blue');
     setSig('tsSigBMRCalm', bmr.calm+'d calm streak', bmr.calm>=5?'ts-green':bmr.calm>=2?'ts-amber':'ts-red');
     setSig('tsSigBMRDec', bmr.isSafe?'✓ SAFE WINDOW':bmr.isDanger?'✗ DANGER':'⚠ CAUTION', bmr.isSafe?'ts-green':bmr.isDanger?'ts-red':'ts-amber');
+
+    /* ── VoV Best Expiry Recommendation ── */
+    try{
+      const vovRec = getVoVBasedBestExpiry();
+      const reg    = vovRec.reg;
+      const icons  = {CALM:'🟢',NORMAL:'✅',ELEVATED:'⚠️',HIGH:'🔶',SPIKE:'🚨',CRISIS:'🚫'};
+
+      const rvIcon = document.getElementById('tsVoVRegIcon');
+      if(rvIcon) rvIcon.textContent = icons[reg.regime]||'⏳';
+
+      const rvLabel = document.getElementById('tsVoVRegLabel');
+      if(rvLabel){ rvLabel.textContent=reg.label; rvLabel.style.color=reg.col; }
+
+      set('tsVoVRegAction', reg.action);
+
+      const rvVal = document.getElementById('tsVoVRegVal');
+      if(rvVal){ rvVal.textContent=ds.vov.toFixed(1)+'% '+vovRec.trend; rvVal.style.color=reg.col; }
+
+      const rvEx = document.getElementById('tsVoVRegExpiry');
+      if(rvEx){
+        if(vovRec.expiry){ rvEx.textContent=vovRec.expiry.label+' ('+vovRec.expiry.dte+'DTE)'; rvEx.style.color=reg.grade>=3?'#16a34a':reg.grade>=2?'#d97706':'#dc2626'; }
+        else { rvEx.textContent='SKIP — VoV too high for any entry'; rvEx.style.color='#dc2626'; }
+      }
+      set('tsVoVRegWidth', vovRec.strikeWidth||'—');
+      set('tsVoVRegDelta', vovRec.deltaRec||'—');
+      set('tsVoVRegSize',  vovRec.sizeRec||'—');
+
+      // Which strategy is active based on VoV + day
+      const stratMap = {5:'S1 Friday 7DTE + S2 Monday 18DTE + S3 Monthly',4:'S2 Monday 18DTE + S3 Monthly (S1 OK)',3:'S2 18DTE wider strikes + S3 Monthly',2:'S3 Monthly 45-60DTE ONLY',1:'S3 Monthly ONLY — reduce size 50%',0:'SKIP ALL — wait for VoV < 65%'};
+      const stratEl = document.getElementById('tsVoVRegStrat');
+      if(stratEl){ stratEl.textContent=stratMap[reg.grade]||'—'; stratEl.style.color=reg.grade>=3?'#16a34a':reg.grade>=2?'#d97706':'#dc2626'; }
+
+      // Style the box
+      const box = document.getElementById('tsVoVRecommend');
+      if(box){
+        const bgMap={CALM:'rgba(22,163,74,.06)',NORMAL:'rgba(34,197,94,.05)',ELEVATED:'rgba(245,158,11,.06)',HIGH:'rgba(249,115,22,.07)',SPIKE:'rgba(239,68,68,.07)',CRISIS:'rgba(220,38,38,.1)'};
+        const bdMap={CALM:'rgba(22,163,74,.3)',NORMAL:'rgba(34,197,94,.25)',ELEVATED:'rgba(245,158,11,.3)',HIGH:'rgba(249,115,22,.3)',SPIKE:'rgba(239,68,68,.3)',CRISIS:'rgba(220,38,38,.4)'};
+        box.style.background=bgMap[reg.regime]||'var(--color-background-secondary)';
+        box.style.border='1px solid '+(bdMap[reg.regime]||'var(--color-border-tertiary)');
+      }
+    }catch(e){ console.warn('[VoV Rec]',e.message); }
 
     // Update timestamp
     set('tsUpdateTs', 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
