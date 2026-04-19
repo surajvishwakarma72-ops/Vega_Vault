@@ -2191,14 +2191,24 @@ function _ciComputeADX(prices, period=14){
     const vov   = (typeof state!=='undefined' && state.vovHistory?.at(-1)) || null;
     const spot  = (typeof state!=='undefined' && (state.btcSpotLive||state.btcBase)) || null;
 
-    // Weekly expiry = first non-expired expiry with DTE <= 8 (Friday weekly)
+    // ✅ FIX: prefer the expiry the user selected in ATM Live panel
     let weeklyEx = null, weeklyIdx = -1;
+    const _atmSel = (typeof atmLive !== 'undefined' && atmLive.selectedIdx >= 0) ? atmLive.selectedIdx : -1;
+
     if(typeof EXPIRIES !== 'undefined'){
-      for(let i=0;i<EXPIRIES.length;i++){
-        const ex = EXPIRIES[i];
-        if(!ex.expired && ex.dte <= 8){ weeklyEx = ex; weeklyIdx = i; break; }
+      // First try: user-selected expiry in ATM Live dropdown
+      if(_atmSel >= 0 && EXPIRIES[_atmSel] && !EXPIRIES[_atmSel].expired){
+        weeklyIdx = _atmSel;
+        weeklyEx  = EXPIRIES[_atmSel];
       }
-      // fallback: first non-expired
+      // Fallback 1: first non-expired expiry with DTE <= 8
+      if(!weeklyEx){
+        for(let i=0;i<EXPIRIES.length;i++){
+          const ex = EXPIRIES[i];
+          if(!ex.expired && ex.dte <= 8){ weeklyEx = ex; weeklyIdx = i; break; }
+        }
+      }
+      // Fallback 2: any first non-expired
       if(!weeklyEx){
         for(let i=0;i<EXPIRIES.length;i++){
           if(!EXPIRIES[i].expired){ weeklyEx = EXPIRIES[i]; weeklyIdx = i; break; }
@@ -2458,7 +2468,7 @@ function _ciComputeADX(prices, period=14){
 
     // Timestamp
     const ts = document.getElementById('fnsConfirmTs');
-    if(ts) ts.textContent = 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    if(ts) ts.textContent = (weeklyEx ? weeklyEx.label+' · ' : '') + 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   }
 
   /* ── Fetch BTC price — reads from dashboard's shared state ── */
@@ -2755,7 +2765,7 @@ function _ciComputeADX(prices, period=14){
     <div class="usp-metric" style="--usp-m-col:#ef4444"><div class="usp-m-lbl">Gamma Risk</div><div class="usp-m-val" id="uspMGamma">—</div><div class="usp-m-sub">Per 1% move</div></div>
     <div class="usp-metric" style="--usp-m-col:#dc2626"><div class="usp-m-lbl">Days Calm</div><div class="usp-m-val" id="uspMCalm">—</div><div class="usp-m-sub">Since 4%+ move</div></div>
     <div class="usp-metric" style="--usp-m-col:#1d4ed8"><div class="usp-m-lbl">TS Slope</div><div class="usp-m-val" id="uspMTS">—</div><div class="usp-m-sub">Normal/Inverted</div></div>
-    <div class="usp-metric" style="--usp-m-col:#0891b2"><div class="usp-m-lbl">Straddle $</div><div class="usp-m-val" id="uspMStraddle">—</div><div class="usp-m-sub">ATM near expiry</div></div>
+    <div class="usp-metric" style="--usp-m-col:#0891b2"><div class="usp-m-lbl">Bennett</div><div class="usp-m-val" id="uspMBennett">—</div><div class="usp-m-sub">Rules score</div></div>
     <div class="usp-metric" style="--usp-m-col:#7c3aed"><div class="usp-m-lbl">Bennett Score</div><div class="usp-m-val" id="uspMBennett">—</div><div class="usp-m-sub">/12 rules pass</div></div>
   </div>
 
@@ -2835,24 +2845,44 @@ function uspUpdate(){
     const vovH   = (typeof state!=='undefined'&&state.vovHistory)||[8,8,8];
     const ivH30  = typeof vapState!=='undefined'?vapState.zScoreWindow:[]; // 20pt window from VAP
 
-    // ── Get near expiry IV ──
-    let nearIV=dvol, nearDTE=14, nearLabel='Near';
+    // ── Get expiry IV — prefer atmLive.selectedIdx (user's chosen expiry), fallback to first near ──
+    let nearIV=dvol, nearDTE=14, nearLabel='Near', nearIdx=-1;
+
+    // ✅ FIX: use the expiry the user selected in ATM Live panel, not hardcoded first expiry
+    const atmSelectedIdx = (typeof atmLive !== 'undefined' && atmLive.selectedIdx >= 0) ? atmLive.selectedIdx : -1;
+
     if(typeof EXPIRIES!=='undefined'){
-      const nIdx=EXPIRIES.findIndex((e,i)=>!e.expired&&i>0);
-      if(nIdx>=0){
-        const ivArr=(typeof state!=='undefined'&&state.ivHistory?.[nIdx])||[];
-        nearIV=ivArr.length?(ivArr.at(-1)||EXPIRIES[nIdx].base):EXPIRIES[nIdx].base;
-        nearDTE=EXPIRIES[nIdx].dte;
-        nearLabel=EXPIRIES[nIdx].label;
+      // Try user-selected expiry first
+      if(atmSelectedIdx >= 0 && EXPIRIES[atmSelectedIdx] && !EXPIRIES[atmSelectedIdx].expired){
+        nearIdx = atmSelectedIdx;
+      } else {
+        // Fallback: first non-expired expiry after index 0
+        nearIdx = EXPIRIES.findIndex((e,i)=>!e.expired&&i>0);
+      }
+      if(nearIdx>=0){
+        const ivArr=(typeof state!=='undefined'&&state.ivHistory?.[nearIdx])||[];
+        nearIV=ivArr.length?(ivArr.at(-1)||EXPIRIES[nearIdx].base):EXPIRIES[nearIdx].base;
+        nearDTE=EXPIRIES[nearIdx].dte;
+        nearLabel=EXPIRIES[nearIdx].label;
       }
     }
     if(!nearIV||nearIV<5||nearIV>300) nearIV=dvol;
+
+    // ✅ FIX: Read ACTUAL live straddle premium from atmLive (call.markUSD + put.markUSD)
+    // instead of always computing from the hardcoded near expiry
+    let straddle;
+    const atmC = (typeof atmLive !== 'undefined') ? atmLive.call : null;
+    const atmP = (typeof atmLive !== 'undefined') ? atmLive.put  : null;
+    if(atmC?.markUSD > 0 && atmP?.markUSD > 0){
+      straddle = Math.round(atmC.markUSD + atmP.markUSD);
+    } else {
+      straddle = _uspStraddle(nearIV, nearDTE, spot) * 2;
+    }
 
     const ivHVEdge  = parseFloat((nearIV-hv30).toFixed(2));
     const ivr       = _uspIVR(nearIV, ivH30.length?ivH30:[nearIV*0.8,nearIV*0.9,nearIV,nearIV*1.1,nearIV*1.2]);
     const theta     = _uspTheta(nearIV,nearDTE,spot);
     const gamma     = _uspGamma(spot,nearIV,nearDTE);
-    const straddle  = _uspStraddle(nearIV,nearDTE,spot)*2;
 
     // ── Term structure slope ──
     let tsSlope=0;
@@ -3015,16 +3045,7 @@ function uspUpdate(){
         source:'News · 9 Live Sources',
         icon:newsRiskOk?'✅':'❌'
       },
-      // GATE 13 — ATM straddle premium size
-      {
-        name:'Straddle Premium >$500',
-        val:`$${straddle.toLocaleString()} (${(straddle/spot*100).toFixed(2)}% of spot)`,
-        pass:straddle>=500, warn:straddle>=200&&straddle<500,
-        note:'Insufficient premium = risk:reward too poor. Bennett: θ must be worthwhile.',
-        source:'ATM Live · Delta WS',
-        icon:straddle>=500?'✅':straddle>=200?'⚠️':'❌'
-      },
-      // GATE 14 — Variance Premium
+      // GATE 13 — Variance Premium
       {
         name:'Variance Premium Positive',
         val:`IV² − HV² = ${(nearIV*nearIV-hv30*hv30).toFixed(0)} var pts²`,
@@ -3047,17 +3068,17 @@ function uspUpdate(){
       verdict='DO NOT SELL'; vClass='usp-avoid'; vIcon='🔴'; aClass='usp-action-avoid'; aEmoji='🚫';
       aTitle='AVOID SHORT STRADDLE — CRITICAL GATES FAILING';
       vSub=`${failCount} gates failing (${hardFails} critical). Risk outweighs edge. Wait for conditions to align.`;
-      aSteps=`<b>What's wrong:</b> ${gates.filter(g=>!g.pass&&!g.warn).map(g=>`${g.name}`).join(', ')}.<br><b>Action:</b> Monitor VoV, IV trend, and big move cooldown. Re-evaluate when ≥10 gates pass.`;
-    } else if(passCount>=10&&hardFails===0){
+      aSteps=`<b>What's wrong:</b> ${gates.filter(g=>!g.pass&&!g.warn).map(g=>`${g.name}`).join(', ')}.<br><b>Action:</b> Monitor VoV, IV trend, and big move cooldown. Re-evaluate when ≥9 gates pass.`;
+    } else if(passCount>=9&&hardFails===0){
       verdict='ENTER STRADDLE'; vClass='usp-enter'; vIcon='🟢'; aClass='usp-action-enter'; aEmoji='✅';
-      aTitle=`SHORT STRADDLE — ENTER NOW (${passCount}/14 GATES PASS)`;
-      vSub=`${passCount}/14 gates passing. All critical gates green. Conditions optimal for short straddle entry.`;
+      aTitle=`SHORT STRADDLE — ENTER NOW (${passCount}/13 GATES PASS)`;
+      vSub=`${passCount}/13 gates passing. All critical gates green. Conditions optimal for short straddle entry.`;
       const bestEx=_uspBestExpiry();
-      aSteps=`<b>Recommended:</b> ATM short straddle on <b>${bestEx.label||nearLabel}</b> (${bestEx.dte||nearDTE}DTE)<br><b>Straddle premium:</b> ~$${straddle.toLocaleString()} · <b>Theta/day:</b> +$${theta}<br><b>Stop-loss:</b> 25% debit (exit if straddle reaches $${Math.round(straddle*1.25).toLocaleString()})<br><b>Target:</b> 50% profit ($${Math.round(straddle*0.5).toLocaleString()}) or ${Math.round(nearDTE*0.5)}D`;
+      aSteps=`<b>Recommended:</b> ATM short straddle on <b>${bestEx.label||nearLabel}</b> (${bestEx.dte||nearDTE}DTE)<br><b>Theta/day:</b> +$${theta}<br><b>Stop-loss:</b> 25% debit<br><b>Target:</b> 50% profit or ${Math.round(nearDTE*0.5)}D`;
     } else {
       verdict='WAIT & MONITOR'; vClass='usp-wait'; vIcon='🟡'; aClass='usp-action-wait'; aEmoji='⏳';
-      aTitle=`MONITOR — ${passCount}/14 GATES PASS (NEED ≥10 FOR ENTRY)`;
-      vSub=`${passCount} passing, ${warnCount} warning, ${failCount} failing. Close but not ready. Need ${Math.max(0,10-passCount)} more gates to flip green.`;
+      aTitle=`MONITOR — ${passCount}/13 GATES PASS (NEED ≥9 FOR ENTRY)`;
+      vSub=`${passCount} passing, ${warnCount} warning, ${failCount} failing. Close but not ready. Need ${Math.max(0,9-passCount)} more gates to flip green.`;
       aSteps=`<b>Needs improvement:</b> ${gates.filter(g=>!g.pass).slice(0,4).map(g=>g.name).join(', ')}<br><b>Next check:</b> Watch VoV direction, IV trend, and calm streak count.`;
     }
 
@@ -3068,8 +3089,8 @@ function uspUpdate(){
     _uel('uspVerdictText',verdict); _uel('uspVerdictIcon',vIcon);
     _uel('uspVerdictSub',vSub);
     _uel('uspScoreNum',passCount);
-    document.getElementById('uspScoreFill')?.setAttribute('style',`width:${(passCount/14*100).toFixed(0)}%;background:${passCount>=10?'#10b981':passCount>=7?'#f59e0b':'#ef4444'}`);
-    _uel('uspScoreVerdict',passCount>=10?'STRONG SIGNAL':passCount>=7?'PARTIAL':passCount>=4?'WEAK':'AVOID');
+    document.getElementById('uspScoreFill')?.setAttribute('style',`width:${(passCount/13*100).toFixed(0)}%;background:${passCount>=9?'#10b981':passCount>=7?'#f59e0b':'#ef4444'}`);
+    _uel('uspScoreVerdict',passCount>=9?'STRONG SIGNAL':passCount>=7?'PARTIAL':passCount>=4?'WEAK':'AVOID');
 
     // ── Metrics strip ─────────────────────────────────────────────
     _uel('uspMIV',   nearIV.toFixed(1)+'%');
@@ -3086,9 +3107,8 @@ function uspUpdate(){
     _uel('uspMGamma', '$'+gamma+'/1%');
     const calmEl=document.getElementById('uspMCalm');
     if(calmEl){ calmEl.textContent=daysSince>=99?'—':daysSince+'d'; calmEl.style.color=daysSince>=7?'#10b981':daysSince>=4?'#f59e0b':'#ef4444'; }
-    const tsEl=document.getElementById('uspMTS');
-    if(tsEl){ tsEl.textContent=(tsSlope>=0?'▲ Normal':'▼ Inverted'); tsEl.style.color=tsSlope>=0?'#10b981':'#ef4444'; }
-    _uel('uspMStraddle','$'+straddle.toLocaleString());
+    const tsEl2=document.getElementById('uspMTS');
+    if(tsEl2){ tsEl2.textContent=(tsSlope>=0?'▲ Normal':'▼ Inverted'); tsEl2.style.color=tsSlope>=0?'#10b981':'#ef4444'; }
     const bnEl=document.getElementById('uspMBennett');
     if(bnEl){ bnEl.textContent=bennettScore+'/12'; bnEl.style.color=bennettScore>=8?'#10b981':bennettScore>=6?'#f59e0b':'#ef4444'; }
 
