@@ -1516,6 +1516,1065 @@ function _ciComputeADX(prices, period=14){
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════════════════════
+     FRIDAY NIGHT STRANGLE PANEL — CME Settlement Based Entry
+     Auto-fetches BTC price · 8:45 PM IST Entry · 2x SL
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+/* ── Friday Strangle Panel ── */
+#fnsPanel{
+  background:var(--color-background-primary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:14px;
+  overflow:hidden;
+  margin-bottom:12px;
+  position:relative;
+}
+#fnsPanel::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg,#f59e0b,#ef4444,#8b5cf6,#3b82f6);
+}
+
+/* Top bar */
+.fns-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:8px;
+  padding:10px 14px;
+  background:var(--color-background-secondary);
+  border-bottom:0.5px solid var(--color-border-tertiary);
+}
+.fns-title{font-size:12px;font-weight:900;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;letter-spacing:.04em}
+.fns-title-icon{font-size:15px}
+.fns-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:#0f3d2a;color:#6ee7b7;letter-spacing:.05em}
+.fns-day-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;letter-spacing:.05em}
+.fns-day-fri{background:rgba(245,158,11,.15);color:#d97706;border:0.5px solid rgba(245,158,11,.3)}
+.fns-day-other{background:rgba(107,114,128,.1);color:#6b7280;border:0.5px solid rgba(107,114,128,.2)}
+.fns-btc-live{font-size:11px;font-weight:700;color:var(--color-text-primary);display:flex;align-items:center;gap:5px}
+.fns-btc-price{font-variant-numeric:tabular-nums;font-size:13px;font-weight:900;color:#f59e0b}
+.fns-btc-chg{font-size:10px;font-weight:600}
+.fns-btc-up{color:#22c55e}.fns-btc-dn{color:#ef4444}
+
+/* CME Countdown */
+.fns-cme-bar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:10px 14px;
+  border-bottom:0.5px solid var(--color-border-tertiary);
+  background:rgba(245,158,11,.04);
+}
+.fns-cme-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fns-cme-label{font-size:10px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em}
+.fns-cme-status{font-size:11px;font-weight:800;padding:3px 10px;border-radius:6px;letter-spacing:.04em}
+.fns-cme-pre{background:rgba(245,158,11,.15);color:#d97706;border:0.5px solid rgba(245,158,11,.3)}
+.fns-cme-settling{background:rgba(239,68,68,.15);color:#dc2626;border:0.5px solid rgba(239,68,68,.3);animation:fns-blink 1s infinite}
+.fns-cme-settled{background:rgba(34,197,94,.15);color:#16a34a;border:0.5px solid rgba(34,197,94,.3)}
+@keyframes fns-blink{0%,100%{opacity:1}50%{opacity:.5}}
+.fns-countdown{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--color-text-primary);letter-spacing:.02em}
+.fns-entry-clock{font-size:10px;color:var(--color-text-secondary)}
+.fns-entry-clock b{color:#8b5cf6;font-weight:800}
+
+/* Main grid */
+.fns-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:0.5px solid var(--color-border-tertiary)}
+@media(max-width:700px){.fns-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.fns-grid{grid-template-columns:1fr}}
+.fns-col{padding:12px 14px;border-right:0.5px solid var(--color-border-tertiary)}
+.fns-col:last-child{border-right:none}
+.fns-col-hdr{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-secondary);margin-bottom:8px}
+
+/* Session range */
+.fns-range-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.fns-range-lbl{font-size:9px;color:var(--color-text-secondary);font-weight:600}
+.fns-range-val{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--color-text-primary)}
+.fns-range-high{color:#ef4444!important}
+.fns-range-low{color:#22c55e!important}
+.fns-range-pct{font-size:10px;font-weight:700;color:#f59e0b;text-align:center;margin-top:4px}
+
+/* Strike box */
+.fns-strike-box{margin-bottom:7px;padding:8px 10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.fns-strike-call{background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25)}
+.fns-strike-put{background:rgba(34,197,94,.08);border:0.5px solid rgba(34,197,94,.25)}
+.fns-strike-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.fns-strike-lbl-c{color:#ef4444}.fns-strike-lbl-p{color:#22c55e}
+.fns-strike-val{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--color-text-primary)}
+.fns-strike-away{font-size:9px;color:var(--color-text-secondary);font-weight:600}
+
+/* Checklist */
+.fns-check-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fns-check-item:last-child{border-bottom:none}
+.fns-check-lbl{font-size:9px;color:var(--color-text-secondary);font-weight:500;flex:1;padding-right:8px;line-height:1.3}
+.fns-check-val{font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.fns-chk-yes{background:rgba(34,197,94,.15);color:#16a34a}
+.fns-chk-no{background:rgba(239,68,68,.15);color:#dc2626}
+.fns-chk-wait{background:rgba(245,158,11,.15);color:#d97706}
+
+/* Signal banner */
+.fns-signal{
+  padding:12px 14px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+.fns-signal-main{display:flex;align-items:center;gap:10px}
+.fns-signal-icon{font-size:22px}
+.fns-signal-text{}
+.fns-signal-title{font-size:14px;font-weight:900;letter-spacing:.04em}
+.fns-signal-sub{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+.fns-sig-enter .fns-signal-title{color:#16a34a}
+.fns-sig-wait .fns-signal-title{color:#d97706}
+.fns-sig-skip .fns-signal-title{color:#dc2626}
+.fns-sig-early .fns-signal-title{color:#6b7280}
+
+/* SL box */
+.fns-sl-row{display:flex;gap:8px;flex-wrap:wrap}
+.fns-sl-tile{padding:6px 12px;border-radius:8px;text-align:center;min-width:90px}
+.fns-sl-premium{background:rgba(59,130,246,.1);border:0.5px solid rgba(59,130,246,.25)}
+.fns-sl-stop{background:rgba(239,68,68,.1);border:0.5px solid rgba(239,68,68,.25)}
+.fns-sl-exit{background:rgba(34,197,94,.1);border:0.5px solid rgba(34,197,94,.25)}
+.fns-sl-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
+.fns-sl-val{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums}
+.fns-sl-premium .fns-sl-val{color:#3b82f6}
+.fns-sl-stop .fns-sl-val{color:#ef4444}
+.fns-sl-exit .fns-sl-val{color:#22c55e}
+
+/* Pattern pill */
+.fns-pattern{font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;letter-spacing:.03em}
+.fns-pat-a{background:rgba(34,197,94,.15);color:#16a34a;border:0.5px solid rgba(34,197,94,.3)}
+.fns-pat-b{background:rgba(239,68,68,.15);color:#dc2626;border:0.5px solid rgba(239,68,68,.3)}
+.fns-pat-c{background:rgba(59,130,246,.15);color:#2563eb;border:0.5px solid rgba(59,130,246,.3)}
+.fns-pat-none{background:rgba(107,114,128,.1);color:#6b7280;border:0.5px solid rgba(107,114,128,.2)}
+/* ── Confirmation Tiles ── */
+.fns-conf-tile{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+.fns-conf-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:4px}
+.fns-conf-val{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--color-text-primary);line-height:1;margin-bottom:2px}
+.fns-conf-sub{font-size:8px;color:var(--color-text-secondary);margin-bottom:4px;line-height:1.3}
+.fns-conf-status{font-size:8px;font-weight:800;padding:1px 7px;border-radius:4px;display:inline-block;letter-spacing:.04em}
+.fns-conf-green{border-left:2px solid #22c55e}.fns-conf-green .fns-conf-status{background:rgba(34,197,94,.15);color:#16a34a}
+.fns-conf-red{border-left:2px solid #ef4444}.fns-conf-red .fns-conf-status{background:rgba(239,68,68,.15);color:#dc2626}
+.fns-conf-yellow{border-left:2px solid #f59e0b}.fns-conf-yellow .fns-conf-status{background:rgba(245,158,11,.15);color:#d97706}
+.fns-conf-grey{border-left:2px solid #6b7280}.fns-conf-grey .fns-conf-status{background:rgba(107,114,128,.1);color:#6b7280}
+
+/* Premium input */
+.fns-prem-input{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:8px 14px;
+  background:var(--color-background-secondary);
+  border-top:0.5px solid var(--color-border-tertiary);
+}
+.fns-prem-lbl{font-size:10px;font-weight:700;color:var(--color-text-secondary)}
+.fns-prem-field{
+  font-size:12px;font-weight:700;width:90px;
+  padding:4px 8px;border-radius:6px;
+  border:0.5px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);
+  font-variant-numeric:tabular-nums;
+}
+.fns-prem-btn{
+  font-size:10px;font-weight:700;padding:4px 12px;border-radius:6px;
+  border:none;background:#3b82f6;color:#fff;cursor:pointer;
+}
+
+/* Non-Friday overlay */
+.fns-nonfri{
+  padding:20px;text-align:center;
+  color:var(--color-text-secondary);font-size:12px;
+}
+.fns-nonfri-big{font-size:28px;margin-bottom:8px}
+.fns-nonfri-next{font-size:11px;font-weight:700;color:var(--color-text-primary);margin-top:4px}
+</style>
+
+<div id="fnsPanel">
+  <!-- Top bar -->
+  <div class="fns-topbar">
+    <div class="fns-title">
+      <span class="fns-title-icon">⚡</span>
+      FRIDAY NIGHT STRANGLE
+      <span class="fns-badge">CME BASED</span>
+      <span class="fns-day-badge" id="fnsDayBadge">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="fns-btc-live">
+        BTC <span class="fns-btc-price" id="fnsBtcPrice">—</span>
+        <span class="fns-btc-chg" id="fnsBtcChg">—</span>
+      </div>
+      <span id="fnsWsBadge" style="font-size:8px;padding:2px 7px;border-radius:4px;background:rgba(107,114,128,.1);color:#6b7280">● Connecting</span>
+    </div>
+  </div>
+
+  <!-- CME Countdown Bar -->
+  <div class="fns-cme-bar">
+    <div class="fns-cme-left">
+      <span class="fns-cme-label">CME Settlement</span>
+      <span class="fns-cme-status fns-cme-pre" id="fnsCmeStatus">PRE-SETTLEMENT</span>
+      <span class="fns-countdown" id="fnsCmeCountdown">--:--:--</span>
+    </div>
+    <div class="fns-entry-clock">
+      Entry window: <b>8:45 PM IST</b> &nbsp;|&nbsp; Exit: <b>Sat 8–9 PM IST</b>
+    </div>
+  </div>
+
+  <!-- Main content — shown only on Friday -->
+  <div id="fnsFridayContent">
+
+    <!-- Three column grid -->
+    <div class="fns-grid">
+
+      <!-- Col 1: Session Range & Strikes -->
+      <div class="fns-col">
+        <div class="fns-col-hdr">📊 Session Range (7–8:45 PM)</div>
+        <div class="fns-range-row">
+          <span class="fns-range-lbl">Session High</span>
+          <span class="fns-range-val fns-range-high" id="fnsHigh">—</span>
+        </div>
+        <div class="fns-range-row">
+          <span class="fns-range-lbl">Session Low</span>
+          <span class="fns-range-val fns-range-low" id="fnsLow">—</span>
+        </div>
+        <div class="fns-range-row">
+          <span class="fns-range-lbl">Range %</span>
+          <span class="fns-range-val" id="fnsRangePct" style="color:#f59e0b">—</span>
+        </div>
+        <div style="margin-top:10px">
+          <div class="fns-col-hdr">🎯 Suggested Strikes</div>
+          <div class="fns-strike-box fns-strike-call">
+            <div>
+              <div class="fns-strike-lbl fns-strike-lbl-c">CALL ↑</div>
+              <div class="fns-strike-away" id="fnsCallAway">High + 2%</div>
+            </div>
+            <div class="fns-strike-val" id="fnsCallStrike">—</div>
+          </div>
+          <div class="fns-strike-box fns-strike-put">
+            <div>
+              <div class="fns-strike-lbl fns-strike-lbl-p">PUT ↓</div>
+              <div class="fns-strike-away" id="fnsPutAway">Low − 2%</div>
+            </div>
+            <div class="fns-strike-val" id="fnsPutStrike">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 2: Entry Checklist -->
+      <div class="fns-col">
+        <div class="fns-col-hdr">✅ Entry Checklist</div>
+        <div class="fns-check-item">
+          <span class="fns-check-lbl">Last 15min candle smaller than previous</span>
+          <span class="fns-check-val fns-chk-wait" id="fnsChk1">WAIT</span>
+        </div>
+        <div class="fns-check-item">
+          <span class="fns-check-lbl">BTC inside session range</span>
+          <span class="fns-check-val fns-chk-wait" id="fnsChk2">WAIT</span>
+        </div>
+        <div class="fns-check-item">
+          <span class="fns-check-lbl">CME settlement complete</span>
+          <span class="fns-check-val fns-chk-wait" id="fnsChk3">WAIT</span>
+        </div>
+        <div class="fns-check-item">
+          <span class="fns-check-lbl">NY move &lt; 4.5% (safe to enter)</span>
+          <span class="fns-check-val fns-chk-wait" id="fnsChk4">WAIT</span>
+        </div>
+        <div class="fns-check-item">
+          <span class="fns-check-lbl">Pattern detected</span>
+          <span class="fns-pattern fns-pat-none" id="fnsPattern">—</span>
+        </div>
+        <div style="margin-top:10px">
+          <div class="fns-col-hdr">💊 Pattern Guide</div>
+          <div style="font-size:9px;color:var(--color-text-secondary);line-height:1.6">
+            <span class="fns-pattern fns-pat-a" style="font-size:8px">A</span> Flush &amp; Recover → 0.10Δ<br>
+            <span class="fns-pattern fns-pat-b" style="font-size:8px">B</span> Directional Break → 0.08Δ or SKIP<br>
+            <span class="fns-pattern fns-pat-c" style="font-size:8px">C</span> Flat Settlement → 0.10Δ freely
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 3: Signal + SL -->
+      <div class="fns-col">
+        <div class="fns-col-hdr">🚦 Entry Signal</div>
+        <div class="fns-signal fns-sig-early" id="fnsSignalBox" style="padding:0;margin-bottom:10px">
+          <div class="fns-signal-main">
+            <span class="fns-signal-icon" id="fnsSignalIcon">⏳</span>
+            <div class="fns-signal-text">
+              <div class="fns-signal-title" id="fnsSignalTitle">WAITING</div>
+              <div class="fns-signal-sub" id="fnsSignalSub">CME settles at 8:30 PM IST</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fns-col-hdr" style="margin-top:8px">💰 Premium & Stop Loss</div>
+        <div class="fns-sl-row" id="fnsSlRow">
+          <div class="fns-sl-tile fns-sl-premium">
+            <div class="fns-sl-lbl">Premium</div>
+            <div class="fns-sl-val" id="fnsSlPremium">$—</div>
+          </div>
+          <div class="fns-sl-tile fns-sl-stop">
+            <div class="fns-sl-lbl">Stop Loss (2×)</div>
+            <div class="fns-sl-val" id="fnsSlStop">$—</div>
+          </div>
+          <div class="fns-sl-tile fns-sl-exit">
+            <div class="fns-sl-lbl">Max Profit</div>
+            <div class="fns-sl-val" id="fnsSlProfit">$—</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="fns-col-hdr">📅 Saturday Exit Plan</div>
+          <div style="font-size:9px;color:var(--color-text-secondary);line-height:1.7">
+            🕙 <b style="color:var(--color-text-primary)">Morning (10 AM)</b> — Check if inside range<br>
+            🕒 <b style="color:var(--color-text-primary)">Afternoon (3 PM)</b> — Monitor IV compression<br>
+            🕗 <b style="color:var(--color-text-primary)">Exit (8–9 PM)</b> — Close both legs<br>
+            🛑 <b style="color:#ef4444">SL Hit</b> — Exit immediately, no debate
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium input bar -->
+    <!-- ══ CONFIRMATION SECTION — Weekly Expiry Analysis ══ -->
+    <div style="border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);padding:8px 14px 4px">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-secondary);margin-bottom:8px">
+        📡 CONFIRMATION SIGNALS — Weekly Expiry
+        <span style="font-size:8px;font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px;color:var(--color-text-secondary)" id="fnsConfirmTs">Reads live from dashboard</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-bottom:8px">
+        <div class="fns-conf-tile" id="fnsConfIVHV">
+          <div class="fns-conf-lbl">IV − HV Edge</div>
+          <div class="fns-conf-val" id="fnsConfIVHVVal">—</div>
+          <div class="fns-conf-sub" id="fnsConfIVHVSub">Need &gt;10% to sell</div>
+          <div class="fns-conf-status" id="fnsConfIVHVStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfVRP">
+          <div class="fns-conf-lbl">Vol Risk Premium</div>
+          <div class="fns-conf-val" id="fnsConfVRPVal">—</div>
+          <div class="fns-conf-sub">IV² &gt; HV² seller edge</div>
+          <div class="fns-conf-status" id="fnsConfVRPStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfVoV">
+          <div class="fns-conf-lbl">Vol of Vol (VoV)</div>
+          <div class="fns-conf-val" id="fnsConfVoVVal">—</div>
+          <div class="fns-conf-sub">Stable &lt;20% = OK</div>
+          <div class="fns-conf-status" id="fnsConfVoVStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfQuality">
+          <div class="fns-conf-lbl">Weekly IV Quality</div>
+          <div class="fns-conf-val" id="fnsConfQualityVal">—</div>
+          <div class="fns-conf-sub" id="fnsConfQualitySub">RICH / FAIR / POOR</div>
+          <div class="fns-conf-status" id="fnsConfQualityStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfTheta">
+          <div class="fns-conf-lbl">Weekly Theta/Day</div>
+          <div class="fns-conf-val" id="fnsConfThetaVal">—</div>
+          <div class="fns-conf-sub">Daily straddle decay $</div>
+          <div class="fns-conf-status" id="fnsConfThetaStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfGamma">
+          <div class="fns-conf-lbl">Gamma Risk Weekly</div>
+          <div class="fns-conf-val" id="fnsConfGammaVal">—</div>
+          <div class="fns-conf-sub">Low = safer entry</div>
+          <div class="fns-conf-status" id="fnsConfGammaStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfMPO">
+          <div class="fns-conf-lbl">Market Pattern</div>
+          <div class="fns-conf-val" id="fnsConfMPOVal">—</div>
+          <div class="fns-conf-sub" id="fnsConfMPOSub">No confirmed patterns</div>
+          <div class="fns-conf-status" id="fnsConfMPOStatus">WAIT</div>
+        </div>
+        <div class="fns-conf-tile" id="fnsConfMove">
+          <div class="fns-conf-lbl">Expected 24H Move</div>
+          <div class="fns-conf-val" id="fnsConfMoveVal">—</div>
+          <div class="fns-conf-sub">Based on IV/ATR</div>
+          <div class="fns-conf-status" id="fnsConfMoveStatus">WAIT</div>
+        </div>
+      </div>
+      <!-- Master verdict -->
+      <div id="fnsConfVerdict" style="border-radius:9px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:rgba(107,114,128,.08);border:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px" id="fnsConfVerdictIcon">⏳</span>
+          <div>
+            <div style="font-size:12px;font-weight:900;letter-spacing:.03em" id="fnsConfVerdictTitle">READING DASHBOARD DATA…</div>
+            <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px" id="fnsConfVerdictSub">Aggregating IV/HV, VRP, VoV, Greeks and Pattern Observer for weekly expiry</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="fnsConfScorePills"></div>
+      </div>
+    </div>
+
+    <div class="fns-prem-input">
+      <span class="fns-prem-lbl">Enter total premium collected ($):</span>
+      <input type="number" class="fns-prem-field" id="fnsPremInput" placeholder="e.g. 400" oninput="fnsCalcSL()">
+      <button class="fns-prem-btn" onclick="fnsCalcSL()">Calculate SL</button>
+      <span style="font-size:9px;color:var(--color-text-secondary)">SL = 2× premium &nbsp;|&nbsp; Keep position size where SL ≤ 3% of capital</span>
+    </div>
+
+  </div>
+
+  <!-- Non-Friday message -->
+  <div id="fnsNonFriday" style="display:none">
+    <div class="fns-nonfri">
+      <div class="fns-nonfri-big">📅</div>
+      <div>This panel activates on <b>Fridays only</b></div>
+      <div class="fns-nonfri-next" id="fnsNextFriday">Next Friday: —</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--color-text-secondary)">CME Settlement: <b>8:30 PM IST</b> &nbsp;·&nbsp; Entry Window: <b>8:45 PM IST</b> &nbsp;·&nbsp; Exit: <b>Saturday 8–9 PM IST</b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   FRIDAY NIGHT STRANGLE PANEL — Full Logic
+   CME Settlement: 8:30 PM IST (Fri) | Entry: 8:45 PM IST
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  /* ── State ── */
+  const FNS = {
+    btcPrice: null,
+    btcOpen: null,        // price at 7:00 PM IST today
+    sessionHigh: null,
+    sessionLow: null,
+    candles15m: [],       // last few 15min candles
+    lastFetch: 0,
+    wsAlive: false,
+    priceHistory: [],     // [{t, p}] from 7 PM IST onwards
+  };
+
+  /* ── Helpers ── */
+  const $ = id => document.getElementById(id);
+  const set = (id, v) => { const e=$(id); if(e) e.textContent = v; };
+  const ist = () => {
+    const now = new Date();
+    // IST = UTC+5:30
+    const utc = now.getTime() + now.getTimezoneOffset()*60000;
+    return new Date(utc + 5.5*3600000);
+  };
+  const fmt$ = v => v==null ? '$—' : '$'+Math.round(v).toLocaleString('en-US');
+
+  /* ── Day check ── */
+  function isFriday(){ return ist().getDay() === 5; }
+
+  function fnsNextFriday(){
+    const now = ist();
+    const d = now.getDay(); // 0=Sun
+    const diff = d === 5 ? 7 : (5 - d + 7) % 7 || 7;
+    const nf = new Date(now.getTime() + diff*86400000);
+    return nf.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'});
+  }
+
+  /* ── CME Settlement: 8:30 PM IST every Friday ── */
+  function cmeSettlementTime(){
+    const now = ist();
+    // Build today's CME settlement at 20:30 IST
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 30, 0);
+  }
+  function entryTime(){
+    const now = ist();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 45, 0);
+  }
+  function nyOpenTime(){
+    const now = ist();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0, 0);
+  }
+
+  /* ── CME Status ── */
+  function getCmeStatus(){
+    const now = ist();
+    const cme = cmeSettlementTime();
+    const pre = new Date(cme.getTime() - 90*60000); // 7:00 PM = 90min before 8:30
+    if(now < pre) return 'pre';
+    if(now >= pre && now < cme) return 'settling';
+    return 'settled';
+  }
+
+  /* ── Pattern Detection ── */
+  function detectPattern(){
+    if(!FNS.sessionHigh || !FNS.sessionLow || !FNS.btcOpen) return null;
+    const rangePct = ((FNS.sessionHigh - FNS.sessionLow) / FNS.btcOpen) * 100;
+    const nowPrice = FNS.btcPrice;
+    if(!nowPrice) return null;
+
+    // How far from NY open?
+    const driftPct = Math.abs((nowPrice - FNS.btcOpen) / FNS.btcOpen) * 100;
+
+    if(rangePct < 1.5) return 'C'; // Flat
+    if(driftPct < 0.8 && rangePct < 4) return 'A'; // Flush & Recover (back near open)
+    if(driftPct >= 2.0) return 'B'; // Directional
+    return 'A'; // Default to A if mild
+  }
+
+  /* ── Checklist Evaluation ── */
+  function evalChecklist(){
+    const now = ist();
+    const cmeStatus = getCmeStatus();
+    const settled = cmeStatus === 'settled';
+    const price = FNS.btcPrice;
+    const high = FNS.sessionHigh;
+    const low = FNS.sessionLow;
+    const open = FNS.btcOpen;
+
+    // Check 1: Last 15m candle smaller than previous (from priceHistory)
+    let chk1 = null;
+    if(FNS.candles15m.length >= 2){
+      const last = FNS.candles15m[FNS.candles15m.length-1];
+      const prev = FNS.candles15m[FNS.candles15m.length-2];
+      chk1 = last.range <= prev.range;
+    }
+
+    // Check 2: BTC inside session range
+    let chk2 = null;
+    if(price && high && low) chk2 = (price >= low && price <= high);
+
+    // Check 3: CME settled
+    let chk3 = settled;
+
+    // Check 4: NY move < 4.5%
+    let chk4 = null;
+    if(open && high && low){
+      const nyMove = ((high - low) / open) * 100;
+      chk4 = nyMove < 4.5;
+    }
+
+    return { chk1, chk2, chk3, chk4 };
+  }
+
+  /* ── Determine Signal ── */
+  function getSignal(checks, pattern){
+    const now = ist();
+    const h = now.getHours(), m = now.getMinutes();
+    const nowMins = h*60 + m;
+    const entryMins = 20*60 + 45; // 8:45 PM
+    const lastEntryMins = 21*60 + 15; // 9:15 PM
+
+    if(nowMins < 19*60) return { type:'early', icon:'⏳', title:'TOO EARLY', sub:'Panel activates at 7:00 PM IST when NY opens' };
+    if(nowMins < entryMins) return { type:'wait', icon:'👀', title:'WATCH & WAIT', sub:'Entry window opens at 8:45 PM IST after CME settles' };
+    if(nowMins > lastEntryMins) return { type:'skip', icon:'🚫', title:'SKIP THIS FRIDAY', sub:'Entry window closed. Wait for next Friday.' };
+
+    // In entry window (8:45–9:15 PM)
+    const { chk1, chk2, chk3, chk4 } = checks;
+    const greenCount = [chk1,chk2,chk3,chk4].filter(c=>c===true).length;
+    const hasRed = [chk1,chk2,chk3,chk4].some(c=>c===false);
+
+    if(pattern === 'B' && chk4 === false) return { type:'skip', icon:'🚫', title:'SKIP — HIGH MOVE', sub:'NY move >4.5%. Weekend risk too high.' };
+    if(greenCount >= 4) return { type:'enter', icon:'✅', title:'ENTER NOW', sub: pattern==='A'?'Pattern A: 0.10Δ — Flush & Recover':pattern==='C'?'Pattern C: 0.10Δ — Flat & clean':'Pattern B: 0.08Δ — Directional, widen strikes' };
+    if(greenCount >= 3) return { type:'wait', icon:'⚠️', title:'ALMOST READY', sub:'One condition pending. Check again in 10 min.' };
+    return { type:'skip', icon:'🚫', title:'SKIP THIS FRIDAY', sub:'Multiple conditions failing. Protect capital.' };
+  }
+
+  /* ── Render UI ── */
+  function fnsRender(){
+    const now = ist();
+    const fri = isFriday();
+
+    // Day badge
+    const dayBadge = $('fnsDayBadge');
+    if(dayBadge){
+      dayBadge.textContent = fri ? '📅 FRIDAY — ACTIVE' : now.toLocaleDateString('en-IN',{weekday:'long'}).toUpperCase();
+      dayBadge.className = 'fns-day-badge ' + (fri ? 'fns-day-fri' : 'fns-day-other');
+    }
+
+    // Show/hide content
+    const fridayContent = $('fnsFridayContent');
+    const nonFri = $('fnsNonFriday');
+    if(fridayContent) fridayContent.style.display = fri ? '' : 'none';
+    if(nonFri){
+      nonFri.style.display = fri ? 'none' : '';
+      set('fnsNextFriday', 'Next Friday: ' + fnsNextFriday());
+    }
+
+    // CME countdown
+    const cme = cmeSettlementTime();
+    const diffMs = cme - now;
+    const status = getCmeStatus();
+
+    const cmeEl = $('fnsCmeStatus');
+    const ctEl = $('fnsCmeCountdown');
+    if(cmeEl){
+      if(status==='pre'){ cmeEl.textContent='PRE-SETTLEMENT'; cmeEl.className='fns-cme-status fns-cme-pre'; }
+      else if(status==='settling'){ cmeEl.textContent='⚡ SETTLING'; cmeEl.className='fns-cme-status fns-cme-settling'; }
+      else { cmeEl.textContent='✅ SETTLED'; cmeEl.className='fns-cme-status fns-cme-settled'; }
+    }
+    if(ctEl){
+      if(status==='settled'){ ctEl.textContent='Done'; ctEl.style.color='#16a34a'; }
+      else if(status==='settling'){
+        const s = Math.abs(Math.floor(diffMs/1000));
+        const mm = String(Math.floor(s/60)).padStart(2,'0');
+        const ss = String(s%60).padStart(2,'0');
+        ctEl.textContent = mm+':'+ss;
+        ctEl.style.color = '#ef4444';
+      } else {
+        const s = Math.max(0,Math.floor(diffMs/1000));
+        const hh = String(Math.floor(s/3600)).padStart(2,'0');
+        const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+        const ss = String(s%60).padStart(2,'0');
+        ctEl.textContent = hh+':'+mm+':'+ss;
+        ctEl.style.color = s < 1800 ? '#f59e0b' : 'var(--color-text-primary)';
+      }
+    }
+
+    if(!fri) return;
+
+    // Session range
+    if(FNS.sessionHigh && FNS.sessionLow){
+      set('fnsHigh', '$'+Math.round(FNS.sessionHigh).toLocaleString('en-US'));
+      set('fnsLow',  '$'+Math.round(FNS.sessionLow).toLocaleString('en-US'));
+      const rng = ((FNS.sessionHigh-FNS.sessionLow)/FNS.sessionLow*100).toFixed(2);
+      set('fnsRangePct', rng+'% range');
+
+      // Strikes: High+2%, Low-2%
+      const callS = Math.round(FNS.sessionHigh * 1.02 / 100) * 100;
+      const putS  = Math.round(FNS.sessionLow  * 0.98 / 100) * 100;
+      set('fnsCallStrike', '$'+callS.toLocaleString('en-US'));
+      set('fnsPutStrike',  '$'+putS.toLocaleString('en-US'));
+      set('fnsCallAway', 'High + 2% → $'+callS.toLocaleString('en-US'));
+      set('fnsPutAway',  'Low − 2% → $'+putS.toLocaleString('en-US'));
+    } else {
+      set('fnsHigh','Waiting for 7 PM IST');
+      set('fnsLow','—');
+    }
+
+    // Checklist
+    const checks = evalChecklist();
+    function setChk(id, val){
+      const e=$(id); if(!e) return;
+      if(val===null){ e.textContent='WAIT'; e.className='fns-check-val fns-chk-wait'; }
+      else if(val){ e.textContent='✓ YES'; e.className='fns-check-val fns-chk-yes'; }
+      else { e.textContent='✗ NO'; e.className='fns-check-val fns-chk-no'; }
+    }
+    setChk('fnsChk1', checks.chk1);
+    setChk('fnsChk2', checks.chk2);
+    setChk('fnsChk3', checks.chk3);
+    setChk('fnsChk4', checks.chk4);
+
+    // Pattern
+    const pat = detectPattern();
+    const patEl = $('fnsPattern');
+    if(patEl){
+      if(!pat){ patEl.textContent='—'; patEl.className='fns-pattern fns-pat-none'; }
+      else if(pat==='A'){ patEl.textContent='Pattern A — Flush & Recover'; patEl.className='fns-pattern fns-pat-a'; }
+      else if(pat==='B'){ patEl.textContent='Pattern B — Directional'; patEl.className='fns-pattern fns-pat-b'; }
+      else { patEl.textContent='Pattern C — Flat Settlement'; patEl.className='fns-pattern fns-pat-c'; }
+    }
+
+    // Signal
+    const sig = getSignal(checks, pat);
+    const sigBox = $('fnsSignalBox');
+    if(sigBox){
+      sigBox.className = 'fns-signal fns-sig-'+sig.type;
+      sigBox.style.padding = '0';
+      sigBox.style.marginBottom = '10px';
+    }
+    set('fnsSignalIcon', sig.icon);
+    set('fnsSignalTitle', sig.title);
+    set('fnsSignalSub', sig.sub);
+
+    // Recalc SL if premium entered
+    fnsCalcSL();
+  }
+
+  /* ── SL Calculator ── */
+  window.fnsCalcSL = function(){
+    const inp = $('fnsPremInput');
+    const val = inp ? parseFloat(inp.value) : NaN;
+    if(!isNaN(val) && val > 0){
+      set('fnsSlPremium', fmt$(val));
+      set('fnsSlStop', fmt$(val*2));
+      set('fnsSlProfit', fmt$(val));
+    } else {
+      set('fnsSlPremium','$—');
+      set('fnsSlStop','$—');
+      set('fnsSlProfit','$—');
+    }
+  };
+  /* ── Confirmation Signals — Weekly Expiry ── */
+  function fnsConfirmUpdate(){
+    // ── 1. Read shared dashboard state ──
+    const hv30  = (typeof state!=='undefined' && state.hv30) || null;
+    const vov   = (typeof state!=='undefined' && state.vovHistory?.at(-1)) || null;
+    const spot  = (typeof state!=='undefined' && (state.btcSpotLive||state.btcBase)) || null;
+
+    // Weekly expiry = first non-expired expiry with DTE <= 8 (Friday weekly)
+    let weeklyEx = null, weeklyIdx = -1;
+    if(typeof EXPIRIES !== 'undefined'){
+      for(let i=0;i<EXPIRIES.length;i++){
+        const ex = EXPIRIES[i];
+        if(!ex.expired && ex.dte <= 8){ weeklyEx = ex; weeklyIdx = i; break; }
+      }
+      // fallback: first non-expired
+      if(!weeklyEx){
+        for(let i=0;i<EXPIRIES.length;i++){
+          if(!EXPIRIES[i].expired){ weeklyEx = EXPIRIES[i]; weeklyIdx = i; break; }
+        }
+      }
+    }
+
+    // Weekly IV from ivHistory
+    let weeklyIV = weeklyEx ? weeklyEx.base : null;
+    if(typeof state!=='undefined' && state.ivHistory && weeklyIdx >= 0){
+      const arr = state.ivHistory[weeklyIdx];
+      if(arr && arr.length) weeklyIV = arr.at(-1);
+    }
+
+    // Weekly Greeks from greeksState.allExpiries
+    let weeklyGreeks = null;
+    if(typeof greeksState !== 'undefined' && greeksState.allExpiries.length){
+      weeklyGreeks = greeksState.allExpiries.find(r => r.expiryIdx === weeklyIdx)
+                  || greeksState.allExpiries[0];
+    }
+
+    // MPO patterns
+    const patterns = (typeof mpoState !== 'undefined') ? mpoState.patterns : [];
+    const confirmedPats = patterns.filter(p => p.status === 'confirmed');
+    const bearishPats   = confirmedPats.filter(p => p.bias === 'bearish' || (p.name||'').toLowerCase().includes('top') || (p.name||'').toLowerCase().includes('head') || (p.name||'').toLowerCase().includes('bear'));
+    const bullishPats   = confirmedPats.filter(p => p.bias === 'bullish' || (p.name||'').toLowerCase().includes('bottom') || (p.name||'').toLowerCase().includes('bull'));
+
+    // Expected move from MPO ATR calc
+    let expectedMove24 = null;
+    if(typeof mpoState !== 'undefined' && mpoState.candles1h.length >= 14){
+      const atr14 = mpoState.candles1h.slice(-14).map((c,i,a)=>{
+        if(i===0) return c.h-c.l;
+        return Math.max(c.h-c.l, Math.abs(c.h-a[i-1].c), Math.abs(c.l-a[i-1].c));
+      }).reduce((a,b)=>a+b,0)/14;
+      expectedMove24 = spot ? (atr14/spot*100) : null;
+    }
+    // fallback: IV-based
+    if(!expectedMove24 && weeklyIV && weeklyEx){
+      expectedMove24 = weeklyIV / Math.sqrt(365/Math.max(weeklyEx.dte,1));
+    }
+
+    // ── Helper: set tile ──
+    function setTile(tileId, valId, subId, statusId, valTxt, subTxt, grade, statusTxt){
+      const tile   = document.getElementById(tileId);
+      const valEl  = document.getElementById(valId);
+      const subEl  = document.getElementById(subId);
+      const statEl = document.getElementById(statusId);
+      if(valEl)  valEl.textContent  = valTxt;
+      if(subEl && subTxt)  subEl.textContent  = subTxt;
+      if(statEl) statEl.textContent = statusTxt;
+      if(tile){
+        tile.className = 'fns-conf-tile fns-conf-' + grade;
+      }
+    }
+
+    let greenCount=0, redCount=0, yellowCount=0;
+    function score(g){ if(g==='green') greenCount++; else if(g==='red') redCount++; else if(g==='yellow') yellowCount++; }
+
+    // ── 1. IV-HV Edge ──
+    if(weeklyIV !== null && hv30 !== null){
+      const edge = weeklyIV - hv30;
+      const g = edge >= 10 ? 'green' : edge >= 5 ? 'yellow' : 'red';
+      score(g);
+      setTile('fnsConfIVHV','fnsConfIVHVVal','fnsConfIVHVSub','fnsConfIVHVStatus',
+        (edge>=0?'+':'')+edge.toFixed(1)+'%',
+        `IV ${weeklyIV.toFixed(1)}% vs HV ${hv30.toFixed(1)}%`,
+        g,
+        edge>=10?'✓ RICH EDGE': edge>=5?'⚠ FAIR':'✗ POOR'
+      );
+    } else {
+      setTile('fnsConfIVHV','fnsConfIVHVVal','fnsConfIVHVSub','fnsConfIVHVStatus','—',null,'grey','WAIT');
+    }
+
+    // ── 2. VRP (IV² - HV²) ──
+    if(weeklyIV !== null && hv30 !== null){
+      const vrp = weeklyIV*weeklyIV - hv30*hv30;
+      const g = vrp > 0 ? 'green' : 'red';
+      score(g);
+      setTile('fnsConfVRP','fnsConfVRPVal','fnsConfVRPSub','fnsConfVRPStatus',
+        (vrp>=0?'+':'')+vrp.toFixed(0)+' var pts²',
+        vrp>0?'Seller edge confirmed':'No seller edge — avoid',
+        g,
+        vrp>0?'✓ EDGE EXISTS':'✗ NO EDGE'
+      );
+    } else {
+      setTile('fnsConfVRP','fnsConfVRPVal','fnsConfVRPSub','fnsConfVRPStatus','—',null,'grey','WAIT');
+    }
+
+    // ── 3. VoV ──
+    if(vov !== null){
+      const g = vov < 14 ? 'green' : vov < 20 ? 'yellow' : 'red';
+      score(g);
+      setTile('fnsConfVoV','fnsConfVoVVal',null,'fnsConfVoVStatus',
+        vov.toFixed(1)+'%',
+        null, g,
+        vov<14?'✓ STABLE': vov<20?'⚠ RISING':'✗ UNSTABLE'
+      );
+    } else {
+      setTile('fnsConfVoV','fnsConfVoVVal',null,'fnsConfVoVStatus','—',null,'grey','WAIT');
+    }
+
+    // ── 4. Weekly IV Quality (Sinclair-style: IV-HV > 15% = RICH, 5-15% = FAIR, <5% = POOR) ──
+    if(weeklyIV !== null && hv30 !== null){
+      const edge = weeklyIV - hv30;
+      const quality = edge >= 15 ? 'RICH' : edge >= 5 ? 'FAIR' : 'POOR';
+      const g = quality === 'RICH' ? 'green' : quality === 'FAIR' ? 'yellow' : 'red';
+      score(g);
+      const weeklyLabel = weeklyEx ? weeklyEx.label + ' (' + weeklyEx.dte + 'DTE)' : '—';
+      setTile('fnsConfQuality','fnsConfQualityVal','fnsConfQualitySub','fnsConfQualityStatus',
+        quality, weeklyLabel, g,
+        quality==='RICH'?'✓ SELL':'FAIR'?'⚠ WAIT':'✗ SKIP'
+      );
+    } else {
+      setTile('fnsConfQuality','fnsConfQualityVal','fnsConfQualitySub','fnsConfQualityStatus','—',null,'grey','WAIT');
+    }
+
+    // ── 5. Theta/Day ──
+    if(weeklyGreeks && weeklyGreeks.theta !== undefined){
+      const thetaDay = Math.abs(weeklyGreeks.theta);
+      const g = thetaDay > 100 ? 'green' : thetaDay > 30 ? 'yellow' : 'red';
+      score(g);
+      setTile('fnsConfTheta','fnsConfThetaVal',null,'fnsConfThetaStatus',
+        '-$'+thetaDay.toFixed(0)+'/d', null, g,
+        thetaDay>100?'✓ GOOD DECAY': thetaDay>30?'⚠ LOW':'✗ TOO LOW'
+      );
+    } else if(weeklyIV !== null && weeklyEx && spot){
+      // Estimate theta from IV/DTE
+      const dte = Math.max(weeklyEx.dte, 0.1);
+      const thetaEst = (weeklyIV/100) * spot * Math.sqrt(1/(365*2*Math.PI*dte)) * 0.4;
+      const g = thetaEst > 100 ? 'green' : thetaEst > 30 ? 'yellow' : 'red';
+      score(g);
+      setTile('fnsConfTheta','fnsConfThetaVal',null,'fnsConfThetaStatus',
+        '~$'+thetaEst.toFixed(0)+'/d', null, g,
+        thetaEst>100?'✓ GOOD DECAY': thetaEst>30?'⚠ LOW':'✗ TOO LOW'
+      );
+    } else {
+      setTile('fnsConfTheta','fnsConfThetaVal',null,'fnsConfThetaStatus','—',null,'grey','WAIT');
+    }
+
+    // ── 6. Gamma Risk ──
+    if(weeklyGreeks && weeklyGreeks.gamma !== undefined){
+      const gamma = Math.abs(weeklyGreeks.gamma);
+      // Higher gamma near expiry = more dangerous for short strangle
+      const g = gamma < 0.0003 ? 'green' : gamma < 0.001 ? 'yellow' : 'red';
+      score(g);
+      setTile('fnsConfGamma','fnsConfGammaVal',null,'fnsConfGammaStatus',
+        gamma.toFixed(5), null, g,
+        gamma<0.0003?'✓ LOW RISK': gamma<0.001?'⚠ MODERATE':'✗ HIGH RISK'
+      );
+    } else {
+      // Estimate from DTE: gamma spikes as DTE → 0
+      if(weeklyEx){
+        const dte = weeklyEx.dte;
+        const g = dte >= 3 ? 'green' : dte >= 1 ? 'yellow' : 'red';
+        score(g);
+        setTile('fnsConfGamma','fnsConfGammaVal',null,'fnsConfGammaStatus',
+          dte+'DTE', null, g,
+          dte>=3?'✓ SAFE DTE': dte>=1?'⚠ EXPIRY NEAR':'✗ EXPIRY TODAY'
+        );
+      } else {
+        setTile('fnsConfGamma','fnsConfGammaVal',null,'fnsConfGammaStatus','—',null,'grey','WAIT');
+      }
+    }
+
+    // ── 7. Market Pattern Observer ──
+    if(typeof mpoState !== 'undefined' && mpoState.lastFetch > 0){
+      if(confirmedPats.length === 0){
+        score('green');
+        setTile('fnsConfMPO','fnsConfMPOVal','fnsConfMPOSub','fnsConfMPOStatus',
+          'CLEAR', 'No confirmed patterns', 'green', '✓ NO PATTERN'
+        );
+      } else {
+        const topPat = confirmedPats[0];
+        const isBearish = bearishPats.length > 0;
+        const g = isBearish ? 'red' : 'yellow';
+        score(g);
+        setTile('fnsConfMPO','fnsConfMPOVal','fnsConfMPOSub','fnsConfMPOStatus',
+          (topPat.name||'Pattern').toUpperCase(),
+          isBearish ? 'Bearish — put-side risk elevated' : 'Pattern forming — monitor',
+          g,
+          isBearish ? '✗ BEARISH' : '⚠ CAUTION'
+        );
+      }
+    } else {
+      setTile('fnsConfMPO','fnsConfMPOVal','fnsConfMPOSub','fnsConfMPOStatus','—','Scanning…','grey','WAIT');
+    }
+
+    // ── 8. Expected 24H Move ──
+    if(expectedMove24 !== null){
+      const mv = expectedMove24;
+      // For a short strangle, expected move should be less than strike distance
+      const callS = FNS.sessionHigh ? FNS.sessionHigh*1.02 : null;
+      const putS  = FNS.sessionLow  ? FNS.sessionLow*0.98  : null;
+      const callDist = (callS && spot) ? ((callS-spot)/spot*100) : null;
+      const putDist  = (putS  && spot) ? ((spot-putS)/spot*100)  : null;
+      const minDist  = callDist && putDist ? Math.min(callDist, putDist) : null;
+      const g = mv < 2 ? 'green' : mv < 3.5 ? 'yellow' : 'red';
+      score(g);
+      const safeStr = minDist ? ` Strike buffer: ${minDist.toFixed(1)}%` : '';
+      setTile('fnsConfMove','fnsConfMoveVal','fnsConfMoveSub','fnsConfMoveStatus',
+        '±'+mv.toFixed(1)+'%',
+        mv < 2 ? '✓ Low expected move'+safeStr : mv < 3.5 ? '⚠ Moderate move'+safeStr : '✗ High expected move'+safeStr,
+        g,
+        mv<2?'✓ LOW RISK': mv<3.5?'⚠ MODERATE':'✗ HIGH RISK'
+      );
+      // update sub via DOM directly since setTile sub only works if subId present
+      const sub2 = document.getElementById('fnsConfMoveSub');
+      if(sub2) sub2.textContent = mv < 2 ? '✓ Low expected move'+safeStr : mv < 3.5 ? '⚠ Moderate'+safeStr : '✗ High expected move'+safeStr;
+    } else {
+      setTile('fnsConfMove','fnsConfMoveVal',null,'fnsConfMoveStatus','—',null,'grey','WAIT');
+    }
+
+    // ── Master Verdict ──
+    const total = greenCount + redCount + yellowCount;
+    const icon  = document.getElementById('fnsConfVerdictIcon');
+    const title = document.getElementById('fnsConfVerdictTitle');
+    const sub   = document.getElementById('fnsConfVerdictSub');
+    const verdict = document.getElementById('fnsConfVerdict');
+    const pills = document.getElementById('fnsConfScorePills');
+
+    if(pills){
+      pills.innerHTML =
+        `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(34,197,94,.15);color:#16a34a">${greenCount} ✓</span>` +
+        `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(245,158,11,.15);color:#d97706">${yellowCount} ⚠</span>` +
+        `<span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(239,68,68,.15);color:#dc2626">${redCount} ✗</span>`;
+    }
+
+    if(total === 0){ return; }
+
+    let vIcon, vTitle, vSub, vBg, vBorder;
+    if(redCount >= 3){
+      vIcon='🚫'; vTitle='SKIP — CONFIRMATION FAILED';
+      vSub=`${redCount} signals failing. IV edge poor or pattern risk high. Do not enter this Friday.`;
+      vBg='rgba(239,68,68,.07)'; vBorder='rgba(239,68,68,.3)';
+    } else if(redCount >= 2 || (redCount >=1 && yellowCount >= 2)){
+      vIcon='⚠️'; vTitle='WEAK CONFIRMATION — REDUCE SIZE OR SKIP';
+      vSub=`${greenCount} green, ${yellowCount} caution, ${redCount} failing. Entry possible at 0.08Δ only with reduced size.`;
+      vBg='rgba(245,158,11,.07)'; vBorder='rgba(245,158,11,.35)';
+    } else if(greenCount >= 5){
+      vIcon='✅'; vTitle='STRONG CONFIRMATION — FULL CONFIDENCE ENTRY';
+      vSub=`${greenCount}/${total} signals green. IV edge solid, VoV stable, no pattern risk. Enter at 8:45 PM IST at 0.10Δ.`;
+      vBg='rgba(34,197,94,.07)'; vBorder='rgba(34,197,94,.3)';
+    } else if(greenCount >= 3){
+      vIcon='🟢'; vTitle='MODERATE CONFIRMATION — PROCEED WITH ENTRY';
+      vSub=`${greenCount} signals confirm edge. Watch ${yellowCount} caution flags. Enter at 8:45 PM IST at 0.10Δ.`;
+      vBg='rgba(34,197,94,.05)'; vBorder='rgba(34,197,94,.2)';
+    } else {
+      vIcon='⏳'; vTitle='WAIT — INSUFFICIENT CONFIRMATION';
+      vSub=`Only ${greenCount} signals green. Wait for more conditions to clear before entry.`;
+      vBg='rgba(107,114,128,.08)'; vBorder='rgba(107,114,128,.2)';
+    }
+
+    if(icon)  icon.textContent  = vIcon;
+    if(title) title.textContent = vTitle;
+    if(sub)   sub.textContent   = vSub;
+    if(verdict){ verdict.style.background = vBg; verdict.style.border = '0.5px solid '+vBorder; }
+
+    // Timestamp
+    const ts = document.getElementById('fnsConfirmTs');
+    if(ts) ts.textContent = 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  /* ── Fetch BTC price — reads from dashboard's shared state ── */
+  function fnsFetchBTC(){
+    try{
+      // Primary: read from the dashboard's live Binance WS state
+      let price = 0;
+      let chgPct = 0;
+
+      if(typeof state !== 'undefined' && state.btcSpotLive > 10000){
+        price = state.btcSpotLive;
+        // 24h change: use btcPrev if available
+        const prev = state.btcPrev || state.btcOpen || price;
+        chgPct = prev > 0 ? ((price - prev) / prev * 100) : 0;
+      }
+
+      // Fallback: read from the #btcSpot DOM element the main dashboard updates
+      if(!price || price < 10000){
+        const spotEl = document.getElementById('btcSpot');
+        if(spotEl){
+          const txt = spotEl.textContent.replace(/[^0-9.]/g,'');
+          const parsed = parseFloat(txt);
+          if(parsed > 10000) price = parsed;
+        }
+      }
+
+      if(!price || price < 10000){
+        // Still no price — show waiting
+        set('fnsBtcPrice','—');
+        const wb=$('fnsWsBadge');
+        if(wb){ wb.textContent='● Waiting'; wb.style.cssText='font-size:8px;padding:2px 7px;border-radius:4px;background:rgba(245,158,11,.1);color:#d97706'; }
+        return;
+      }
+
+      const chgSign = chgPct >= 0 ? '+' : '';
+      FNS.btcPrice = price;
+      FNS.lastFetch = Date.now();
+
+      // Update display
+      const priceEl = $('fnsBtcPrice');
+      if(priceEl){
+        const newTxt = '$'+Math.round(price).toLocaleString('en-US');
+        if(priceEl.textContent !== newTxt){
+          priceEl.textContent = newTxt;
+          priceEl.classList.remove('price-flash');
+          void priceEl.offsetWidth;
+          priceEl.classList.add('price-flash');
+          setTimeout(()=>priceEl.classList.remove('price-flash'),400);
+        }
+      }
+      const chgEl = $('fnsBtcChg');
+      if(chgEl){
+        chgEl.textContent = chgSign+chgPct.toFixed(2)+'%';
+        chgEl.className = 'fns-btc-chg '+(chgPct>=0?'fns-btc-up':'fns-btc-dn');
+      }
+
+      // Badge — live if data is fresh (state updates every few seconds via WS)
+      const wb=$('fnsWsBadge');
+      if(wb){ wb.textContent='● Live'; wb.style.cssText='font-size:8px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.15);color:#16a34a;border:0.5px solid rgba(34,197,94,.3)'; }
+
+      // Track session range from 7 PM IST onwards
+      const nowIST = ist();
+      const nyOpen = nyOpenTime();
+      if(nowIST >= nyOpen && isFriday()){
+        if(!FNS.btcOpen) FNS.btcOpen = price;
+        FNS.sessionHigh = FNS.sessionHigh ? Math.max(FNS.sessionHigh, price) : price;
+        FNS.sessionLow  = FNS.sessionLow  ? Math.min(FNS.sessionLow,  price) : price;
+        FNS.priceHistory.push({t: Date.now(), p: price});
+        if(FNS.priceHistory.length > 200) FNS.priceHistory.shift();
+        fnsUpdate15mCandles();
+      }
+
+    }catch(e){
+      console.warn('[FNS BTC]', e.message);
+    }
+  }
+
+  /* ── Build 15min candles ── */
+  function fnsUpdate15mCandles(){
+    if(FNS.priceHistory.length < 2) return;
+    const bucketMs = 15*60*1000;
+    const buckets = {};
+    FNS.priceHistory.forEach(({t,p})=>{
+      const k = Math.floor(t/bucketMs);
+      if(!buckets[k]) buckets[k]={high:p,low:p,close:p};
+      buckets[k].high = Math.max(buckets[k].high,p);
+      buckets[k].low  = Math.min(buckets[k].low,p);
+      buckets[k].close = p;
+    });
+    FNS.candles15m = Object.values(buckets).map(b=>({range:b.high-b.low,high:b.high,low:b.low}));
+  }
+
+  /* ── Init ── */
+  function fnsInit(){
+    fnsRender();
+    fnsFetchBTC();
+    // Render every second for countdown
+    setInterval(fnsRender, 1000);
+    // Fetch price every 2 seconds from shared state
+    setInterval(fnsFetchBTC, 2000);
+    // Confirmation signals every 5 seconds
+    setInterval(fnsConfirmUpdate, 5000);
+    // Initial confirmation run after dashboard has time to load data
+    setTimeout(fnsConfirmUpdate, 3000);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', fnsInit);
+  } else {
+    setTimeout(fnsInit, 100);
+  }
+
+})();
+</script>
+
+
 <!-- ── Live Fetch Control Bar ── -->
 <div id="fetchControlBar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:7px 12px;border-radius:9px;margin-bottom:8px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -4128,239 +5187,6 @@ setTimeout(()=>{
 <!-- rvHvPanel hidden — data absorbed into Unified Final Signal -->
 <div id="rvHvPanel" style="display:none"><canvas id="rvHvChart" style="display:none"></canvas><select id="rvExpirySelect" style="display:none"></select><span id="rvSrcBadge"></span><span id="rvTs"></span><div id="rvExpiryTable"></div><div id="rvVerdict"></div></div>
 
-<!-- ═══════════════════════════════════════════
-     📊 LIVE OPTION CHAIN — Delta Exchange India /compact
-     ═══════════════════════════════════════════ -->
-<style>
-
-/* ═══════════════════════════════════════════════════════
-   BRAHMASTRA OPTION CHAIN — Sensibull Style v2
-   ═══════════════════════════════════════════════════════ */
-
-/* Panel shell */
-/* ══════════════════════════════════════════════════════════
-   OPTION CHAIN — Delta Exchange T-Shape Style
-   ══════════════════════════════════════════════════════════ */
-.oc-panel{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:14px;overflow:hidden;margin-bottom:12px}
-
-/* Top bar */
-.oc-topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 12px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
-.oc-topbar-title{font-size:12px;font-weight:900;color:var(--color-text-primary);display:flex;align-items:center;gap:7px}
-
-/* Expiry tabs — scrollable horizontal strip */
-.oc-expiry-row{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--color-border-tertiary);overflow-x:auto;scrollbar-width:none;background:var(--color-background-primary)}
-.oc-expiry-row::-webkit-scrollbar{display:none}
-.oc-exp-btn{display:flex;flex-direction:column;align-items:center;padding:7px 14px;border-right:0.5px solid var(--color-border-tertiary);cursor:pointer;background:none;border-top:none;border-left:none;border-bottom:3px solid transparent;min-width:72px;transition:all .15s;white-space:nowrap}
-.oc-exp-btn:hover{background:var(--color-background-secondary)}
-.oc-exp-btn.active{background:rgba(251,144,1,.05);border-bottom-color:#f97316}
-.oc-exp-label{font-size:11px;font-weight:800;color:var(--color-text-primary)}
-.oc-exp-btn.active .oc-exp-label{color:#f97316}
-.oc-exp-dte{font-size:8px;color:var(--color-text-secondary);margin-top:1px}
-.oc-exp-iv{font-size:9px;font-weight:700;margin-top:1px}
-/* Expiry urgency colour */
-.oc-exp-near .oc-exp-label{color:#dc2626}.oc-exp-mid .oc-exp-label{color:#d97706}.oc-exp-far .oc-exp-label{color:#16a34a}
-
-/* Key metrics strip */
-.oc-cmp-strip{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto;scrollbar-width:none}
-.oc-cmp-strip::-webkit-scrollbar{display:none}
-.oc-cmp-tile{flex:1;min-width:70px;padding:6px 8px;text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
-.oc-cmp-tile:last-child{border-right:none}
-.oc-cmp-lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:2px}
-.oc-cmp-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.oc-cmp-sub{font-size:7px;color:var(--color-text-secondary);margin-top:1px}
-
-/* Sell/Wait/Avoid verdict bar */
-.oc-verdict{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:0.5px solid var(--color-border-tertiary);transition:all .3s}
-.oc-v-enter{background:rgba(34,197,94,.07);border-left:3px solid #22c55e}
-.oc-v-wait {background:rgba(245,158,11,.07);border-left:3px solid #f59e0b}
-.oc-v-avoid{background:rgba(239,68,68,.07);border-left:3px solid #ef4444}
-.oc-v-ico{font-size:18px;flex-shrink:0}
-.oc-v-main{font-size:11px;font-weight:800}
-.oc-v-enter .oc-v-main{color:#15803d}.oc-v-wait .oc-v-main{color:#92400e}.oc-v-avoid .oc-v-main{color:#b91c1c}
-.oc-v-sub{font-size:9px;color:var(--color-text-secondary);margin-top:1px;line-height:1.4}
-
-/* Strangle builder bar */
-.oc-builder{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 12px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
-.oc-b-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);flex-shrink:0}
-.oc-d-btn{font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
-.oc-d-btn.sel{background:#7c3aed;color:#fff;border-color:#7c3aed}
-.oc-b-chip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;border:0.5px solid transparent;white-space:nowrap}
-.oc-bc-c{background:rgba(34,197,94,.12);color:#15803d;border-color:rgba(34,197,94,.3)}
-.oc-bc-p{background:rgba(239,68,68,.12);color:#b91c1c;border-color:rgba(239,68,68,.3)}
-.oc-bc-n{background:rgba(124,58,237,.12);color:#6d28d9;border-color:rgba(124,58,237,.3)}
-.oc-bc-b{background:rgba(59,130,246,.1);color:#1d4ed8;border-color:rgba(59,130,246,.3)}
-.oc-bc-t{background:rgba(16,185,129,.1);color:#065f46;border-color:rgba(16,185,129,.3)}
-.oc-bc-verdict{font-size:9px;font-weight:800;padding:2px 9px;border-radius:5px;white-space:nowrap}
-.oc-bcv-sell{background:rgba(34,197,94,.18);color:#15803d;border:0.5px solid #16a34a}
-.oc-bcv-wait{background:rgba(245,158,11,.14);color:#92400e;border:0.5px solid #f59e0b}
-.oc-bcv-skip{background:rgba(239,68,68,.12);color:#b91c1c;border:0.5px solid #ef4444}
-
-/* ── TABLE ── */
-.oc-scroll{overflow-x:auto;overflow-y:auto;max-height:520px}
-.oc-scroll::-webkit-scrollbar{width:3px;height:3px}
-.oc-scroll::-webkit-scrollbar-thumb{background:var(--color-border-tertiary);border-radius:3px}
-.oc-tbl{width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums;table-layout:fixed}
-.oc-tbl thead th{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);padding:5px 4px;background:var(--color-background-secondary);position:sticky;top:0;z-index:2;border-bottom:1px solid var(--color-border-tertiary);white-space:nowrap}
-.oc-tbl td{padding:5px 4px;border-bottom:0.5px solid rgba(128,128,128,.1);white-space:nowrap;overflow:hidden;vertical-align:middle;position:relative}
-.oc-tbl tr:hover td{filter:brightness(1.04)}
-
-/* Column widths — T-shape: Call BID/ASK | Call Mark/IV | STRIKE | Put Mark/IV | Put BID/ASK */
-.w-ba  {width:54px} /* bid/ask */
-.w-mk  {width:72px} /* mark price + IV% + 1H trend */
-.w-str {width:70px} /* strike */
-
-/* ATM row highlight */
-.oc-atm td{background:rgba(251,191,36,.07)!important}
-.oc-atm .w-str{background:rgba(251,191,36,.18)!important;border-top:1.5px solid #f59e0b;border-bottom:1.5px solid #f59e0b}
-/* Selected strangle rows */
-.oc-sel-c td{background:rgba(34,197,94,.05)!important}
-.oc-sel-c .w-ba:first-child{border-left:3px solid #22c55e}
-.oc-sel-p td{background:rgba(239,68,68,.05)!important}
-.oc-sel-p .w-ba:last-child{border-right:3px solid #ef4444}
-
-/* OI background fill (Sensibull style) */
-.oc-fill-c{position:absolute;top:0;right:0;height:100%;background:rgba(59,130,246,.13);pointer-events:none;border-radius:2px 0 0 2px;transition:width .6s}
-.oc-fill-p{position:absolute;top:0;left:0;height:100%;background:rgba(239,68,68,.13);pointer-events:none;border-radius:0 2px 2px 0;transition:width .6s}
-
-/* Price colours — CALL side blue, PUT side red (Delta Exchange convention) */
-.oc-call-ltp{color:#1d4ed8;font-weight:800;text-align:right}
-.oc-put-ltp {color:#dc2626;font-weight:800;text-align:left}
-.oc-bid {color:#22c55e;font-size:9px;font-weight:700}
-.oc-ask {color:#ef4444;font-size:9px;font-weight:700}
-
-/* IV colour — SELLER view: high IV = green (edge), low = red (avoid) */
-.iv-sell-hi {color:#16a34a!important;font-weight:700!important}
-.iv-sell-mid{color:#d97706!important;font-weight:600!important}
-.iv-sell-lo {color:#dc2626!important;font-weight:600!important}
-
-/* CHG column */
-.chg-up{color:#ef4444!important;font-weight:700!important}
-.chg-dn{color:#16a34a!important;font-weight:700!important}
-.chg-fl{color:#9ca3af!important}
-
-/* WS live flash */
-@keyframes ocfl{0%{opacity:.1;transform:scale(1.05)}60%{opacity:1;transform:scale(1)}100%{opacity:1}}
-.ws-tick{animation:ocfl .35s ease}
-
-/* 1H cell */
-.oc1h{display:inline-flex;flex-direction:column;gap:0;font-size:8px;font-weight:700;line-height:1.2}
-.oc1h-up{color:#ef4444}.oc1h-dn{color:#16a34a}.oc1h-fl{color:#9ca3af}
-.oc1h-pct{font-size:6.5px;opacity:.8}
-.oc1h-spark{display:flex;align-items:flex-end;gap:1px;height:9px;margin-top:1px}
-.oc1h-bar{width:2px;border-radius:1px;min-height:2px}
-
-/* Bottom PCR / Max Pain strip */
-.oc-bottom{display:grid;grid-template-columns:1fr 1fr;border-top:0.5px solid var(--color-border-tertiary)}
-@media(max-width:500px){.oc-bottom{grid-template-columns:1fr}}
-.oc-bottom-col{padding:10px 12px;border-right:0.5px solid var(--color-border-tertiary)}
-.oc-bottom-col:last-child{border-right:none}
-.oc-bot-hdr{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:7px}
-
-</style>
-
-<!-- ════════════════════════════════════════════════════
-     BRAHMASTRA OPTION CHAIN — Sensibull Style
-     Deribit WS 100ms + Delta Exchange REST fallback
-     ════════════════════════════════════════════════════ -->
-
-<div class="oc-panel" id="ocPanel">
-
-  <!-- ── Top bar ── -->
-  <div class="oc-topbar">
-    <div class="oc-topbar-title">
-      📊 Option Chain
-      <span id="ocSrcBadge" style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:4px;background:#0f3d2a;color:#6ee7b7">⚡ Delta WS</span>
-      <span id="ocWsBadge"  style="font-size:8px;padding:1px 7px;border-radius:4px;background:rgba(107,114,128,.1);color:#6b7280">WS —</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-      <select id="ocExpirySelect" onchange="_ocOnExpiryChange()" style="display:none"></select>
-      <button onclick="fetchOptionChain(true)" style="font-size:10px;padding:3px 10px;border-radius:6px;border:0.5px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;cursor:pointer;font-weight:700">↻ Live</button>
-      <span id="ocTs" style="font-size:9px;color:var(--color-text-secondary)">—</span>
-    </div>
-  </div>
-
-  <!-- ── Expiry tab strip ── -->
-  <div class="oc-expiry-row" id="ocExpiryRow">
-    <button class="oc-exp-btn active"><span class="oc-exp-label">Loading…</span></button>
-  </div>
-
-  <!-- ── 8 Key metrics ── -->
-  <div class="oc-cmp-strip" id="ocCmpStrip">
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">Straddle</div><div class="oc-cmp-val" id="ocMStraddle" style="color:#7c3aed">—</div><div class="oc-cmp-sub" id="ocMStr1H">—</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">ATM IV</div><div class="oc-cmp-val" id="ocMIV" style="color:#a855f7">—</div><div class="oc-cmp-sub" id="ocMIVEdge">Edge —</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">Breakeven</div><div class="oc-cmp-val" id="ocMBE" style="color:#3b82f6">—</div><div class="oc-cmp-sub">±% of spot</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">θ/Day</div><div class="oc-cmp-val" id="ocMTheta" style="color:#10b981">—</div><div class="oc-cmp-sub">Straddle decay</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">PCR (OI)</div><div class="oc-cmp-val" id="ocMPCR" style="color:#f59e0b">—</div><div class="oc-cmp-sub" id="ocMPCRlbl">—</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">Max Pain</div><div class="oc-cmp-val" id="ocMMaxPain" style="color:#2563eb">—</div><div class="oc-cmp-sub" id="ocMMaxPainD">—</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">ATM</div><div class="oc-cmp-val" id="ocMATM" style="color:#3b82f6">—</div><div class="oc-cmp-sub" id="ocMDTE">DTE —</div></div>
-    <div class="oc-cmp-tile"><div class="oc-cmp-lbl">IV−HV Edge</div><div class="oc-cmp-val" id="ocMEdge" style="color:#22c55e">—</div><div class="oc-cmp-sub">Sell if &gt;5%</div></div>
-  </div>
-
-  <!-- ── Sell / Wait / Avoid verdict ── -->
-  <div class="oc-verdict oc-v-wait" id="ocVerdictBar">
-    <span class="oc-v-ico" id="ocVerdictIcon">⏳</span>
-    <div style="flex:1;min-width:0">
-      <div class="oc-v-main" id="ocVerdictTitle">Connecting to Delta Exchange…</div>
-      <div class="oc-v-sub"  id="ocVerdictSub">Fetching live option chain</div>
-    </div>
-  </div>
-
-  <!-- ── Strangle builder ── -->
-  <div class="oc-builder">
-    <span class="oc-b-lbl">⚡ Strangle</span>
-    <span class="oc-b-lbl" style="font-weight:500;text-transform:none;letter-spacing:0">Δ:</span>
-    <button class="oc-d-btn"     onclick="_ocSetDelta(.10)" id="ocD010">0.10Δ</button>
-    <button class="oc-d-btn sel" onclick="_ocSetDelta(.15)" id="ocD015">0.15Δ</button>
-    <button class="oc-d-btn"     onclick="_ocSetDelta(.20)" id="ocD020">0.20Δ</button>
-    <button class="oc-d-btn"     onclick="_ocSetDelta(.25)" id="ocD025">0.25Δ</button>
-    <span class="oc-b-chip oc-bc-c" id="ocBCall">C: —</span>
-    <span class="oc-b-chip oc-bc-p" id="ocBPut">P: —</span>
-    <span class="oc-b-chip oc-bc-n" id="ocBNet">Net: —</span>
-    <span class="oc-b-chip oc-bc-b" id="ocBBE">BE: —</span>
-    <span class="oc-b-chip oc-bc-t" id="ocBTheta">θ: —</span>
-    <span class="oc-bc-verdict oc-bcv-wait" id="ocBVerdict">—</span>
-  </div>
-
-  <!-- ══ T-SHAPE OPTION CHAIN TABLE ══ -->
-  <div class="oc-scroll">
-    <table class="oc-tbl" id="ocTable">
-      <thead>
-        <tr>
-          <th colspan="3" style="text-align:center;color:#1d4ed8;border-right:2px solid #f59e0b">— CALLS —</th>
-          <th class="w-str" style="text-align:center;background:rgba(251,191,36,.08);border-left:2px solid #f59e0b;border-right:2px solid #f59e0b">STRIKE</th>
-          <th colspan="3" style="text-align:center;color:#dc2626;border-left:2px solid #f59e0b">— PUTS —</th>
-        </tr>
-        <tr>
-          <th class="w-ba  oc-c" title="Bid / Ask">Bid/Ask</th>
-          <th class="w-mk  oc-c" style="border-right:2px solid #f59e0b" title="Mark Price · IV%">Mark · IV</th>
-          <th class="w-mk  oc-c" style="display:none"></th><!-- hidden, colspan handled above -->
-          <th class="w-str" style="text-align:center;background:rgba(251,191,36,.06);border-left:2px solid #f59e0b;border-right:2px solid #f59e0b">$K · Δ</th>
-          <th class="w-mk  oc-p" title="Mark Price · IV%">Mark · IV</th>
-          <th class="w-mk  oc-p" style="display:none"></th>
-          <th class="w-ba  oc-p" title="Bid / Ask">Bid/Ask</th>
-        </tr>
-      </thead>
-      <tbody id="ocTableBody">
-        <tr><td colspan="7" style="padding:24px;text-align:center;color:var(--color-text-secondary);font-size:11px">
-          ⚡ Connecting to Delta Exchange India…
-        </td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ── Bottom: PCR + Max Pain ── -->
-  <div class="oc-bottom">
-    <div class="oc-bottom-col">
-      <div class="oc-bot-hdr">⚖️ PCR by Strike</div>
-      <div id="ocPCRRow" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-    </div>
-    <div class="oc-bottom-col">
-      <div class="oc-bot-hdr">🎯 Max Pain</div>
-      <div id="ocMaxPainRow"></div>
-    </div>
-  </div>
-
-</div>
 
 
 <!-- ═══════════════════════════════════════════
@@ -11877,897 +12703,6 @@ function toggleTheme(){
   else _setBtn();
 })();
 
-// ═══════════════════════════════════════════════════════════════
-/* ═══════════════════════════════════════════════════════════════════
-   ⚡ OPTION CHAIN — DELTA EXCHANGE INDIA  (clean rewrite)
-   WS:   wss://socket.india.delta.exchange  (v2/ticker channel)
-   REST: api.india.delta.exchange/v2/tickers  (fallback)
-   ═══════════════════════════════════════════════════════════════════ */
-
-/* ── State ── */
-/* ═══════════════════════════════════════════════════════════════════
-   ⚡ OPTION CHAIN — Delta Exchange India Live  (T-Shape Rebuild)
-   WS:   wss://socket.india.delta.exchange  →  v2/ticker per symbol
-   REST: /v2/tickers?contract_type=call_options&underlying_asset_symbol=BTC
-   Data: mark_price(USD), mark_iv(%), bid/ask(USD), open_interest,
-         greeks.delta/gamma/theta/vega  (from REST, preserved across WS ticks)
-   ═══════════════════════════════════════════════════════════════════ */
-
-const _ocState = { data:null, fetchTs:0 };
-let   _ocSelectedExpiryIdx = -1;
-let   _ocTargetDelta       = 0.15;
-let   _ocLastAtmForSub     = 0;
-
-const _ocWs = {
-  sock:null, status:false,
-  subscribedSymbols: new Set(),
-  lastTick:0, renderPending:false,
-  currentExpiryLabel:null,
-  _pingTimer:null,
-};
-const OC_STRIKE_RANGE = 14;
-
-/* ── Date tag: handles "17-Apr-26" and "17Apr26" → {v1,v2,v3} ── */
-function _ocDateTag(lbl){
-  if(!lbl) return null;
-  let dd,mon,yy;
-  if(lbl.includes('-')){ const p=lbl.split('-'); if(p.length!==3) return null; [dd,mon,yy]=p; }
-  else { const m=lbl.match(/^(\d{1,2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{2,4})$/i); if(!m) return null; [,dd,mon,yy]=m; }
-  const yyN=parseInt(yy), yr=yyN<100?2000+yyN:yyN, yy2=String(yr).slice(-2);
-  const mu=mon.toUpperCase(), ddp=String(parseInt(dd)).padStart(2,'0');
-  const mm={JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12'}[mu]||'01';
-  return { v1:`${yy2}${mm}${ddp}`, v2:`${ddp}${mu}${yr}`, v3:`${ddp}${mu}${yy2}` };
-}
-function _ocSymMatches(sym,tag){ return !!(tag&&sym&&(sym.includes(tag.v1)||sym.includes(tag.v2)||sym.includes(tag.v3))); }
-
-/* ── Build subscription symbols for Delta India WS ──
-   Actual Delta India symbol format (from REST /v2/tickers):
-     C-BTC-77000-30APR26   (DDMMMYY  — primary, no trailing -C/-P)
-     C-BTC-77000-260430    (YYMMDD   — fallback)
-   Subscribe both date variants to guarantee a match.                */
-function _ocBuildSymbols(lbl, spot){
-  const tag = _ocDateTag(lbl);
-  if(!tag){ console.warn('[OC] Cannot parse label:', lbl); return {calls:[],puts:[],atmK:0,tag:null}; }
-  const atmK = getATMStrike(spot||state.btcSpotLive||state.btcBase||80000);
-  const calls=[], puts=[];
-  for(let i=-OC_STRIKE_RANGE; i<=OC_STRIKE_RANGE; i++){
-    const k = atmK + i*500; if(k<=0) continue;
-    // Primary: DDMMMYY (e.g. 30APR26); Secondary: YYMMDD (e.g. 260430)
-    for(const dt of [tag.v3, tag.v1]){
-      calls.push(`C-BTC-${k}-${dt}`);
-      puts.push( `P-BTC-${k}-${dt}`);
-    }
-  }
-  return {calls, puts, atmK, tag};
-}
-
-/* ── Process WS tick — preserves REST greeks ── */
-function _ocProcessTick(sym,data){
-  if(!sym||!data||!_ocState.data) return;
-  const parts=sym.split('-');
-  let strike=NaN;
-  for(const p of parts){const v=parseFloat(p);if(!isNaN(v)&&v>10000){strike=v;break;}}
-  if(isNaN(strike)) return;
-  // Side detection: handles C-BTC-... (starts with C-) and BTC-DATE-STRIKE-C (ends with -C/-P)
-  let side=null;
-  if(sym.startsWith('C-')||sym.endsWith('-C')) side='call';
-  else if(sym.startsWith('P-')||sym.endsWith('-P')) side='put';
-  if(!side) return;
-
-  const {strikeMap,strikes}=_ocState.data;
-  const spot=state.btcSpotLive||state.btcBase||80000;
-  if(!strikeMap[strike]) strikeMap[strike]={};
-  const prev=strikeMap[strike][side]||{};
-
-  // mark_price: USD if >5, else BTC fraction → convert
-  const rawMk=parseFloat(data.mark_price||0);
-  const newMark=(rawMk>0&&rawMk<5)?rawMk*spot:rawMk;
-  const oldMark=prev.mark||0;
-  // prevMark: always capture last known price so tick-diff is always available
-  const prevMark=(oldMark>0&&newMark>0&&Math.abs(newMark-oldMark)>0.1)?oldMark:(prev.prevMark||null);
-
-  // markHistory — seed on first tick, then append every 5s for 5M premium diff
-  const mH=prev.markHistory||[];
-  const _wsNow=Date.now();
-  if(mH.length===0&&newMark>0){ mH.push({t:_wsNow,v:newMark}); }
-  else if(mH.length>0&&newMark>0&&(_wsNow-mH.at(-1).t)>=5000){ mH.push({t:_wsNow,v:newMark}); }
-  if(mH.length>120) mH.shift();
-
-  // mark_iv: normalize (WS may send decimal 0.43 or percent 43)
-  const rawIV=parseFloat(data.mark_iv||0);
-  const iv=rawIV>0?(rawIV<5?rawIV*100:rawIV):(prev.iv||0);
-
-  // bid/ask
-  const rawB=parseFloat(data.best_bid_price||0), rawA=parseFloat(data.best_ask_price||0);
-  const bid=(rawB>0&&rawB<5)?rawB*spot:rawB;
-  const ask=(rawA>0&&rawA<5)?rawA*spot:rawA;
-
-  // Greeks: WS rarely sends them — preserve from REST cache
-  const wg=data.greeks||{};
-  strikeMap[strike][side]={
-    iv, mark:newMark||oldMark, prevMark, markHistory:mH,
-    bid, ask,
-    oi:parseFloat(data.open_interest||0)||prev.oi||0,
-    vol:parseFloat(data.volume||0),
-    // Keep REST greeks, only override if WS provides non-zero
-    delta:parseFloat(wg.delta)||prev.delta||0,
-    gamma:parseFloat(wg.gamma)||prev.gamma||0,
-    theta:parseFloat(wg.theta)||prev.theta||0,
-    vega: parseFloat(wg.vega) ||prev.vega ||0,
-    ts:Date.now(),
-  };
-
-  if(!strikes.includes(strike)){
-    strikes.push(strike); strikes.sort((a,b)=>a-b);
-    const atmK=getATMStrike(spot);
-    _ocState.data.strikes=strikes.filter(k=>Math.abs(k-atmK)/atmK<0.14);
-  }
-
-  if(!_ocWs.renderPending){
-    _ocWs.renderPending=true;
-    setTimeout(()=>{
-      try{
-        _ocState.fetchTs=Date.now();
-        _renderOptionChain();
-        try{ _ocSnap(); }catch(e2){} // seed markHistory immediately on each WS render
-        const b=document.getElementById('ocSrcBadge');
-        if(b){b.textContent='⚡ Delta WS Live';b.style.background='#0f3d2a';b.style.color='#6ee7b7';}
-        const t=document.getElementById('ocTs');
-        if(t) t.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Kolkata'})+' IST';
-      }catch(e){ console.warn('[OC-Render]',e.message); }
-      finally{ _ocWs.renderPending=false; }
-    },350);
-  }
-}
-
-/* ── OC WebSocket: PIGGYBACKS on existing _ws.delta connection ──
-   Delta India only allows one WS connection per client. We reuse the
-   shared _ws.delta socket (already open for BTCUSD spot feed) and
-   inject option-chain subscriptions + a message handler into it.     */
-function _ocWsConnect(){
-  // Poll until the shared Delta socket is open, then attach
-  _ocWs._attachAttempts = (_ocWs._attachAttempts||0) + 1;
-  const sock = _ws.delta;
-  if(!sock || sock.readyState !== 1){
-    // Socket not ready yet — retry in 1s (up to 60 tries = 60s)
-    if(_ocWs._attachAttempts < 60){
-      setTimeout(_ocWsConnect, 1000);
-    } else {
-      console.warn('[OC-WS] Delta socket unavailable after 60s — falling back to REST only');
-    }
-    return;
-  }
-  // Socket is ready — attach OC message handler and subscribe
-  _ocWs._attachAttempts = 0;
-  _ocWs.sock   = sock;
-  _ocWs.status = true;
-
-  // Inject OC tick handler into the shared Delta socket's onmessage
-  // We wrap the existing handler so BTCUSD spot feed still works
-  const _prevOnMessage = sock.onmessage;
-  sock.onmessage = (ev)=>{
-    // Pass to original handler first (BTCUSD spot)
-    if(_prevOnMessage) try{ _prevOnMessage(ev); }catch(e){}
-    // Then handle option chain ticks
-    try{
-      const m = JSON.parse(ev.data);
-      if(!m || m.type !== 'v2/ticker' || !m.symbol) return;
-      if(m.symbol === 'BTCUSD') return; // already handled above
-      _ocWs.lastTick = Date.now();
-      _ocProcessTick(m.symbol, m);
-    }catch(e){}
-  };
-
-  // If socket closes, reset and re-attach on next reconnect
-  const _prevOnClose = sock.onclose;
-  sock.onclose = (ev)=>{
-    _ocWs.status = false;
-    _ocWs.subscribedSymbols = new Set();
-    _ocWs._attachAttempts = 0;
-    if(_prevOnClose) try{ _prevOnClose(ev); }catch(e){}
-    // Re-attach when socket reconnects
-    setTimeout(_ocWsConnect, 4000);
-  };
-
-  // Subscribe option chain symbols
-  const idx = _ocSelectedExpiryIdx >= 0 ? _ocSelectedExpiryIdx : 0;
-  const ex  = EXPIRIES[idx] || EXPIRIES.find(e=>!e.expired);
-  if(ex) _ocWsSubscribe(ex.label);
-  console.log('[OC-WS] Attached to shared Delta socket ✓');
-}
-
-/* ── Subscribe / switch expiry ── */
-function _ocWsSubscribe(lbl){
-  // Always use the live shared Delta socket
-  const sock = _ws.delta || _ocWs.sock;
-  if(!sock||sock.readyState!==1){
-    // Socket not ready — queue subscription for when it connects
-    setTimeout(()=>_ocWsSubscribe(lbl), 1500);
-    return;
-  }
-  _ocWs.sock = sock;
-  _ocWs.status = true;
-  const spot=state.btcSpotLive||state.btcBase||80000;
-  if(_ocWs.currentExpiryLabel&&_ocWs.currentExpiryLabel!==lbl){
-    const old=Array.from(_ocWs.subscribedSymbols);
-    if(old.length) try{sock.send(JSON.stringify({type:'unsubscribe',payload:{channels:[{name:'v2/ticker',symbols:old}]}}));}catch(e){}
-    _ocWs.subscribedSymbols=new Set(); _ocState.data=null;
-  }
-  _ocWs.currentExpiryLabel=lbl;
-  const {calls,puts,atmK,tag}=_ocBuildSymbols(lbl,spot);
-  const all=[...calls,...puts].filter(s=>!_ocWs.subscribedSymbols.has(s));
-  if(!all.length){console.warn('[OC-WS] No symbols for',lbl);return;}
-  if(!_ocState.data){
-    const strikes=[];
-    for(let i=-OC_STRIKE_RANGE;i<=OC_STRIKE_RANGE;i++) strikes.push(atmK+i*500);
-    _ocState.data={strikeMap:{},strikes:strikes.filter(k=>k>0),atmStrike:atmK,spot,exLabel:lbl};
-  }
-  for(let i=0;i<all.length;i+=100){
-    const batch=all.slice(i,i+100);
-    try{sock.send(JSON.stringify({type:'subscribe',payload:{channels:[{name:'v2/ticker',symbols:batch}]}}));
-        batch.forEach(s=>_ocWs.subscribedSymbols.add(s));}catch(e){}
-  }
-  const b=document.getElementById('ocSrcBadge');
-  if(b){b.textContent='⟳ Delta WS…';b.style.background='#1e3a5f';b.style.color='#93c5fd';}
-  console.log(`[OC-WS] Subscribed ${all.length} syms for ${lbl} (${tag?.v3}), ATM=${atmK}`);
-}
-
-/* ── ATM shift re-subscribe ── */
-setInterval(()=>{
-  // Keep _ocWs.sock in sync with shared Delta socket
-  if(_ws.delta&&_ws.delta.readyState===1&&!_ocWs.status){
-    _ocWs.sock=_ws.delta; _ocWs.status=true;
-    _ocWsConnect();
-  }
-  if(_ocWs.status&&_ocWs.currentExpiryLabel){
-    const spot=state.btcSpotLive||state.btcBase; if(!spot) return;
-    const atmK=getATMStrike(spot);
-    if(Math.abs(atmK-_ocLastAtmForSub)>=500){
-      _ocLastAtmForSub=atmK; const lbl=_ocWs.currentExpiryLabel; _ocWs.currentExpiryLabel=null; _ocWsSubscribe(lbl);
-    }
-  }
-},30000);
-
-/* ── WS badge updater ── */
-setInterval(()=>{
-  const b=document.getElementById('ocWsBadge'); if(!b) return;
-  // Sync status with shared Delta socket
-  const deltaAlive = _ws.delta && _ws.delta.readyState===1 && _ws.status.delta;
-  if(deltaAlive) _ocWs.status = true;
-  const ocAlive = deltaAlive && Date.now()-_ocWs.lastTick<10000;
-  if(ocAlive){
-    const lag=((Date.now()-_ocWs.lastTick)/1000).toFixed(1);
-    const ns=Object.keys(_ocState.data?.strikeMap||{}).length;
-    b.textContent=`⚡ ${lag}s · ${ns}k`;
-    b.style.cssText='background:rgba(34,197,94,.12);color:#15803d;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700';
-  } else if(deltaAlive){
-    const ns=Object.keys(_ocState.data?.strikeMap||{}).length;
-    b.textContent=ns>0?`⟳ ${ns}k subs`:'⟳ WS sub…';
-    b.style.cssText='background:rgba(59,130,246,.12);color:#1d4ed8;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700';
-  } else {
-    b.textContent='✕ WS off';
-    b.style.cssText='background:rgba(107,114,128,.1);color:#6b7280;border-radius:4px;padding:1px 6px;font-size:8px';
-  }
-},1000);
-
-/* ── markHistory snapshot — every 5s, keep up to 120 points (10 min) ── */
-function _ocSnap(){
-  const sm=_ocState.data?.strikeMap; if(!sm) return;
-  const now=Date.now();
-  Object.values(sm).forEach(e=>['call','put'].forEach(s=>{
-    const leg=e[s]; if(!leg||leg.mark<=0) return;
-    if(!leg.markHistory) leg.markHistory=[];
-    const last=leg.markHistory.at(-1);
-    // Guard: don't duplicate within 4s (allow near every-5s tick)
-    if(last&&now-last.t<4000) return;
-    leg.markHistory.push({t:now,v:leg.mark});
-    if(leg.markHistory.length>120) leg.markHistory.shift();
-  }));
-}
-setInterval(_ocSnap,5000); // 5s tick-by-tick history for inline 5M premium trend
-// Run once immediately after first data arrives so history seeds right away
-setTimeout(()=>{ try{_ocSnap();}catch(e){} }, 500);
-setTimeout(()=>{ try{_ocSnap();}catch(e){} }, 2000);
-setTimeout(()=>{ try{_ocSnap();}catch(e){} }, 6000);
-const _ocSeedTimer=setInterval(()=>{
-  const sm=_ocState.data?.strikeMap; if(!sm) return;
-  let done=true;
-  Object.values(sm).forEach(e=>['call','put'].forEach(s=>{
-    const leg=e[s]; if(!leg||leg.mark<=0) return;
-    if(!leg.markHistory) leg.markHistory=[];
-    if(leg.markHistory.length===0){leg.markHistory.push({t:Date.now(),v:leg.mark});done=false;}
-  }));
-  if(done) clearInterval(_ocSeedTimer);
-},10000);
-
-/* ═══════════════════════════════════════════════════════════════
-   REST FALLBACK — /v2/tickers  (seeds data + upgrades to WS)
-   ═══════════════════════════════════════════════════════════════ */
-async function fetchOptionChain(force=false){
-  const now=Date.now();
-  const idx=_ocSelectedExpiryIdx>=0?_ocSelectedExpiryIdx:0;
-  const ex=EXPIRIES[idx]||EXPIRIES.find(e=>!e.expired);
-  if(!ex){console.warn('[OC] No expiry'); return;}
-  const spot=state.btcSpotLive||state.btcBase||80000;
-  const bEl=document.getElementById('ocSrcBadge'), tEl=document.getElementById('ocTs');
-
-  // Sync with shared Delta socket
-  const _deltaLive = _ws.delta && _ws.delta.readyState===1 && _ws.status.delta;
-  if(_deltaLive){ _ocWs.sock=_ws.delta; _ocWs.status=true; }
-
-  // WS live with fresh data → re-render from cache only
-  if(!force&&_deltaLive&&_ocWs.currentExpiryLabel===ex.label&&now-_ocWs.lastTick<10000
-     &&_ocState.data?.exLabel===ex.label&&Object.keys(_ocState.data.strikeMap||{}).length>=5){
-    _renderOptionChain(); return;
-  }
-  if(_deltaLive&&_ocWs.currentExpiryLabel!==ex.label) _ocWsSubscribe(ex.label);
-  if(!_ocWs.status) setTimeout(_ocWsConnect, 300);
-  if(!force&&now-_ocState.fetchTs<20000&&_ocState.data?.exLabel===ex.label){_renderOptionChain();return;}
-
-  try{
-    if(bEl){bEl.textContent='⟳ Loading…';bEl.style.background='rgba(245,158,11,.15)';bEl.style.color='#92400e';}
-    const tag=_ocDateTag(ex.label);
-    if(!tag) throw new Error('Cannot parse: '+ex.label);
-    console.log(`[OC-REST] ${ex.label} → ${tag.v3}`);
-
-    const [rC,rP]=await Promise.all([
-      safeFetch('https://api.india.delta.exchange/v2/tickers?contract_type=call_options&underlying_asset_symbol=BTC',
-        {mode:'cors',headers:{'Accept':'application/json'}}, 10000),
-      safeFetch('https://api.india.delta.exchange/v2/tickers?contract_type=put_options&underlying_asset_symbol=BTC',
-        {mode:'cors',headers:{'Accept':'application/json'}}, 10000),
-    ]);
-    if(!rC.ok||!rP.ok) throw new Error(`HTTP ${rC.status}/${rP.status}`);
-    const [dC,dP]=await Promise.all([rC.json(),rP.json()]);
-
-    const filter=arr=>{
-      const all=arr.result||[];
-      const m=all.filter(t=>_ocSymMatches(t.symbol||'',tag));
-      if(!m.length&&all.length) console.warn('[OC-REST] 0 matched — sample:',all[0]?.symbol);
-      return m;
-    };
-    const calls=filter(dC), puts=filter(dP);
-    console.log(`[OC-REST] ${ex.label}: ${calls.length}C ${puts.length}P`);
-    if(!calls.length&&!puts.length) throw new Error('No data for '+ex.label);
-
-    const parseK=sym=>{for(const p of sym.split('-')){const v=parseFloat(p);if(!isNaN(v)&&v>10000)return v;}return NaN;};
-    const existing=_ocState.data?.exLabel===ex.label?_ocState.data.strikeMap:{};
-    const sm={};
-
-    const addLeg=(t,side)=>{
-      const k=parseK(t.symbol||''); if(isNaN(k)) return;
-      if(!sm[k]) sm[k]={};
-      const prev=existing[k]?.[side]||{};
-      const newMk=parseFloat(t.mark_price||0);
-      const oldMk=prev.mark||0;
-      const prevMk=(oldMk>0&&newMk>0&&Math.abs(newMk-oldMk)>0.1)?oldMk:(prev.prevMark||null);
-      const mH=prev.markHistory||[];
-      // Seed first baseline immediately; push new tick if ≥5s since last entry
-      if(mH.length===0&&newMk>0) mH.push({t:now,v:newMk});
-      else if(mH.length>0&&newMk>0&&(now-mH.at(-1).t)>=5000) mH.push({t:now,v:newMk});
-      if(mH.length>120) mH.shift();
-      // mark_iv normalise
-      const rawIV=parseFloat(t.mark_iv||t.ask_iv||t.bid_iv||0);
-      const iv=rawIV>0?(rawIV<5?rawIV*100:rawIV):(prev.iv||0);
-      // greeks — Delta REST provides them in the greeks object
-      const g=t.greeks||{};
-      sm[k][side]={
-        iv, mark:newMk, prevMark:prevMk, markHistory:mH,
-        bid:parseFloat(t.best_bid_price||0),
-        ask:parseFloat(t.best_ask_price||0),
-        oi:parseFloat(t.open_interest||0),
-        vol:parseFloat(t.volume||0),
-        delta:parseFloat(g.delta||t.delta||prev.delta||0),
-        gamma:parseFloat(g.gamma||t.gamma||prev.gamma||0),
-        theta:parseFloat(g.theta||t.theta||prev.theta||0),
-        vega: parseFloat(g.vega ||t.vega ||prev.vega ||0),
-      };
-    };
-    calls.forEach(t=>addLeg(t,'call')); puts.forEach(t=>addLeg(t,'put'));
-
-    const atmK=getATMStrike(spot);
-    const strikes=Object.keys(sm).map(Number).filter(k=>Math.abs(k-atmK)/atmK<0.13).sort((a,b)=>a-b);
-    if(strikes.length<3) throw new Error('Only '+strikes.length+' strikes');
-
-    _ocState.data={strikeMap:sm,strikes,atmStrike:atmK,spot,exLabel:ex.label};
-    _ocState.fetchTs=now;
-    if(bEl){bEl.textContent='● Delta REST';bEl.style.background='#1e3a5f';bEl.style.color='#93c5fd';}
-    if(tEl) tEl.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Kolkata'})+' IST';
-    _ocWsSubscribe(ex.label);
-    _renderOptionChain();
-  }catch(e){
-    console.warn('[OC-REST]',e.message);
-    if(bEl){bEl.textContent='⚠ BS est.';bEl.style.background='#3b1f5a';bEl.style.color='#d8b4fe';}
-    _renderSyntheticChain(ex,spot);
-  }
-}
-
-function _renderSyntheticChain(ex,spot){
-  const atmK=getATMStrike(spot), ivB=(state.ivHistory[EXPIRIES.indexOf(ex)]?.at(-1)??ex.base)/100;
-  const T=Math.max(ex.dte,0.1)/365,r=0.05,sq=Math.sqrt(T);
-  const sm={},strikes=[];
-  for(let k=atmK-OC_STRIKE_RANGE*500;k<=atmK+OC_STRIKE_RANGE*500;k+=500) strikes.push(k);
-  strikes.forEach(k=>{
-    const d1=(Math.log(spot/k)+(r+.5*ivB*ivB)*T)/(ivB*sq),d2=d1-ivB*sq;
-    const cM=Math.max(0,spot*normCDF(d1)-k*Math.exp(-r*T)*normCDF(d2));
-    const pM=Math.max(0,cM+k*Math.exp(-r*T)-spot);
-    const dc=normCDF(d1),dp=dc-1;
-    const dist=1-Math.abs(k-atmK)/(atmK*.14),synOI=Math.round(600*dist*(0.8+Math.random()*.4));
-    sm[k]={
-      call:{iv:ivB*100,mark:cM,bid:cM*.97,ask:cM*1.03,oi:synOI,vol:Math.round(synOI*.3),delta:+dc.toFixed(3),gamma:0,theta:0,vega:0,prevMark:null,markHistory:[]},
-      put: {iv:(ivB+.004)*100,mark:pM,bid:pM*.97,ask:pM*1.03,oi:synOI,vol:Math.round(synOI*.3),delta:+dp.toFixed(3),gamma:0,theta:0,vega:0,prevMark:null,markHistory:[]},
-    };
-  });
-  _ocState.data={strikeMap:sm,strikes,atmStrike:atmK,spot,exLabel:ex.label};
-  _renderOptionChain();
-}
-
-// Auto-refresh: every 15s if WS is stale/dead, every 30s forced refresh as keepalive
-setInterval(()=>{
-  try{
-    const wsAlive=_ocWs.status&&Date.now()-_ocWs.lastTick<8000;
-    if(!wsAlive) fetchOptionChain(false);
-  }catch(e){}
-},15000);
-setInterval(()=>{try{fetchOptionChain(true);}catch(e){}},30000);
-
-/* ═══════════════════════════════════════════════════════════════
-   EXPIRY TABS
-   ═══════════════════════════════════════════════════════════════ */
-function _ocBuildExpiryTabs(){
-  const row=document.getElementById('ocExpiryRow'); if(!row) return;
-  if(typeof EXPIRIES==='undefined'||!EXPIRIES.length) return;
-  const hv30=state.hv30||32, spot=state.btcSpotLive||state.btcBase||80000;
-  const active=EXPIRIES.filter(e=>!e.expired);
-  row.innerHTML=active.map(ex=>{
-    const ri=EXPIRIES.indexOf(ex);
-    const iv=state.ivHistory[ri]?.at(-1)??ex.base;
-    const edge=(iv-hv30).toFixed(1);
-    const edgeN=parseFloat(edge);
-    const dteCls=ex.dte<=7?'oc-exp-near':ex.dte<=21?'oc-exp-mid':'oc-exp-far';
-    const ivCol=iv>55?'#16a34a':iv>42?'#d97706':'#dc2626';
-    const edgeCol=edgeN>5?'#16a34a':edgeN>0?'#d97706':'#dc2626';
-    const isAct=ri===_ocSelectedExpiryIdx;
-    return `<button class="oc-exp-btn ${dteCls}${isAct?' active':''}" onclick="_ocSelectExpiry(${ri})">
-      <span class="oc-exp-label">${ex.label}</span>
-      <span class="oc-exp-dte">${ex.dte}d · DTE</span>
-      <span class="oc-exp-iv" style="color:${ivCol}">${iv.toFixed(1)}%</span>
-      <span style="font-size:7px;font-weight:700;color:${edgeCol}">${edgeN>=0?'+':''}${edge}%</span>
-    </button>`;
-  }).join('');
-  // sync hidden select
-  const sel=document.getElementById('ocExpirySelect');
-  if(sel) sel.innerHTML=active.map(ex=>{const ri=EXPIRIES.indexOf(ex);return`<option value="${ri}"${ri===_ocSelectedExpiryIdx?' selected':''}>${ex.label} (${ex.dte}d)</option>`;}).join('');
-}
-function _ocBuildExpirySelect(){_ocBuildExpiryTabs();}
-function _ocSelectExpiry(ri){
-  _ocSelectedExpiryIdx=ri;
-  const ex=EXPIRIES[ri]; if(!ex) return;
-  _ocBuildExpiryTabs();
-  if(_ocWs.status) _ocWsSubscribe(ex.label);
-  fetchOptionChain(false);
-}
-function _ocOnExpiryChange(){
-  const sel=document.getElementById('ocExpirySelect'); if(!sel) return;
-  _ocSelectExpiry(parseInt(sel.value||0));
-}
-function _ocSetDelta(d){
-  _ocTargetDelta=d;
-  ['ocD010','ocD015','ocD020','ocD025'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.className='oc-d-btn'+(parseFloat(id.replace('ocD',''))/100===d?' sel':'');
-  });
-  if(_ocState.data) _renderOCTable();
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   TABLE HELPERS
-   ═══════════════════════════════════════════════════════════════ */
-const _fmtK  = v=>v>0?'$'+Math.round(v).toLocaleString():'—';
-const _fmtK2 = v=>v>0?(v>=1000?'$'+Math.round(v).toLocaleString():'$'+v.toFixed(1)):'—';
-const _fmtOI = v=>!v||v<=0?'—':v>=100000?(v/100000).toFixed(1)+'L':v>=1000?(v/1000).toFixed(1)+'k':''+Math.round(v);
-
-function _chgTxt(cur,prev){
-  if(!prev||!cur||prev<=0||cur<=0) return {txt:'—',cls:'chg-fl'};
-  const d=cur-prev,pct=d/prev*100;
-  if(Math.abs(d)<0.01) return {txt:'·',cls:'chg-fl'};
-  const dS=Math.abs(d)>=100?'$'+Math.round(Math.abs(d)):Math.abs(d)>=10?'$'+Math.abs(d).toFixed(1):'$'+Math.abs(d).toFixed(2);
-  const pS=Math.abs(pct)>=1?Math.abs(pct).toFixed(1)+'%':Math.abs(pct).toFixed(2)+'%';
-  return {txt:(d>0?'▲':'▼')+dS+'<br><span style="font-size:6.5px;opacity:.8">'+pS+'</span>',cls:d>0?'chg-up':'chg-dn'};
-}
-function _1hCell(mark,hist){
-  if(!mark||mark<=0) return '<span class="oc1h-fl" style="font-size:8px">—</span>';
-  const h=hist||[];
-  let spark='';
-  if(h.length>=2){
-    const n=Math.min(h.length,10),step=h.length/n;
-    const vals=Array.from({length:n},(_,i)=>h[Math.floor(i*step)]?.v||0).filter(v=>v>0);
-    if(vals.length>=2){
-      const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
-      const col=vals.at(-1)<vals[0]*.999?'#16a34a':vals.at(-1)>vals[0]*1.001?'#ef4444':'#94a3b8';
-      spark=`<div class="oc1h-spark">${vals.map(v=>`<div class="oc1h-bar" style="height:${Math.max(2,Math.round(((v-mn)/rng)*9))}px;background:${col}"></div>`).join('')}</div>`;
-    }
-  } else spark=`<div style="font-size:6.5px;color:#9ca3af;margin-top:1px">${h.length===1?'1pt':'rec…'}</div>`;
-  const o=h.length>0?h[0].v:null;
-  if(!o||o<=0) return `<div class="oc1h oc1h-fl">$${Math.round(mark)}${spark}</div>`;
-  const d=mark-o,pct=d/o*100,cls=d>0?'oc1h-up':d<0?'oc1h-dn':'oc1h-fl',a=d>0?'▲':d<0?'▼':'→';
-  const dS=Math.abs(d)>=100?'$'+Math.round(Math.abs(d)):Math.abs(d)>=10?'$'+Math.abs(d).toFixed(1):'$'+Math.abs(d).toFixed(2);
-  const pS=Math.abs(pct)>=1?Math.abs(pct).toFixed(1)+'%':Math.abs(pct).toFixed(2)+'%';
-  return `<div class="oc1h ${cls}">${a}${dS}<span class="oc1h-pct"><br>${pS}</span>${spark}</div>`;
-}
-
-/* ── BS delta fallback when REST doesn't return greeks ── */
-function _ocBsDelta(k,side,spot,dte,ivPct){
-  const iv=ivPct/100, T=Math.max(dte||7,0.001)/365, r=0.05, sq=Math.sqrt(T);
-  const d1=(Math.log(spot/k)+(r+.5*iv*iv)*T)/(iv*sq);
-  return side==='call'?normCDF(d1):normCDF(d1)-1;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   INLINE 5M PREMIUM TREND — embedded in Mark·IV cell
-   Priority: markHistory 5M baseline → oldest session snap → prevMark tick → "⟳ seeding"
-   ═══════════════════════════════════════════════════════════════ */
-function _ocInline1H(mark, hist, prevMark){
-  if(!mark||mark<=0) return '';
-  const h = hist||[];
-
-  // ── Determine baseline ──
-  // 1. Last snapshot at least 5 minutes old  → true 5M change
-  // 2. Oldest session snapshot (< 5 min old) → early "session" change
-  // 3. prevMark from last WS tick            → tick-level change
-  // 4. No data yet                           → show seeding indicator
-  const cutoff5M = Date.now() - 300000;
-  let base = 0, baseLabel = '';
-  const h5 = h.filter(p => p.t <= cutoff5M).at(-1);
-  const h0 = h.length > 0 ? h[0] : null;
-  if(h5 && h5.v > 0){
-    base = h5.v; baseLabel = '5M';
-  } else if(h0 && h0.v > 0){
-    base = h0.v; baseLabel = 'live';
-  } else if(prevMark && prevMark > 0){
-    base = prevMark; baseLabel = 'tick';
-  }
-
-  // ── No baseline yet → show seeding indicator ──
-  if(!base || base <= 0){
-    return `<div style="margin-top:2px;padding:1px 4px;border-radius:4px;background:rgba(148,163,184,.08);display:inline-block;line-height:1.3">
-      <span style="font-size:8px;color:#94a3b8">⟳ seeding…</span>
-    </div>`;
-  }
-
-  // ── Sparkline ──
-  let sparkHtml = '';
-  const vals = h.map(p=>p.v).filter(v=>v>0);
-  const sparkVals = vals.length > 0 ? [...vals, mark] : (prevMark>0 ? [prevMark, mark] : []);
-  if(sparkVals.length >= 2){
-    const mn=Math.min(...sparkVals), mx=Math.max(...sparkVals), rng=mx-mn||1;
-    const trend = sparkVals.at(-1) > sparkVals[0]*1.001 ? '#ef4444'
-                : sparkVals.at(-1) < sparkVals[0]*0.999 ? '#22c55e' : '#94a3b8';
-    const bars = sparkVals.slice(-14).map(v=>
-      `<span style="display:inline-block;width:3px;height:${Math.max(2,Math.round(((v-mn)/rng)*10))}px;background:${trend};border-radius:1px;vertical-align:bottom;margin-right:1px"></span>`
-    ).join('');
-    sparkHtml = `<div style="display:flex;align-items:flex-end;height:12px;margin-top:2px;">${bars}</div>`;
-  }
-
-  const diff   = mark - base;
-  const pct    = (diff / base) * 100;
-  const absD   = Math.abs(diff);
-  const absPct = Math.abs(pct);
-
-  // Threshold: $0.50 OR 0.5% change to show as rising/falling
-  const rising  = diff >  0.5 || pct >  0.5;
-  const falling = diff < -0.5 || pct < -0.5;
-  const arrow   = rising ? '▲' : falling ? '▼' : '→';
-  const col     = rising ? '#ef4444' : falling ? '#22c55e' : '#94a3b8';
-  const bg      = rising ? 'rgba(239,68,68,.12)' : falling ? 'rgba(34,197,94,.12)' : 'rgba(148,163,184,.07)';
-
-  const dFmt  = absD>=1000 ? '$'+Math.round(absD/100)*100
-              : absD>=100  ? '$'+Math.round(absD)
-              : absD>=10   ? '$'+absD.toFixed(1)
-              :               '$'+absD.toFixed(2);
-  const pFmt  = absPct>=10 ? Math.round(absPct)+'%'
-              : absPct>=1  ? absPct.toFixed(1)+'%'
-              :               absPct.toFixed(2)+'%';
-
-  const lblTag = baseLabel !== 'tick'
-    ? ` <span style="font-size:6px;color:#9ca3af;vertical-align:super">${baseLabel}</span>`
-    : '';
-
-  return `<div style="margin-top:2px;padding:1px 3px;border-radius:4px;background:${bg};display:inline-block;max-width:100%;line-height:1.3">
-    <span style="font-size:9px;font-weight:900;color:${col}">${arrow}${dFmt}</span>
-    <span style="font-size:7.5px;font-weight:700;color:${col};margin-left:2px">${pFmt}</span>
-    ${lblTag}
-    ${sparkHtml}
-  </div>`;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MAIN TABLE RENDER  — T-Shape like Delta Exchange
-   Columns: BID/ASK | MARK·IV  [OI fill]  STRIKE  [OI fill]  MARK·IV | BID/ASK
-   ═══════════════════════════════════════════════════════════════ */
-function _renderOCTable(){
-  const {strikeMap,strikes,atmStrike,spot}=_ocState.data;
-  const tbody=document.getElementById('ocTableBody'); if(!tbody) return;
-  const now=Date.now();
-  const isFresh=ts=>ts&&now-ts<3000;
-  const wsMode=_ocWs.status&&now-_ocWs.lastTick<8000;
-  const maxOI=Math.max(1,...strikes.flatMap(k=>[strikeMap[k]?.call?.oi||0,strikeMap[k]?.put?.oi||0]));
-
-  // Active expiry for DTE/IV reference
-  const idx=_ocSelectedExpiryIdx>=0?_ocSelectedExpiryIdx:0;
-  const nearEx=EXPIRIES[idx]||{dte:7,base:43};
-  const dte=nearEx.dte||7;
-  const ivRef=state.ivHistory[idx]?.at(-1)??nearEx.base??43;
-
-  // Effective delta: stored (REST) else BS
-  const effDelta=(k,side)=>{
-    const d=strikeMap[k]?.[side]?.delta||0;
-    if(Math.abs(d)>0.001&&Math.abs(d)<=1.0) return d;
-    return _ocBsDelta(k,side,spot,dte,ivRef);
-  };
-
-  // Find strangle strikes
-  let selC=null,selP=null,bcD=Infinity,bpD=Infinity;
-  strikes.forEach(k=>{
-    const cd=Math.abs(effDelta(k,'call')), pd=Math.abs(effDelta(k,'put'));
-    if(k>=atmStrike&&Math.abs(cd-_ocTargetDelta)<bcD){bcD=Math.abs(cd-_ocTargetDelta);selC=k;}
-    if(k<=atmStrike&&Math.abs(pd-_ocTargetDelta)<bpD){bpD=Math.abs(pd-_ocTargetDelta);selP=k;}
-  });
-
-  tbody.innerHTML=strikes.map(k=>{
-    const c=strikeMap[k]?.call||{}, p=strikeMap[k]?.put||{};
-    const isATM=k===atmStrike, isSC=k===selC, isSP=k===selP;
-    // ── 1H inline premium change (tick-by-tick) ──
-    const c1hHtml=_ocInline1H(c.mark,c.markHistory,c.prevMark);
-    const p1hHtml=_ocInline1H(p.mark,p.markHistory,p.prevMark);
-    const cFr=wsMode&&isFresh(c.ts), pFr=wsMode&&isFresh(p.ts);
-    const rowCls=isATM?'oc-atm':isSC?'oc-sel-c':isSP?'oc-sel-p':'';
-    const cFl=cFr?' ws-tick':'', pFl=pFr?' ws-tick':'';
-
-    // OI fill widths (background bars)
-    const cOIw=maxOI>0?Math.round((c.oi||0)/maxOI*100):0;
-    const pOIw=maxOI>0?Math.round((p.oi||0)/maxOI*100):0;
-
-    // IV colour — seller view: green=rich edge, yellow=moderate, red=thin
-    const ivCol=iv=>iv>55?'#16a34a':iv>40?'#d97706':'#dc2626';
-    const cIVcol=ivCol(c.iv||0), pIVcol=ivCol(p.iv||0);
-    const cIV=c.iv>0?c.iv.toFixed(1)+'%':'—';
-    const pIV=p.iv>0?p.iv.toFixed(1)+'%':'—';
-
-    // Mark price display
-    const cMark=c.mark>0?'$'+Math.round(c.mark).toLocaleString():'—';
-    const pMark=p.mark>0?'$'+Math.round(p.mark).toLocaleString():'—';
-
-    // Bid/Ask
-    const cBid=c.bid>0?'$'+Math.round(c.bid):'—', cAsk=c.ask>0?'$'+Math.round(c.ask):'—';
-    const pBid=p.bid>0?'$'+Math.round(p.bid):'—', pAsk=p.ask>0?'$'+Math.round(p.ask):'—';
-
-    // Delta
-    const cD=effDelta(k,'call'), pD=effDelta(k,'put');
-    const cDtxt=Math.abs(cD)>0.001?cD.toFixed(2):'—';
-    const pDtxt=Math.abs(pD)>0.001?Math.abs(pD).toFixed(2):'—';
-
-    // Strike label
-    const kLabel=k>=1000?Math.round(k).toLocaleString():k;
-    const strikeSub=`<div style="font-size:7px;color:#94a3b8;margin-top:1px">${cDtxt}·${pDtxt}</div>`;
-
-    // ATM/selected markers
-    const atmMark=isATM?'<div style="font-size:7px;color:#d97706;font-weight:800;line-height:1">ATM</div>':'';
-    const scMark=isSC?'<div style="font-size:7px;color:#16a34a;font-weight:800;line-height:1">◉C</div>':isSP?'<div style="font-size:7px;color:#dc2626;font-weight:800;line-height:1">◉P</div>':'';
-    const wsMk=wsMode&&(cFr||pFr)?'<div style="font-size:6px;color:#22c55e;line-height:1">⚡</div>':'';
-
-    return `<tr class="${rowCls}">
-      <!-- CALL BID/ASK -->
-      <td class="w-ba oc-c${cFl}" style="position:relative">
-        <div class="oc-fill-c" style="width:${cOIw}%"></div>
-        <div style="position:relative;z-index:1;text-align:right">
-          <span class="oc-bid">${cBid}</span><br>
-          <span class="oc-ask">${cAsk}</span>
-          <div style="font-size:6.5px;color:#94a3b8">${_fmtOI(c.oi)}</div>
-        </div>
-      </td>
-      <!-- CALL MARK·IV + 1H Premium Change -->
-      <td class="w-mk oc-c${cFl}" style="text-align:right;border-right:2px solid #f59e0b">
-        <div style="font-size:12px;font-weight:800;color:#1d4ed8;font-variant-numeric:tabular-nums">${cMark}</div>
-        <div style="font-weight:700;font-size:9px;color:${cIVcol}">${cIV}</div>
-        ${c1hHtml}
-        <div style="font-size:6.5px;color:#94a3b8">Δ${cDtxt}</div>
-      </td>
-      <!-- STRIKE -->
-      <td class="w-str${cFl}" style="text-align:center;border-left:2px solid #f59e0b;border-right:2px solid #f59e0b;padding:4px 2px">
-        ${atmMark}${scMark}
-        <div style="font-size:13px;font-weight:900;line-height:1.1">${kLabel}</div>
-        ${strikeSub}${wsMk}
-      </td>
-      <!-- PUT MARK·IV + 1H Premium Change -->
-      <td class="w-mk oc-p${pFl}" style="text-align:left;border-left:2px solid #f59e0b">
-        <div style="font-size:12px;font-weight:800;color:#dc2626;font-variant-numeric:tabular-nums">${pMark}</div>
-        <div style="font-weight:700;font-size:9px;color:${pIVcol}">${pIV}</div>
-        ${p1hHtml}
-        <div style="font-size:6.5px;color:#94a3b8">Δ${pDtxt}</div>
-      </td>
-      <!-- PUT BID/ASK -->
-      <td class="w-ba oc-p${pFl}" style="position:relative">
-        <div class="oc-fill-p" style="width:${pOIw}%"></div>
-        <div style="position:relative;z-index:1;text-align:left">
-          <span class="oc-bid">${pBid}</span><br>
-          <span class="oc-ask">${pAsk}</span>
-          <div style="font-size:6.5px;color:#94a3b8">${_fmtOI(p.oi)}</div>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-
-  _renderStrangleChips(strikeMap,selC,selP,spot,dte);
-  _renderOCMetrics(strikeMap,atmStrike,spot,strikes,dte);
-  _renderOCPCRRow(strikeMap,strikes,atmStrike);
-  _renderOCMaxPainRow(strikeMap,strikes,spot);
-}
-
-/* ── Strangle chips ── */
-function _renderStrangleChips(sm,cK,pK,spot,dte){
-  const ex=EXPIRIES.find(e=>e.label===_ocState.data?.exLabel)||{dte:7};
-  const dte2=dte||ex.dte||7, hv30=state.hv30||32;
-  const c=cK?sm[cK]?.call:{}, p=pK?sm[pK]?.put:{};
-  const cM=c?.mark||0, pM=p?.mark||0, net=cM+pM;
-  // theta approx: premium / (2*sqrt(DTE)) per day
-  const thetaApprox=m=>m>0&&dte2>0?Math.round(m/(2*Math.sqrt(dte2))):0;
-  const netTheta=(Math.abs(c?.theta)||thetaApprox(cM))+(Math.abs(p?.theta)||thetaApprox(pM));
-  const atmIV=((sm[_ocState.data?.atmStrike]?.call?.iv||0)+(sm[_ocState.data?.atmStrike]?.put?.iv||0))/2;
-  const edge=atmIV-hv30, vov=state.vovHistory?.at(-1)??8;
-  const S=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
-  const idx2=_ocSelectedExpiryIdx>=0?_ocSelectedExpiryIdx:0;
-  const ivB=(state.ivHistory[idx2]?.at(-1)||ex.base||43)/100;
-  const T=Math.max(dte2,0.001)/365,r=0.05,sq=Math.sqrt(T);
-  const bsD=(k,type)=>{const d1=(Math.log(spot/k)+(r+.5*ivB*ivB)*T)/(ivB*sq);return type==='call'?normCDF(d1):Math.abs(normCDF(d1)-1);};
-  const cDelta=cK?(Math.abs(c?.delta||0)>0.001?Math.abs(c.delta):bsD(cK,'call')):0;
-  const pDelta=pK?(Math.abs(p?.delta||0)>0.001?Math.abs(p.delta):bsD(pK,'put')):0;
-  S('ocBCall',cK?`▲${Math.round(cK/1000)}k Δ${cDelta.toFixed(2)} $${Math.round(cM)}`:'C: —');
-  S('ocBPut', pK?`▼${Math.round(pK/1000)}k Δ${pDelta.toFixed(2)} $${Math.round(pM)}`:'P: —');
-  S('ocBNet', net>0?`Net $${Math.round(net).toLocaleString()}`:'Net: —');
-  S('ocBBE',  cK&&pK&&net>0?`↑$${Math.round(cK+net).toLocaleString()} ↓$${Math.round(pK-net).toLocaleString()}`:'BE: —');
-  S('ocBTheta',netTheta>0?`θ ~$${Math.round(netTheta)}/d`:'θ: —');
-  const vd=document.getElementById('ocBVerdict');
-  if(vd){
-    const ok=[edge>5,vov<14,dte2>=7&&dte2<=45,net>=200,!!(cK&&pK)];
-    const sc=ok.filter(Boolean).length;
-    if(sc>=4&&ok[0]&&ok[1]){vd.textContent='✅ SELL';vd.className='oc-bc-verdict oc-bcv-sell';}
-    else if(sc>=3){vd.textContent='⚠ WAIT';vd.className='oc-bc-verdict oc-bcv-wait';}
-    else{vd.textContent='🚫 SKIP';vd.className='oc-bc-verdict oc-bcv-skip';}
-  }
-}
-
-/* ── Metrics strip ── */
-function _renderOCMetrics(sm,atm,spot,strikes,dte){
-  const idx=_ocSelectedExpiryIdx>=0?_ocSelectedExpiryIdx:0;
-  const ex=EXPIRIES[idx]||{dte:7,base:43}; const dte2=dte||ex.dte||7;
-  const hv30=state.hv30||32;
-  const aC=sm[atm]?.call||{}, aP=sm[atm]?.put||{};
-  const str=Math.round((aC.mark||0)+(aP.mark||0));
-  const iv=((aC.iv||0)+(aP.iv||0))/2;
-  const edge=(iv-hv30).toFixed(1);
-  let tC=0,tP=0; strikes.forEach(k=>{tC+=sm[k]?.call?.oi||0;tP+=sm[k]?.put?.oi||0;});
-  const pcr=tC>0?(tP/tC).toFixed(2):'—';
-  const be=str>0&&spot>0?(str/spot*100).toFixed(2)+'%':'—';
-  const theta=str>0&&dte2>0?Math.round(str/(2*Math.sqrt(dte2))):0;
-  // 1H straddle change
-  const cH0=aC.markHistory?.length>0?aC.markHistory[0].v:null;
-  const pH0=aP.markHistory?.length>0?aP.markHistory[0].v:null;
-  let strChg='—';
-  if(cH0&&pH0&&str>0){const o=Math.round(cH0+pH0),d=str-o;strChg=`${d>=0?'▲':'▼'}$${Math.abs(d)} (${(d/o*100).toFixed(1)}%)`;}
-  // Max pain
-  const pains=strikes.map(ep=>{let l=0;strikes.forEach(k=>{l+=(sm[k]?.call?.oi||0)*Math.max(0,ep-k)+(sm[k]?.put?.oi||0)*Math.max(0,k-ep);});return{k:ep,pain:l};});
-  pains.sort((a,b)=>a.pain-b.pain);
-  const mp=pains[0]?.k||spot;
-  const mpD=((mp-spot)/spot*100).toFixed(1);
-  const edgeN=parseFloat(edge), pcrN=parseFloat(pcr), vov=state.vovHistory?.at(-1)??8;
-  const S=(id,t,col)=>{const e=document.getElementById(id);if(e){e.textContent=t;if(col)e.style.color=col;}};
-  S('ocMStraddle',str>0?'$'+str.toLocaleString():'—','#7c3aed');
-  S('ocMStr1H',strChg);
-  S('ocMIV',iv>0?iv.toFixed(1)+'%':'—','#a855f7');
-  S('ocMIVEdge',`Edge ${edgeN>=0?'+':''}${edge}%`,edgeN>5?'#16a34a':edgeN>0?'#d97706':'#dc2626');
-  S('ocMBE',be,'#3b82f6');
-  S('ocMTheta',theta>0?'+$'+theta+'/d':'—','#10b981');
-  S('ocMPCR',pcr,pcrN>1.2?'#dc2626':pcrN<0.8?'#16a34a':'#d97706');
-  S('ocMPCRlbl',pcrN>1.2?'Put heavy (bearish)':pcrN<0.8?'Call heavy (bullish)':'Neutral');
-  S('ocMMaxPain',mp>0?'$'+Math.round(mp/1000)+'k':'—','#2563eb');
-  S('ocMMaxPainD',(parseFloat(mpD)>=0?'+':'')+mpD+'% from spot');
-  S('ocMATM',atm>0?'$'+Math.round(atm/1000)+'k':'—','#3b82f6');
-  S('ocMDTE','DTE '+dte2+'d');
-  S('ocMEdge',iv>0?(edgeN>=0?'+':'')+edge+'%':'—',edgeN>5?'#16a34a':edgeN>0?'#d97706':'#dc2626');
-  // Verdict bar
-  const v=document.getElementById('ocVerdictBar');
-  const vt=document.getElementById('ocVerdictTitle'), vs=document.getElementById('ocVerdictSub'), vi=document.getElementById('ocVerdictIcon');
-  if(!v) return;
-  const conds=[edgeN>5,vov<14,dte2>=7&&dte2<=45,str>=300,pcrN>=0.7&&pcrN<=1.4];
-  const sc=conds.filter(Boolean).length;
-  const miss=[!conds[0]&&`Edge thin (+${edge}%)`,!conds[1]&&`VoV ${vov.toFixed(1)}% high`,!conds[2]&&`DTE ${dte2}d out of range`,!conds[3]&&'Low premium',!conds[4]&&`PCR ${pcr} extreme`].filter(Boolean);
-  if(sc>=4&&conds[0]&&conds[1]){
-    v.className='oc-verdict oc-v-enter';if(vi)vi.textContent='✅';
-    if(vt)vt.textContent=`SELL — ${sc}/5 · Straddle $${str.toLocaleString()} · IV Edge +${edge}%`;
-    if(vs)vs.textContent=`VoV ${vov.toFixed(1)}% ✓ · θ +$${theta}/d · BE ±${be} · PCR ${pcr} · Max Pain $${Math.round(mp/1000)}k`;
-  } else if(sc>=3){
-    v.className='oc-verdict oc-v-wait';if(vi)vi.textContent='⚠️';
-    if(vt)vt.textContent=`WAIT — ${sc}/5 · ${miss.join(' · ')}`;
-    if(vs)vs.textContent=`Straddle $${str.toLocaleString()} · IV ${iv.toFixed(1)}% · HV ${hv30.toFixed(1)}% · PCR ${pcr}`;
-  } else {
-    v.className='oc-verdict oc-v-avoid';if(vi)vi.textContent='🚫';
-    if(vt)vt.textContent=`AVOID — ${sc}/5 · ${miss.join(' · ')}`;
-    if(vs)vs.textContent=`IV Edge ${edgeN>=0?'+':''}${edge}% · VoV ${vov.toFixed(1)}% · DTE ${dte2}d`;
-  }
-}
-
-/* ── PCR row ── */
-function _renderOCPCRRow(sm,strikes,atm){
-  const el=document.getElementById('ocPCRRow');if(!el)return;
-  const show=strikes.filter((_,i)=>i%3===0||strikes[i]===atm).slice(0,8);
-  el.innerHTML=show.map(k=>{
-    const c=sm[k]?.call?.oi||0,p=sm[k]?.put?.oi||0,pcr=c>0?p/c:0;
-    const col=pcr>1.3?'#dc2626':pcr<0.7?'#16a34a':'#d97706';
-    const bg=pcr>1.3?'rgba(239,68,68,.08)':pcr<0.7?'rgba(34,197,94,.08)':'rgba(245,158,11,.07)';
-    return `<div style="flex:1;min-width:44px;padding:3px 5px;border-radius:6px;border:0.5px solid ${k===atm?'#f59e0b':'var(--color-border-tertiary)'};background:${bg};text-align:center">
-      <div style="font-size:7px;font-weight:700;color:var(--color-text-secondary)">${k===atm?'◉ ':''} ${Math.round(k/1000)}k</div>
-      <div style="font-size:11px;font-weight:900;color:${col}">${pcr.toFixed(2)}</div>
-    </div>`;
-  }).join('');
-}
-
-/* ── Max Pain ── */
-function _renderOCMaxPainRow(sm,strikes,spot){
-  const el=document.getElementById('ocMaxPainRow');if(!el)return;
-  const pains=strikes.map(ep=>{let l=0;strikes.forEach(k=>{l+=(sm[k]?.call?.oi||0)*Math.max(0,ep-k)+(sm[k]?.put?.oi||0)*Math.max(0,k-ep);});return{k:ep,pain:l};});
-  pains.sort((a,b)=>a.pain-b.pain);
-  const mp=pains[0]?.k||spot, dist=((mp-spot)/spot*100);
-  el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <div style="padding:6px 10px;border-radius:8px;background:rgba(37,99,235,.08);border:0.5px solid rgba(37,99,235,.3);text-align:center">
-      <div style="font-size:7px;font-weight:700;color:#2563eb;text-transform:uppercase">Max Pain</div>
-      <div style="font-size:18px;font-weight:900;color:var(--color-text-primary)">$${Math.round(mp/1000)}k</div>
-      <div style="font-size:7.5px;color:var(--color-text-secondary)">${dist>=0?'+':''}${dist.toFixed(1)}% from spot</div>
-    </div>
-    <div style="flex:1;min-width:100px;font-size:9px;color:var(--color-text-secondary);line-height:1.6">
-      ${pains.slice(0,4).map((p,i)=>`<span style="margin-right:6px;color:${i===0?'#2563eb':'var(--color-text-secondary)'}">$${Math.round(p.k/1000)}k</span>`).join('')}
-      <br>${dist>1?'⬆ Drift up — widen put leg':dist<-1?'⬇ Drift down — widen call leg':'⚖ Balanced — ATM straddle optimal'}
-    </div>
-  </div>`;
-}
-
-/* ── Master render ── */
-function _renderOptionChain(){
-  if(!_ocState.data) return;
-  _ocBuildExpiryTabs();
-  _renderOCTable();
-}
-function switchOCTab(){ _renderOptionChain(); }
-
-/* ═══════════════════════════════════════════════════════════════
-   BOOT — waits for EXPIRIES, auto-selects best expiry
-   ═══════════════════════════════════════════════════════════════ */
-function _ocBoot(){
-  if(_ocSelectedExpiryIdx===-1&&typeof EXPIRIES!=='undefined'&&EXPIRIES.length){
-    let best=-1,bestScore=-Infinity;
-    EXPIRIES.forEach((ex,i)=>{
-      if(ex.expired) return;
-      const iv=state.ivHistory[i]?.at(-1)??ex.base;
-      let score=(iv-(state.hv30||32))+(ex.dte>=7&&ex.dte<=14?5:ex.dte>=15&&ex.dte<=21?3:0);
-      if(score>bestScore){bestScore=score;best=i;}
-    });
-    _ocSelectedExpiryIdx=best>=0?best:EXPIRIES.findIndex(e=>!e.expired);
-  }
-  _ocBuildExpiryTabs();
-  // Attach to shared Delta socket (retries until socket is ready)
-  setTimeout(()=>{ try{ _ocWsConnect(); }catch(e){} }, 500);
-  setTimeout(()=>fetchOptionChain(false), 800);
-}
-
-let _ocBootTries=0;
-const _ocBootTimer=setInterval(()=>{
-  _ocBootTries++;
-  if((typeof EXPIRIES!=='undefined'&&EXPIRIES.filter(e=>!e.expired).length>0)||_ocBootTries>20){
-    clearInterval(_ocBootTimer); _ocBoot();
-  }
-},500);
-
-setInterval(()=>{try{_ocBuildExpiryTabs();}catch(e){}},30000);
-
 </script>
 
 <!-- ═══════════════════════════════════════════════════════
@@ -14417,5 +14352,1028 @@ async function bmrFetch(force){
 setTimeout(()=>{try{bmrFetch(true);}catch(e){}},2200);
 setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BRAHMASTRA COMPLETE TRADING SYSTEM PANEL
+     Four-strategy short vol system · All signals from dashboard
+     Windows open only when trade needs to be planned
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+/* ── Trading System Panel ── */
+#tsPanel{
+  position:fixed;bottom:76px;left:22px;z-index:99998;
+  width:440px;max-width:calc(100vw - 30px);
+  font-family:var(--font-sans,sans-serif);
+}
+#tsFab{
+  position:fixed;bottom:22px;left:22px;z-index:99999;
+  width:auto;height:44px;border-radius:22px;
+  padding:0 16px;
+  border:none;cursor:pointer;
+  background:linear-gradient(135deg,#7c3aed,#2563eb);
+  box-shadow:0 4px 20px rgba(124,58,237,.5);
+  font-size:13px;font-weight:700;color:#fff;
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-sans,sans-serif);
+  letter-spacing:.02em;
+  transition:transform .2s,box-shadow .2s;
+}
+#tsFab:hover{transform:scale(1.03);box-shadow:0 6px 28px rgba(124,58,237,.7)}
+#tsFabPulse{
+  position:fixed;bottom:22px;left:22px;z-index:99997;
+  width:44px;height:44px;border-radius:22px;
+  background:rgba(124,58,237,.3);
+  animation:tsFabPulse 2s infinite;
+  pointer-events:none;
+}
+@keyframes tsFabPulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.5);opacity:0}}
+
+/* Alert dot on FAB */
+#tsFabAlert{
+  position:fixed;bottom:56px;left:56px;z-index:100000;
+  width:14px;height:14px;border-radius:50%;
+  background:#ef4444;border:2px solid var(--color-background-primary,#fff);
+  display:none;
+}
+
+/* Main container */
+.ts-container{
+  background:var(--color-background-primary,#fff);
+  border:1px solid var(--color-border-tertiary,#e5e7eb);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  max-height:85vh;
+  display:flex;flex-direction:column;
+}
+
+/* Header */
+.ts-header{
+  background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(37,99,235,.08));
+  border-bottom:1px solid var(--color-border-tertiary,#e5e7eb);
+  padding:12px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.ts-header-left{display:flex;align-items:center;gap:8px}
+.ts-header-title{font-size:12px;font-weight:900;color:var(--color-text-primary,#111);letter-spacing:.03em}
+.ts-header-badge{font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(124,58,237,.15);color:#7c3aed;letter-spacing:.06em}
+.ts-close-btn{width:24px;height:24px;border-radius:6px;border:none;background:rgba(107,114,128,.1);color:var(--color-text-secondary,#6b7280);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+
+/* Tab bar */
+.ts-tabs{display:flex;border-bottom:1px solid var(--color-border-tertiary,#e5e7eb);flex-shrink:0;overflow-x:auto}
+.ts-tab{
+  flex:1;min-width:70px;padding:8px 4px;border:none;background:transparent;
+  font-size:9px;font-weight:700;color:var(--color-text-secondary,#6b7280);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;
+  text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;
+}
+.ts-tab.active{color:#7c3aed;border-bottom-color:#7c3aed;background:rgba(124,58,237,.04)}
+
+/* Tab content */
+.ts-body{overflow-y:auto;flex:1;padding:12px}
+.ts-tab-content{display:none}
+.ts-tab-content.active{display:block}
+
+/* Strategy pill row */
+.ts-strat-row{
+  display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;
+}
+.ts-strat-pill{
+  flex:1;min-width:80px;padding:8px 10px;border-radius:10px;
+  border:1px solid var(--color-border-tertiary,#e5e7eb);
+  cursor:pointer;transition:all .15s;text-align:center;
+}
+.ts-strat-pill:hover{transform:translateY(-1px)}
+.ts-strat-pill-num{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.ts-strat-pill-name{font-size:10px;font-weight:800;color:var(--color-text-primary,#111);line-height:1.2}
+.ts-strat-pill-status{font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;margin-top:4px;display:inline-block}
+
+/* Window cards — main strategy content */
+.ts-window{
+  border:1px solid var(--color-border-tertiary,#e5e7eb);
+  border-radius:12px;overflow:hidden;margin-bottom:10px;
+  transition:all .3s;
+}
+.ts-window-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;cursor:pointer;
+  border-bottom:1px solid transparent;
+  transition:background .15s;
+}
+.ts-window-header:hover{background:var(--color-background-secondary,#f3f4f6)}
+.ts-window.open .ts-window-header{border-bottom-color:var(--color-border-tertiary,#e5e7eb)}
+.ts-window-title{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--color-text-primary,#111)}
+.ts-window-badge{font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em}
+.ts-window-caret{font-size:10px;color:var(--color-text-secondary,#6b7280);transition:transform .2s}
+.ts-window.open .ts-window-caret{transform:rotate(180deg)}
+.ts-window-body{display:none;padding:10px 12px}
+.ts-window.open .ts-window-body{display:block}
+
+/* Signal rows inside windows */
+.ts-sig-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0;border-bottom:1px solid var(--color-border-tertiary,#e5e7eb);
+  font-size:11px;gap:8px;
+}
+.ts-sig-row:last-child{border-bottom:none}
+.ts-sig-lbl{color:var(--color-text-secondary,#6b7280);font-size:10px;flex:1}
+.ts-sig-val{font-weight:700;font-size:11px;font-variant-numeric:tabular-nums;text-align:right}
+.ts-green{color:#16a34a}.ts-amber{color:#d97706}.ts-red{color:#dc2626}.ts-blue{color:#2563eb}.ts-purple{color:#7c3aed}.ts-grey{color:#6b7280}
+
+/* Checklist */
+.ts-check{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--color-border-tertiary,#e5e7eb)}
+.ts-check:last-child{border-bottom:none}
+.ts-check-icon{font-size:11px;flex-shrink:0;margin-top:1px}
+.ts-check-body{flex:1}
+.ts-check-name{font-size:10px;font-weight:600;color:var(--color-text-primary,#111)}
+.ts-check-note{font-size:9px;color:var(--color-text-secondary,#6b7280);margin-top:1px}
+
+/* Master verdict */
+.ts-verdict{
+  border-radius:10px;padding:10px 12px;
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:10px;
+  transition:all .4s;
+}
+.ts-verdict-icon{font-size:20px;flex-shrink:0}
+.ts-verdict-title{font-size:12px;font-weight:900;letter-spacing:.02em}
+.ts-verdict-sub{font-size:9px;margin-top:2px}
+.tv-enter{background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.3)}
+.tv-enter .ts-verdict-title{color:#16a34a}
+.tv-enter .ts-verdict-sub{color:#15803d}
+.tv-wait{background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.3)}
+.tv-wait .ts-verdict-title{color:#d97706}
+.tv-wait .ts-verdict-sub{color:#b45309}
+.tv-skip{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3)}
+.tv-skip .ts-verdict-title{color:#dc2626}
+.tv-skip .ts-verdict-sub{color:#b91c1c}
+.tv-idle{background:var(--color-background-secondary,#f3f4f6);border:1px solid var(--color-border-tertiary,#e5e7eb)}
+.tv-idle .ts-verdict-title{color:var(--color-text-secondary,#6b7280)}
+.tv-idle .ts-verdict-sub{color:var(--color-text-secondary,#6b7280)}
+
+/* Score pills */
+.ts-score-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.ts-score-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px}
+
+/* Section mini-title */
+.ts-section-title{
+  font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--color-text-secondary,#6b7280);margin:10px 0 6px;
+  display:flex;align-items:center;gap:8px;
+}
+.ts-section-title::after{content:'';flex:1;height:1px;background:var(--color-border-tertiary,#e5e7eb)}
+
+/* Strike display */
+.ts-strike-row{display:flex;gap:6px;margin-bottom:8px}
+.ts-strike-box{flex:1;padding:8px;border-radius:8px;text-align:center}
+.ts-strike-call{background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2)}
+.ts-strike-put{background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.2)}
+.ts-strike-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.ts-strike-call .ts-strike-lbl{color:#dc2626}
+.ts-strike-put  .ts-strike-lbl{color:#16a34a}
+.ts-strike-val{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--color-text-primary,#111)}
+.ts-strike-sub{font-size:8px;color:var(--color-text-secondary,#6b7280);margin-top:2px}
+
+/* Calendar dots */
+.ts-cal{display:flex;gap:4px;margin-bottom:8px}
+.ts-cal-day{flex:1;text-align:center;padding:6px 4px;border-radius:7px;border:1px solid var(--color-border-tertiary,#e5e7eb)}
+.ts-cal-name{font-size:8px;font-weight:700;color:var(--color-text-secondary,#6b7280);text-transform:uppercase;letter-spacing:.05em}
+.ts-cal-dot{width:8px;height:8px;border-radius:50%;margin:4px auto}
+.ts-cal-note{font-size:7px;color:var(--color-text-secondary,#6b7280);margin-top:2px;line-height:1.3}
+.ts-cal-today{background:rgba(124,58,237,.06);border-color:rgba(124,58,237,.3)}
+.ts-cal-today .ts-cal-name{color:#7c3aed}
+
+/* Signal traffic light */
+.ts-traffic{display:flex;gap:5px;align-items:center;margin-bottom:8px}
+.ts-traffic-light{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Refresh btn */
+.ts-refresh-btn{
+  font-size:9px;font-weight:700;padding:3px 10px;border-radius:6px;
+  border:1px solid var(--color-border-tertiary,#e5e7eb);
+  background:transparent;color:var(--color-text-secondary,#6b7280);
+  cursor:pointer;transition:all .15s;
+}
+.ts-refresh-btn:hover{background:var(--color-background-secondary,#f3f4f6)}
+.ts-update-ts{font-size:8px;color:var(--color-text-secondary,#6b7280);margin-left:auto}
+</style>
+
+<!-- FAB Button -->
+<div id="tsFabPulse"></div>
+<div id="tsFabAlert"></div>
+<button id="tsFab" onclick="tsToggle()" title="Trading System"><span>📋</span> MY TRADES</button>
+
+<!-- Main Panel -->
+<div id="tsPanel" style="display:none">
+<div class="ts-container">
+
+  <!-- Header -->
+  <div class="ts-header">
+    <div class="ts-header-left">
+      <span style="font-size:16px">📋</span>
+      <div>
+        <div class="ts-header-title">BRAHMASTRA TRADING SYSTEM</div>
+        <div style="font-size:8px;color:var(--color-text-secondary,#6b7280);margin-top:1px">4-Strategy Short Vol · Live Dashboard Signals</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="ts-header-badge" id="tsLiveBadge">● LIVE</span>
+      <button class="ts-close-btn" onclick="tsToggle()">✕</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="ts-tabs">
+    <button class="ts-tab active" onclick="tsTab('overview')">Overview</button>
+    <button class="ts-tab" onclick="tsTab('s1')">S1 Friday</button>
+    <button class="ts-tab" onclick="tsTab('s2')">S2 18DTE</button>
+    <button class="ts-tab" onclick="tsTab('s3')">S3 Monthly</button>
+    <button class="ts-tab" onclick="tsTab('s4')">S4 BigMove</button>
+    <button class="ts-tab" onclick="tsTab('signals')">Signals</button>
+  </div>
+
+  <!-- Body -->
+  <div class="ts-body">
+
+    <!-- ── TAB: OVERVIEW ── -->
+    <div class="ts-tab-content active" id="ts-tab-overview">
+
+      <!-- Today's verdict -->
+      <div class="ts-verdict tv-idle" id="tsOverallVerdict">
+        <span class="ts-verdict-icon" id="tsOVIcon">⏳</span>
+        <div>
+          <div class="ts-verdict-title" id="tsOVTitle">ANALYSING MARKET…</div>
+          <div class="ts-verdict-sub" id="tsOVSub">Reading all dashboard signals</div>
+        </div>
+      </div>
+
+      <!-- Weekly calendar -->
+      <div class="ts-section-title">This Week</div>
+      <div class="ts-cal" id="tsCalRow"></div>
+
+      <!-- Live market snapshot -->
+      <div class="ts-section-title">Live Market Snapshot</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">BTC Spot</span><span class="ts-sig-val" id="tsSnapSpot">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">ATM IV (near expiry)</span><span class="ts-sig-val" id="tsSnapIV">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">HV30</span><span class="ts-sig-val" id="tsSnapHV">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">IV − HV Edge</span><span class="ts-sig-val" id="tsSnapEdge">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">VoV</span><span class="ts-sig-val" id="tsSnapVoV">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">DVOL</span><span class="ts-sig-val" id="tsSnapDVOL">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">IVR (52-week rank)</span><span class="ts-sig-val" id="tsSnapIVR">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">VRP (IV² − HV²)</span><span class="ts-sig-val" id="tsSnapVRP">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Market Regime</span><span class="ts-sig-val" id="tsSnapRegime">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">PCR (Put/Call OI)</span><span class="ts-sig-val" id="tsSnapPCR">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Days Since 4%+ Move</span><span class="ts-sig-val" id="tsSnapBMR">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Active Session</span><span class="ts-sig-val" id="tsSnapSession">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Market Pattern</span><span class="ts-sig-val" id="tsSnapPattern">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Theta/Day (straddle)</span><span class="ts-sig-val" id="tsSnapTheta">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Term Structure Slope</span><span class="ts-sig-val" id="tsSnapTS">—</span></div>
+
+      <div style="display:flex;align-items:center;margin-top:8px;gap:8px">
+        <button class="ts-refresh-btn" onclick="tsUpdate()">↻ Refresh</button>
+        <span class="ts-update-ts" id="tsUpdateTs">—</span>
+      </div>
+    </div>
+
+    <!-- ── TAB: S1 FRIDAY ── -->
+    <div class="ts-tab-content" id="ts-tab-s1">
+      <div class="ts-verdict tv-idle" id="tsS1Verdict">
+        <span class="ts-verdict-icon" id="tsS1VIcon">📅</span>
+        <div>
+          <div class="ts-verdict-title" id="tsS1VTitle">FRIDAY WEEKLY STRANGLE</div>
+          <div class="ts-verdict-sub" id="tsS1VSub">Entry: Fri 8:45 PM IST · Exit: Sat 8–9 PM IST</div>
+        </div>
+      </div>
+
+      <!-- Window: opens only on Friday evening -->
+      <div class="ts-window" id="tsS1Window">
+        <div class="ts-window-header" onclick="tsToggleWindow('tsS1Window')">
+          <div class="ts-window-title">
+            <span>⚡</span> CME Entry Checklist
+            <span class="ts-window-badge" id="tsS1Score" style="background:rgba(107,114,128,.1);color:#6b7280">—/7</span>
+          </div>
+          <span class="ts-window-caret">▼</span>
+        </div>
+        <div class="ts-window-body">
+          <div id="tsS1Checks"></div>
+          <div class="ts-section-title">Suggested Strikes</div>
+          <div class="ts-strike-row">
+            <div class="ts-strike-box ts-strike-call">
+              <div class="ts-strike-lbl">CALL ↑</div>
+              <div class="ts-strike-val" id="tsS1CallStrike">—</div>
+              <div class="ts-strike-sub" id="tsS1CallSub">Session High + 2%</div>
+            </div>
+            <div class="ts-strike-box ts-strike-put">
+              <div class="ts-strike-lbl">PUT ↓</div>
+              <div class="ts-strike-val" id="tsS1PutStrike">—</div>
+              <div class="ts-strike-sub" id="tsS1PutSub">Session Low − 2%</div>
+            </div>
+          </div>
+          <div class="ts-section-title">Key Parameters</div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Target Delta</span><span class="ts-sig-val ts-blue">0.08 – 0.10Δ</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Expiry</span><span class="ts-sig-val" id="tsS1Expiry">Next Friday (7 DTE)</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Stop Loss</span><span class="ts-sig-val ts-red">2× premium</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Exit Time</span><span class="ts-sig-val">Saturday 8–9 PM IST</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Rebalance</span><span class="ts-sig-val ts-amber">Never</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Capital Weight</span><span class="ts-sig-val">25%</span></div>
+        </div>
+      </div>
+
+      <div class="ts-section-title">Why This Trade Works</div>
+      <div style="font-size:10px;color:var(--color-text-secondary,#6b7280);line-height:1.7">
+        BTC options price in ~2.5 calendar days of weekend risk at Friday close. All that time decay hits your P&L while you sleep Saturday. CME settlement at 8:30 PM IST exhausts institutional flow — entering at 8:45 PM means you sell into a settled, post-institutional price.
+      </div>
+    </div>
+
+    <!-- ── TAB: S2 18DTE ── -->
+    <div class="ts-tab-content" id="ts-tab-s2">
+      <div class="ts-verdict tv-idle" id="tsS2Verdict">
+        <span class="ts-verdict-icon" id="tsS2VIcon">📅</span>
+        <div>
+          <div class="ts-verdict-title" id="tsS2VTitle">MONDAY 18 DTE STRANGLE</div>
+          <div class="ts-verdict-sub" id="tsS2VSub">Entry: Mon 8:45 PM IST · Exit: Next Mon 8:45 PM IST</div>
+        </div>
+      </div>
+      <div class="ts-window" id="tsS2Window">
+        <div class="ts-window-header" onclick="tsToggleWindow('tsS2Window')">
+          <div class="ts-window-title"><span>⚡</span> Entry Checklist
+            <span class="ts-window-badge" id="tsS2Score" style="background:rgba(107,114,128,.1);color:#6b7280">—/7</span>
+          </div>
+          <span class="ts-window-caret">▼</span>
+        </div>
+        <div class="ts-window-body">
+          <div id="tsS2Checks"></div>
+          <div class="ts-section-title">Suggested Strikes</div>
+          <div class="ts-strike-row">
+            <div class="ts-strike-box ts-strike-call">
+              <div class="ts-strike-lbl">CALL ↑</div>
+              <div class="ts-strike-val" id="tsS2CallStrike">—</div>
+              <div class="ts-strike-sub">Session High + 3.5%</div>
+            </div>
+            <div class="ts-strike-box ts-strike-put">
+              <div class="ts-strike-lbl">PUT ↓</div>
+              <div class="ts-strike-val" id="tsS2PutStrike">—</div>
+              <div class="ts-strike-sub">Session Low − 3.5%</div>
+            </div>
+          </div>
+          <div class="ts-section-title">Key Parameters</div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Target Delta</span><span class="ts-sig-val ts-blue">0.10 – 0.12Δ</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Expiry</span><span class="ts-sig-val" id="tsS2Expiry">18 DTE</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Stop Loss</span><span class="ts-sig-val ts-red">2× premium</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Exit Time</span><span class="ts-sig-val">Next Monday 8:45 PM IST</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Rebalance</span><span class="ts-sig-val ts-amber">Max 1× at 0.22Δ</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Capital Weight</span><span class="ts-sig-val">35%</span></div>
+        </div>
+      </div>
+      <div class="ts-section-title">Why This Trade Works</div>
+      <div style="font-size:10px;color:var(--color-text-secondary,#6b7280);line-height:1.7">
+        18 DTE sits between high-theta short-dated and high-vega long-dated. Monday post-CME gives you a clean, settled price. One week hold captures IV mean reversion while gamma is still manageable. A single bad day is recoverable at this DTE.
+      </div>
+    </div>
+
+    <!-- ── TAB: S3 MONTHLY ── -->
+    <div class="ts-tab-content" id="ts-tab-s3">
+      <div class="ts-verdict tv-idle" id="tsS3Verdict">
+        <span class="ts-verdict-icon" id="tsS3VIcon">📅</span>
+        <div>
+          <div class="ts-verdict-title" id="tsS3VTitle">45–60 DTE MONTHLY STRANGLE</div>
+          <div class="ts-verdict-sub" id="tsS3VSub">Entry: Month-end Mon 10–11 AM · Exit: 2 weeks</div>
+        </div>
+      </div>
+      <div class="ts-window" id="tsS3Window">
+        <div class="ts-window-header" onclick="tsToggleWindow('tsS3Window')">
+          <div class="ts-window-title"><span>📊</span> Monthly Entry Checklist
+            <span class="ts-window-badge" id="tsS3Score" style="background:rgba(107,114,128,.1);color:#6b7280">—/5</span>
+          </div>
+          <span class="ts-window-caret">▼</span>
+        </div>
+        <div class="ts-window-body">
+          <div id="tsS3Checks"></div>
+          <div class="ts-section-title">Suggested Strikes</div>
+          <div class="ts-strike-row">
+            <div class="ts-strike-box ts-strike-call">
+              <div class="ts-strike-lbl">CALL ↑</div>
+              <div class="ts-strike-val" id="tsS3CallStrike">—</div>
+              <div class="ts-strike-sub">Spot + 10–12%</div>
+            </div>
+            <div class="ts-strike-box ts-strike-put">
+              <div class="ts-strike-lbl">PUT ↓</div>
+              <div class="ts-strike-val" id="tsS3PutStrike">—</div>
+              <div class="ts-strike-sub">Spot − 10–12%</div>
+            </div>
+          </div>
+          <div class="ts-section-title">Key Parameters</div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Target Delta</span><span class="ts-sig-val ts-blue">0.12 – 0.15Δ</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Target Expiry</span><span class="ts-sig-val" id="tsS3Expiry">45–60 DTE</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Stop Loss</span><span class="ts-sig-val ts-red">2× premium</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Exit Rule</span><span class="ts-sig-val">2 weeks OR 30–40% premium</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Rebalance</span><span class="ts-sig-val ts-amber">Max 2× at 0.22Δ</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Capital Weight</span><span class="ts-sig-val">40%</span></div>
+        </div>
+      </div>
+      <div class="ts-section-title">Next Monthly Entry Window</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Last Friday of Month</span><span class="ts-sig-val" id="tsS3LastFri">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Entry Monday</span><span class="ts-sig-val" id="tsS3EntryMon">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Target Expiry</span><span class="ts-sig-val" id="tsS3TargetEx">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Days Until Entry</span><span class="ts-sig-val" id="tsS3DaysLeft">—</span></div>
+    </div>
+
+    <!-- ── TAB: S4 BIG MOVE ── -->
+    <div class="ts-tab-content" id="ts-tab-s4">
+      <div class="ts-verdict tv-idle" id="tsS4Verdict">
+        <span class="ts-verdict-icon" id="tsS4VIcon">🔥</span>
+        <div>
+          <div class="ts-verdict-title" id="tsS4VTitle">POST BIG MOVE 18 DTE</div>
+          <div class="ts-verdict-sub" id="tsS4VSub">Triggers after BTC 4%+ daily move · Replaces S2</div>
+        </div>
+      </div>
+      <div class="ts-window" id="tsS4Window">
+        <div class="ts-window-header" onclick="tsToggleWindow('tsS4Window')">
+          <div class="ts-window-title"><span>🔥</span> Big Move Checklist
+            <span class="ts-window-badge" id="tsS4Score" style="background:rgba(107,114,128,.1);color:#6b7280">—/5</span>
+          </div>
+          <span class="ts-window-caret">▼</span>
+        </div>
+        <div class="ts-window-body">
+          <div id="tsS4Checks"></div>
+          <div class="ts-section-title">Wider Strikes (Fear Premium)</div>
+          <div class="ts-strike-row">
+            <div class="ts-strike-box ts-strike-call">
+              <div class="ts-strike-lbl">CALL ↑</div>
+              <div class="ts-strike-val" id="tsS4CallStrike">—</div>
+              <div class="ts-strike-sub">Session High + 5%</div>
+            </div>
+            <div class="ts-strike-box ts-strike-put">
+              <div class="ts-strike-lbl">PUT ↓</div>
+              <div class="ts-strike-val" id="tsS4PutStrike">—</div>
+              <div class="ts-strike-sub">Session Low − 5%</div>
+            </div>
+          </div>
+          <div class="ts-section-title">BMR Status</div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Days Since 4%+ Move</span><span class="ts-sig-val" id="tsS4DaysSince">—</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Avg Gap Between Moves</span><span class="ts-sig-val" id="tsS4AvgGap">—</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Big Moves (60D)</span><span class="ts-sig-val" id="tsS4Big60">—</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">Calm Streak</span><span class="ts-sig-val" id="tsS4Calm">—</span></div>
+          <div class="ts-sig-row"><span class="ts-sig-lbl">S4 Valid Window</span><span class="ts-sig-val" id="tsS4Valid">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: ALL SIGNALS ── -->
+    <div class="ts-tab-content" id="ts-tab-signals">
+      <div class="ts-section-title">IV / Vol Signals</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">ATM IV vs HV30</span><span class="ts-sig-val" id="tsSigIVHV">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">VRP (IV² − HV²)</span><span class="ts-sig-val" id="tsSigVRP">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">IV Quality (Sinclair)</span><span class="ts-sig-val" id="tsSigQuality">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">DVOL Zone</span><span class="ts-sig-val" id="tsSigDVOL">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">VoV Regime</span><span class="ts-sig-val" id="tsSigVoV">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">IV Trend</span><span class="ts-sig-val" id="tsSigIVTrend">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Term Structure</span><span class="ts-sig-val" id="tsSigTS">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">IVR (52-week)</span><span class="ts-sig-val" id="tsSigIVR">—</span></div>
+
+      <div class="ts-section-title">Market Structure</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">BTC Regime</span><span class="ts-sig-val" id="tsSigRegime">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">PCR (Put/Call)</span><span class="ts-sig-val" id="tsSigPCR">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Session</span><span class="ts-sig-val" id="tsSigSession">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Event Risk</span><span class="ts-sig-val" id="tsSigEvent">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Market Pattern</span><span class="ts-sig-val" id="tsSigMPO">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Expected 24H Move</span><span class="ts-sig-val" id="tsSigMove">—</span></div>
+
+      <div class="ts-section-title">Greeks (Near Expiry)</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Theta/Day</span><span class="ts-sig-val" id="tsSigTheta">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Gamma Risk</span><span class="ts-sig-val" id="tsSigGamma">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Vega Exposure</span><span class="ts-sig-val" id="tsSigVega">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Theta/Vega Ratio</span><span class="ts-sig-val" id="tsSigTVR">—</span></div>
+
+      <div class="ts-section-title">Big Move Radar</div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Days Since 4%+ Move</span><span class="ts-sig-val" id="tsSigBMRDays">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Big Moves (60D)</span><span class="ts-sig-val" id="tsSigBMR60">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Avg Cycle</span><span class="ts-sig-val" id="tsSigBMRGap">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">Calm Streak</span><span class="ts-sig-val" id="tsSigBMRCalm">—</span></div>
+      <div class="ts-sig-row"><span class="ts-sig-lbl">BMR Decision</span><span class="ts-sig-val" id="tsSigBMRDec">—</span></div>
+    </div>
+
+  </div><!-- /ts-body -->
+</div><!-- /ts-container -->
+</div><!-- /tsPanel -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   BRAHMASTRA TRADING SYSTEM PANEL — Full Logic
+   Reads live from: state, EXPIRIES, greeksState,
+   mpoState, bmrFetch data, verdictState, detectBTCRegime
+   ═══════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  /* ── UI helpers ── */
+  const $  = id => document.getElementById(id);
+  const set = (id, v) => { const e=$(id); if(e) e.textContent=v; };
+  const cls = (id, c) => { const e=$(id); if(e) e.className=c; };
+  const col = (id, c) => { const e=$(id); if(e) e.style.color=c; };
+
+  /* ── Toggle panel ── */
+  window.tsToggle = function(){
+    const p = $('tsPanel');
+    if(!p) return;
+    const open = p.style.display !== 'none';
+    p.style.display = open ? 'none' : 'block';
+    if(!open) tsUpdate();
+  };
+
+  /* ── Tab switching ── */
+  window.tsTab = function(name){
+    document.querySelectorAll('.ts-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ts-tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.ts-tab').forEach(t => {
+      if((t.getAttribute('onclick')||'').includes("'"+name+"'")) t.classList.add('active');
+    });
+    const tc = $('ts-tab-'+name);
+    if(tc) tc.classList.add('active');
+    tsUpdate();
+  };
+
+  /* ── Toggle window (accordion) ── */
+  window.tsToggleWindow = function(id){
+    const w = $(id);
+    if(!w) return;
+    w.classList.toggle('open');
+  };
+
+  /* ── IST helpers ── */
+  function ist(){ const n=new Date(); return new Date(n.getTime()+n.getTimezoneOffset()*60000+5.5*3600000); }
+  function dayOfWeek(){ return ist().getDay(); } // 0=Sun,1=Mon,...,5=Fri,6=Sat
+  function hourMin(){ const t=ist(); return t.getHours()*60+t.getMinutes(); }
+
+  /* ── Read dashboard state safely ── */
+  function getState(){
+    const s = typeof state !== 'undefined' ? state : {};
+    return {
+      spot:    s.btcSpotLive || s.btcBase || 0,
+      hv30:    s.hv30 || 32,
+      dvol:    s.dvolBase || 44,
+      vov:     (s.vovHistory||[]).at(-1) || 8,
+      vovH:    s.vovHistory || [],
+      ivH:     s.ivHistory || [],
+      oiData:  s.oiData || [],
+      btcHist: (s.btcHistory||[]).map(d=>d.spot||d.btc).filter(Boolean),
+    };
+  }
+
+  function getWeeklyExpiry(){
+    if(typeof EXPIRIES === 'undefined') return null;
+    // Find expiry with DTE <= 10 that is not expired
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(!EXPIRIES[i].expired && EXPIRIES[i].dte<=10) return {ex:EXPIRIES[i],idx:i};
+    }
+    // fallback: first non-expired
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(!EXPIRIES[i].expired) return {ex:EXPIRIES[i],idx:i};
+    }
+    return null;
+  }
+
+  function get18DTEExpiry(){
+    if(typeof EXPIRIES === 'undefined') return null;
+    // Find expiry closest to 18 DTE
+    let best = null, bestDiff = 999;
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(EXPIRIES[i].expired) continue;
+      const diff = Math.abs(EXPIRIES[i].dte - 18);
+      if(diff < bestDiff){ bestDiff=diff; best={ex:EXPIRIES[i],idx:i}; }
+    }
+    return best;
+  }
+
+  function get4560Expiry(){
+    if(typeof EXPIRIES === 'undefined') return null;
+    // Target next-month expiry: DTE 55–90 (June, not May end)
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(!EXPIRIES[i].expired && EXPIRIES[i].dte>=55 && EXPIRIES[i].dte<=90)
+        return {ex:EXPIRIES[i],idx:i};
+    }
+    // Fallback: first expiry with DTE > 45
+    for(let i=0;i<EXPIRIES.length;i++){
+      if(!EXPIRIES[i].expired && EXPIRIES[i].dte>45)
+        return {ex:EXPIRIES[i],idx:i};
+    }
+    return null;
+  }
+
+  function getIV(idx){
+    const s = typeof state !== 'undefined' ? state : {};
+    const arr = s.ivHistory && s.ivHistory[idx];
+    if(arr && arr.length) return arr.at(-1);
+    return (typeof EXPIRIES!=='undefined' && EXPIRIES[idx]) ? EXPIRIES[idx].base : null;
+  }
+
+  function getBMRData(){
+    // Read from BMR DOM elements since bmrFetch stores results there
+    const daysSince = parseInt(($('bmrDecDays')||{}).textContent)||999;
+    const count60   = parseInt(($('bmrCount60')||{}).textContent)||0;
+    const freq      = ($('bmrFreq')||{}).textContent||'—';
+    const calm      = parseInt(($('bmrCalmStreak')||{}).textContent)||0;
+    const decTitle  = ($('bmrDecTitle')||{}).textContent||'';
+    const isSafe    = decTitle.includes('SAFE');
+    const isDanger  = decTitle.includes('DANGER');
+    return { daysSince, count60, freq, calm, isSafe, isDanger };
+  }
+
+  function getMPOData(){
+    if(typeof mpoState === 'undefined') return { patterns:[], severity:'neutral', loaded:false };
+    return {
+      patterns: mpoState.patterns || [],
+      severity: mpoState.severity || 'neutral',
+      loaded: mpoState.lastFetch > 0,
+    };
+  }
+
+  function getRegime(){
+    try{ return detectBTCRegime(); }
+    catch(e){ return { regime:'normal', title:'Normal', col:'#3b82f6' }; }
+  }
+
+  function getSessions(){
+    try{ return getCurrentSessions(); }
+    catch(e){ return []; }
+  }
+
+  function fmtUSD(v){ return v==null?'—':'$'+Math.round(v).toLocaleString('en-US'); }
+  function fmtPct(v,dec=1){ return v==null?'—':(v>=0?'+':'')+v.toFixed(dec)+'%'; }
+
+  /* ── Determine if a strategy window should auto-open ── */
+  function shouldAutoOpen(){
+    const dow = dayOfWeek();
+    const hm  = hourMin();
+    // Friday 8:30 PM+ → S1 window
+    if(dow===5 && hm >= 20*60+30) return 's1';
+    // Monday 8:30 PM+ → S2/S4 window
+    if(dow===1 && hm >= 20*60+30) return 's2';
+    // Saturday → nothing (monitor only)
+    return null;
+  }
+
+  /* ── Build checklist item HTML ── */
+  function chkHTML(pass, warn, name, val, note){
+    const icon = pass===null ? '⏳' : pass ? '✅' : warn ? '⚠️' : '❌';
+    const vcol = pass===null ? '#6b7280' : pass ? '#16a34a' : warn ? '#d97706' : '#dc2626';
+    return `<div class="ts-check">
+      <span class="ts-check-icon">${icon}</span>
+      <div class="ts-check-body">
+        <div class="ts-check-name">${name} <span style="font-weight:400;color:${vcol};font-size:10px">${val}</span></div>
+        ${note?`<div class="ts-check-note">${note}</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  /* ── Colour helper ── */
+  function gc(pass,warn){ return pass?'ts-green':warn?'ts-amber':'ts-red'; }
+  function gcs(pass,warn){ return pass?'#16a34a':warn?'#d97706':'#dc2626'; }
+
+  /* ── Main update function ── */
+  window.tsUpdate = function(){
+    const ds  = getState();
+    const bmr = getBMRData();
+    const mpo = getMPOData();
+    const reg = getRegime();
+    const ses = getSessions();
+    const wEx = getWeeklyExpiry();
+    const ex18= get18DTEExpiry();
+    const ex45= get4560Expiry();
+    const dow = dayOfWeek();
+    const hm  = hourMin();
+
+    // IVs
+    const nearIV  = wEx  ? (getIV(wEx.idx)  || wEx.ex.base)  : ds.dvol;
+    const iv18    = ex18 ? (getIV(ex18.idx) || ex18.ex.base) : ds.dvol;
+    const iv45    = ex45 ? (getIV(ex45.idx) || ex45.ex.base) : ds.dvol;
+
+    // Core metrics
+    const edge    = nearIV - ds.hv30;
+    const vrp     = nearIV*nearIV - ds.hv30*ds.hv30;
+    const vovTrend= ds.vovH.length>=3 ? ds.vovH.at(-1)-ds.vovH.at(-3) : 0;
+    const pcr     = ds.oiData[wEx?.idx||0]?.pcr || 1.0;
+    const hasEvent= typeof EXPIRIES!=='undefined' && EXPIRIES.slice(0,3).some(e=>!e.expired&&e.note);
+    const inNY    = ses.find(s=>s.short==='NY'&&s.active);
+    const activeSes = ses.find(s=>s.active);
+    const ivTrend = ds.ivH[wEx?.idx||0]?.length>=3
+      ? (ds.ivH[wEx?.idx||0].at(-1))-(ds.ivH[wEx?.idx||0].at(-3)) : 0;
+
+    // IVR (simplified 30-point range)
+    const ivWindow= ds.ivH[wEx?.idx||0]||[];
+    let ivr = 50;
+    if(ivWindow.length>=5){
+      const mn=Math.min(...ivWindow), mx=Math.max(...ivWindow);
+      ivr = mx>mn ? Math.round((nearIV-mn)/(mx-mn)*100) : 50;
+    }
+
+    // Term structure slope
+    const acts = typeof EXPIRIES!=='undefined' ? EXPIRIES.filter(e=>!e.expired) : [];
+    let tsSlope = null;
+    if(acts.length>=2){
+      const iv0 = getIV(EXPIRIES.indexOf(acts[0]))||acts[0].base;
+      const ivL = getIV(EXPIRIES.indexOf(acts[acts.length-1]))||acts[acts.length-1].base;
+      tsSlope = ivL - iv0;
+    }
+
+    // Greeks
+    const theta = typeof verdictState!=='undefined' ? verdictState.theta : null;
+    const gamma = typeof verdictState!=='undefined' ? verdictState.gamma : null;
+    const vega  = typeof verdictState!=='undefined' ? verdictState.vega  : null;
+    const thetaPerVega = (vega&&theta&&vega!==0) ? Math.abs(theta/vega) : null;
+
+    // MPO
+    const confirmed = mpo.patterns.filter(p=>p.status==='confirmed');
+    const bearish   = confirmed.filter(p=>p.bias==='bearish'||(p.name||'').toLowerCase().match(/top|head|bear/));
+    const mpoOK     = mpo.loaded && confirmed.length===0;
+
+    // Expected move
+    let expectedMove = null;
+    if(typeof mpoState!=='undefined' && mpoState.candles1h.length>=14){
+      const atr = mpoState.candles1h.slice(-14).map((c,i,a)=>
+        i===0?c.h-c.l:Math.max(c.h-c.l,Math.abs(c.h-a[i-1].c),Math.abs(c.l-a[i-1].c))
+      ).reduce((a,b)=>a+b,0)/14;
+      expectedMove = ds.spot>0 ? atr/ds.spot*100 : null;
+    }
+    if(!expectedMove && nearIV && wEx) expectedMove = nearIV/Math.sqrt(365/Math.max(wEx.ex.dte,1));
+
+    // Session high/low from FNS if available
+    const sesHi = typeof FNS!=='undefined' ? FNS.sessionHigh : null;
+    const sesLo = typeof FNS!=='undefined' ? FNS.sessionLow  : null;
+
+    /* ──────────────────────────────────────────
+       OVERVIEW TAB
+    ────────────────────────────────────────── */
+    set('tsSnapSpot',  ds.spot>0 ? fmtUSD(ds.spot) : '—');
+    const snapIVEl=$('tsSnapIV'); if(snapIVEl){snapIVEl.textContent=nearIV.toFixed(1)+'%';snapIVEl.className='ts-sig-val '+(nearIV>40?'ts-amber':'ts-green');}
+    set('tsSnapHV',   ds.hv30.toFixed(1)+'%');
+    const edgeEl=$('tsSnapEdge'); if(edgeEl){edgeEl.textContent=fmtPct(edge);edgeEl.className='ts-sig-val '+(edge>=10?'ts-green':edge>=5?'ts-amber':'ts-red');}
+    const vovEl=$('tsSnapVoV'); if(vovEl){vovEl.textContent=ds.vov.toFixed(1)+'%';vovEl.className='ts-sig-val '+(ds.vov<14?'ts-green':ds.vov<20?'ts-amber':'ts-red');}
+    const dvolEl=$('tsSnapDVOL'); if(dvolEl){dvolEl.textContent=ds.dvol.toFixed(1)+'%';dvolEl.className='ts-sig-val '+(ds.dvol>=35&&ds.dvol<55?'ts-green':ds.dvol<55?'ts-amber':'ts-red');}
+    const ivrEl=$('tsSnapIVR'); if(ivrEl){ivrEl.textContent=ivr+'%';ivrEl.className='ts-sig-val '+(ivr>=60?'ts-green':ivr>=40?'ts-amber':'ts-red');}
+    const vrpEl=$('tsSnapVRP'); if(vrpEl){vrpEl.textContent=(vrp>=0?'+':'')+vrp.toFixed(0)+' var pts²';vrpEl.className='ts-sig-val '+(vrp>0?'ts-green':'ts-red');}
+    const regEl=$('tsSnapRegime'); if(regEl){regEl.textContent=reg.title||reg.regime;regEl.style.color=reg.col||'#3b82f6';}
+    const pcrEl=$('tsSnapPCR'); if(pcrEl){pcrEl.textContent=pcr.toFixed(2)+(pcr>1.2?' (Bearish)':pcr<0.8?' (Bullish)':' (Neutral)');pcrEl.className='ts-sig-val '+(pcr>=0.7&&pcr<=1.3?'ts-green':pcr>=0.5&&pcr<=1.5?'ts-amber':'ts-red');}
+    const bmrEl=$('tsSnapBMR'); if(bmrEl){bmrEl.textContent=bmr.daysSince>=999?'No recent move':bmr.daysSince+'d ago';bmrEl.className='ts-sig-val '+(bmr.daysSince>=7?'ts-green':bmr.daysSince>=3?'ts-amber':'ts-red');}
+    const sesEl=$('tsSnapSession'); if(sesEl){sesEl.textContent=activeSes?activeSes.name:inNY?'NY Open':'Off-Session';sesEl.className='ts-sig-val '+(inNY?'ts-red':activeSes?'ts-amber':'ts-green');}
+    const mpoEl=$('tsSnapPattern'); if(mpoEl){mpoEl.textContent=!mpo.loaded?'Loading…':confirmed.length===0?'Clear':confirmed.map(p=>p.name||'Pattern').join(', ');mpoEl.className='ts-sig-val '+(mpoOK?'ts-green':bearish.length>0?'ts-red':'ts-amber');}
+    const thetaEl=$('tsSnapTheta'); if(thetaEl){thetaEl.textContent=theta!=null?'$'+Math.abs(Math.round(theta))+'/day':'—';thetaEl.className='ts-sig-val '+(theta!=null&&Math.abs(theta)>100?'ts-green':theta!=null&&Math.abs(theta)>30?'ts-amber':'ts-red');}
+    const tsEl=$('tsSnapTS'); if(tsEl){tsEl.textContent=tsSlope!=null?(tsSlope>=0?'Normal ↑ +':tsSlope<-2?'Inverted ↓ ':'')+tsSlope.toFixed(1)+'%':'—';tsEl.className='ts-sig-val '+(tsSlope!=null&&tsSlope>0?'ts-green':tsSlope!=null&&tsSlope>-2?'ts-amber':'ts-red');}
+
+    // Calendar
+    const calEl = $('tsCalRow');
+    if(calEl){
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const today = dow;
+      calEl.innerHTML = days.map((d,i)=>{
+        const isToday = i===today;
+        const hasTrade = (i===5&&hm>=20*60+30)||(i===1&&hm>=20*60+30)||(i===6);
+        const dotCol = i===5?'#16a34a':i===1?'#2563eb':i===6?'#dc2626':'#e5e7eb';
+        const note = i===5?'S1 8:45PM':i===1?'S2 8:45PM':i===6?'Exit S1':'';
+        return `<div class="ts-cal-day${isToday?' ts-cal-today':''}">
+          <div class="ts-cal-name">${d}</div>
+          <div class="ts-cal-dot" style="background:${dotCol}"></div>
+          <div class="ts-cal-note">${note}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Overall verdict
+    const canTrade = edge>=5 && ds.vov<20 && !inNY && vrp>0;
+    const shouldSkip = edge<2 || ds.vov>25 || reg.regime==='trending';
+    const autoOpen = shouldAutoOpen();
+    const ovVerdictEl=$('tsOverallVerdict');
+    if(ovVerdictEl){
+      if(shouldSkip){ ovVerdictEl.className='ts-verdict tv-skip'; set('tsOVIcon','🚫'); set('tsOVTitle','DO NOT TRADE NOW'); set('tsOVSub',edge<2?'IV edge insufficient':ds.vov>25?'VoV too high — IV unstable':'BTC trending — no strangle edge'); }
+      else if(canTrade && autoOpen){ ovVerdictEl.className='ts-verdict tv-enter'; set('tsOVIcon','✅'); set('tsOVTitle','TRADE WINDOW OPEN'); set('tsOVSub',`CME settled · ${autoOpen.toUpperCase()} entry window active · Check checklist`); }
+      else if(canTrade){ ovVerdictEl.className='ts-verdict tv-wait'; set('tsOVIcon','⏳'); set('tsOVTitle','CONDITIONS GOOD — WAIT FOR ENTRY TIME'); set('tsOVSub','IV edge solid. Wait for CME settlement at 8:30 PM IST'); }
+      else { ovVerdictEl.className='ts-verdict tv-idle'; set('tsOVIcon','👁'); set('tsOVTitle','MONITORING — NO TRADE YET'); set('tsOVSub','Watching signals. Edge forming but not ready.'); }
+    }
+
+    // FAB alert dot
+    const alertDot = $('tsFabAlert');
+    if(alertDot) alertDot.style.display = (autoOpen && canTrade) ? 'block' : 'none';
+
+    /* ──────────────────────────────────────────
+       S1 — FRIDAY WEEKLY
+    ────────────────────────────────────────── */
+    const isFridayEvening = dow===5 && hm>=19*60;
+    const isSaturday = dow===6;
+
+    // S1 checks
+    const cmeSettled = hm >= 20*60+30;
+    const nyMoveOK   = sesHi&&sesLo&&ds.spot>0 ? ((sesHi-sesLo)/ds.spot*100)<4.5 : true;
+    const insideRange= sesHi&&sesLo&&ds.spot>0 ? (ds.spot>=sesLo&&ds.spot<=sesHi) : null;
+    const s1EdgeOK   = edge>=5;
+    const s1VoVOK    = ds.vov<20;
+    const s1NoEvent  = !hasEvent;
+    const s1NoBear   = bearish.length===0;
+
+    const s1Checks = [
+      { name:'CME Settlement', val:cmeSettled?'✓ Settled (8:30PM done)':'Settling…', pass:cmeSettled, warn:hm>=20*60&&!cmeSettled, note:'CME avg 3:00–4:00 PM Chicago = 8:30 PM IST. Must complete before entry.' },
+      { name:'Session Move 7–8:45 PM', val:sesHi&&sesLo&&ds.spot>0?((sesHi-sesLo)/ds.spot*100).toFixed(1)+'%':'Tracking…', pass:nyMoveOK, warn:false, note:'Must be <4.5%. If higher → skip this Friday.' },
+      { name:'BTC Inside Session Range', val:insideRange===null?'Tracking…':insideRange?'Inside range':'Outside range', pass:insideRange, warn:insideRange===null, note:'BTC must be between 7 PM high and low — not breaking out.' },
+      { name:'IV − HV Edge', val:fmtPct(edge), pass:s1EdgeOK, warn:edge>=2&&edge<5, note:'Minimum 5% edge to sell. 10%+ = confident entry.' },
+      { name:'VoV Stable', val:ds.vov.toFixed(1)+'%', pass:s1VoVOK, warn:ds.vov>=14&&ds.vov<20, note:'<14% = stable. >20% = IV unstable, skip.' },
+      { name:'No Event Risk', val:s1NoEvent?'Clear':'EVENT DETECTED', pass:s1NoEvent, warn:false, note:'Check EXPIRIES for scheduled events in near contracts.' },
+      { name:'No Bearish Pattern', val:bearish.length===0?'Clear':confirmed.map(p=>p.name||'Pattern').join(', '), pass:s1NoBear, warn:confirmed.length>0&&!bearish.length, note:'Confirmed bearish patterns increase put-side risk.' },
+    ];
+    const s1Pass = s1Checks.filter(c=>c.pass===true).length;
+    const s1Html = s1Checks.map(c=>chkHTML(c.pass,c.warn,c.name,c.val,c.note)).join('');
+    const s1El = $('tsS1Checks'); if(s1El) s1El.innerHTML=s1Html;
+    const s1ScoreEl=$('tsS1Score'); if(s1ScoreEl){s1ScoreEl.textContent=s1Pass+'/'+s1Checks.length;s1ScoreEl.style.cssText=s1Pass>=6?'background:rgba(22,163,74,.15);color:#16a34a':s1Pass>=4?'background:rgba(217,119,6,.15);color:#d97706':'background:rgba(220,38,38,.15);color:#dc2626';}
+
+    // S1 strikes
+    if(sesHi&&sesLo){
+      set('tsS1CallStrike', fmtUSD(Math.round(sesHi*1.02/100)*100));
+      set('tsS1PutStrike',  fmtUSD(Math.round(sesLo*0.98/100)*100));
+    } else if(ds.spot>0){
+      set('tsS1CallStrike', fmtUSD(Math.round(ds.spot*1.03/100)*100));
+      set('tsS1PutStrike',  fmtUSD(Math.round(ds.spot*0.97/100)*100));
+    }
+
+    // S1 expiry
+    if(wEx) set('tsS1Expiry', wEx.ex.label+' ('+wEx.ex.dte+'DTE)');
+
+    // S1 verdict + auto-open
+    const s1VEl=$('tsS1Verdict');
+    const s1Win=$('tsS1Window');
+    if(isFridayEvening){
+      if(s1Pass>=6){ if(s1VEl){s1VEl.className='ts-verdict tv-enter';set('tsS1VIcon','✅');set('tsS1VTitle','ENTER NOW — ALL CONDITIONS MET');set('tsS1VSub','8:45 PM IST · Strike width ±2% · Delta 0.08–0.10Δ · SL = 2× premium');} if(s1Win)s1Win.classList.add('open'); }
+      else if(s1Pass>=4){ if(s1VEl){s1VEl.className='ts-verdict tv-wait';set('tsS1VIcon','⚠️');set('tsS1VTitle','ALMOST READY — '+s1Pass+'/'+s1Checks.length+' GREEN');set('tsS1VSub','Wait for remaining checks to clear. Check again in 10 min.');} }
+      else { if(s1VEl){s1VEl.className='ts-verdict tv-skip';set('tsS1VIcon','🚫');set('tsS1VTitle','SKIP THIS FRIDAY');set('tsS1VSub','Too many conditions failing. Protect capital.');} }
+    } else if(isSaturday){
+      if(s1VEl){s1VEl.className='ts-verdict tv-wait';set('tsS1VIcon','👁');set('tsS1VTitle','SATURDAY — MONITOR & EXIT 8–9 PM IST');set('tsS1VSub','Check BTC is inside range. Exit both legs tonight.');}
+    } else {
+      if(s1VEl){s1VEl.className='ts-verdict tv-idle';set('tsS1VIcon','📅');set('tsS1VTitle','NEXT ENTRY: FRIDAY 8:45 PM IST');set('tsS1VSub','Entry window opens Friday after CME settlement at 8:30 PM IST.');}
+    }
+
+    /* ──────────────────────────────────────────
+       S2 — MONDAY 18 DTE
+    ────────────────────────────────────────── */
+    const isMondayEvening = dow===1 && hm>=19*60;
+    const edge18 = iv18 - ds.hv30;
+
+    const s2Checks = [
+      { name:'CME Settlement', val:cmeSettled?'✓ Settled':'Settling…', pass:cmeSettled, warn:hm>=20*60&&!cmeSettled, note:'Wait for 8:30 PM IST before entry.' },
+      { name:'Session Move Mon 7–8:45 PM', val:sesHi&&sesLo&&ds.spot>0?((sesHi-sesLo)/ds.spot*100).toFixed(1)+'%':'Tracking…', pass:nyMoveOK, warn:false, note:'Must be <4.5%.' },
+      { name:'BTC Inside Range', val:insideRange===null?'Tracking…':insideRange?'Inside':'Outside', pass:insideRange, warn:insideRange===null, note:'Not trending — consolidating after CME.' },
+      { name:'18 DTE IV Edge', val:fmtPct(edge18), pass:edge18>=8, warn:edge18>=5&&edge18<8, note:'Need IV−HV >8% on 18 DTE expiry for worthwhile hold.' },
+      { name:'VoV Stable', val:ds.vov.toFixed(1)+'%', pass:ds.vov<18, warn:ds.vov>=14&&ds.vov<18, note:'<14% ideal. Rising VoV = possible aftershocks.' },
+      { name:'No Major Event (14 days)', val:hasEvent?'EVENT DETECTED':'Clear', pass:!hasEvent, warn:false, note:'1 event = widen strikes. 2+ events = skip.' },
+      { name:'No Bearish Pattern', val:bearish.length===0?'Clear':bearish.map(p=>p.name||'Pattern').join(', '), pass:bearish.length===0, warn:confirmed.length>0&&bearish.length===0, note:'Confirmed bearish patterns increase risk on 1-week hold.' },
+    ];
+    const s2Pass = s2Checks.filter(c=>c.pass===true).length;
+    const s2El=$('tsS2Checks'); if(s2El) s2El.innerHTML=s2Checks.map(c=>chkHTML(c.pass,c.warn,c.name,c.val,c.note)).join('');
+    const s2ScoreEl=$('tsS2Score'); if(s2ScoreEl){s2ScoreEl.textContent=s2Pass+'/'+s2Checks.length;s2ScoreEl.style.cssText=s2Pass>=6?'background:rgba(22,163,74,.15);color:#16a34a':s2Pass>=4?'background:rgba(217,119,6,.15);color:#d97706':'background:rgba(220,38,38,.15);color:#dc2626';}
+    if(sesHi&&sesLo){set('tsS2CallStrike',fmtUSD(Math.round(sesHi*1.035/100)*100));set('tsS2PutStrike',fmtUSD(Math.round(sesLo*0.965/100)*100));}
+    else if(ds.spot>0){set('tsS2CallStrike',fmtUSD(Math.round(ds.spot*1.04/100)*100));set('tsS2PutStrike',fmtUSD(Math.round(ds.spot*0.96/100)*100));}
+    if(ex18) set('tsS2Expiry', ex18.ex.label+' ('+ex18.ex.dte+'DTE)');
+
+    const s2VEl=$('tsS2Verdict');
+    const s2Win=$('tsS2Window');
+    if(isMondayEvening){
+      if(s2Pass>=6){ if(s2VEl){s2VEl.className='ts-verdict tv-enter';set('tsS2VIcon','✅');set('tsS2VTitle','ENTER NOW — CONDITIONS MET');set('tsS2VSub','8:45 PM IST · Strike ±3.5% · Delta 0.10–0.12Δ · SL 2× premium');} if(s2Win)s2Win.classList.add('open'); }
+      else if(s2Pass>=4){ if(s2VEl){s2VEl.className='ts-verdict tv-wait';set('tsS2VIcon','⚠️');set('tsS2VTitle','ALMOST READY — '+s2Pass+'/'+s2Checks.length);set('tsS2VSub','Wait for remaining checks. Retry at 9:00 PM IST.');} }
+      else { if(s2VEl){s2VEl.className='ts-verdict tv-skip';set('tsS2VIcon','🚫');set('tsS2VTitle','SKIP THIS MONDAY');set('tsS2VSub','Conditions failing. Protect capital. Try next Monday.');} }
+    } else {
+      if(s2VEl){s2VEl.className='ts-verdict tv-idle';set('tsS2VIcon','📅');set('tsS2VTitle','NEXT ENTRY: MONDAY 8:45 PM IST');set('tsS2VSub','Entry window opens Monday after CME settlement.');}
+    }
+
+    /* ──────────────────────────────────────────
+       S3 — MONTHLY 45-60 DTE
+    ────────────────────────────────────────── */
+    const weekendGapOK = bmr.daysSince>=3; // proxy — no fresh big move over weekend
+    const edge45 = iv45 - ds.hv30;
+    const btcRanging = reg.regime!=='trending';
+    const noEvents14 = !hasEvent;
+
+    const s3Checks = [
+      { name:'Weekend Gap', val:bmr.daysSince>=3?'< 4% (estimated clean)':'Recent move — check manually', pass:weekendGapOK, warn:false, note:'Must confirm manually: BTC moved <4% Fri close to Mon open.' },
+      { name:'45–60 DTE IV Edge', val:fmtPct(edge45), pass:edge45>=8, warn:edge45>=5&&edge45<8, note:'Need >8% IV−HV on 45–60 DTE expiry.' },
+      { name:'VoV < 18%', val:ds.vov.toFixed(1)+'%', pass:ds.vov<18, warn:ds.vov>=14&&ds.vov<18, note:'Unstable VoV on 2-week hold = vega risk dominates.' },
+      { name:'No Major Events (14d)', val:hasEvent?'EVENT DETECTED':'Clear', pass:noEvents14, warn:false, note:'1 event = wider strikes. 2+ events = skip.' },
+      { name:'BTC Ranging (Not Trending)', val:reg.title||reg.regime, pass:btcRanging, warn:false, note:'3+ consecutive trending weeks = skip entirely.' },
+    ];
+    const s3Pass = s3Checks.filter(c=>c.pass===true).length;
+    const s3El=$('tsS3Checks'); if(s3El) s3El.innerHTML=s3Checks.map(c=>chkHTML(c.pass,c.warn,c.name,c.val,c.note)).join('');
+    const s3ScoreEl=$('tsS3Score'); if(s3ScoreEl){s3ScoreEl.textContent=s3Pass+'/'+s3Checks.length;s3ScoreEl.style.cssText=s3Pass>=5?'background:rgba(22,163,74,.15);color:#16a34a':s3Pass>=3?'background:rgba(217,119,6,.15);color:#d97706':'background:rgba(220,38,38,.15);color:#dc2626';}
+    if(ds.spot>0){set('tsS3CallStrike',fmtUSD(Math.round(ds.spot*1.11/100)*100));set('tsS3PutStrike',fmtUSD(Math.round(ds.spot*0.89/100)*100));}
+    if(ex45) set('tsS3Expiry',ex45.ex.label+' ('+ex45.ex.dte+'DTE)');
+
+    // Next monthly entry dates
+    const istNow = ist();
+    const curMon = istNow.getMonth(), curYear = istNow.getFullYear();
+    function lastFridayOfMonth(y,m){
+      const d = new Date(y,m+1,0); // last day
+      while(d.getDay()!==5) d.setDate(d.getDate()-1);
+      return d;
+    }
+    function firstMondayAfter(d){
+      const n = new Date(d); n.setDate(n.getDate()+3);
+      while(n.getDay()!==1) n.setDate(n.getDate()+1);
+      return n;
+    }
+    const lf = lastFridayOfMonth(curYear,curMon);
+    const fm = firstMondayAfter(lf);
+    const daysLeft = Math.round((fm-istNow)/86400000);
+    set('tsS3LastFri', lf.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}));
+    set('tsS3EntryMon', fm.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}));
+    set('tsS3DaysLeft', daysLeft>0?'In '+daysLeft+' days':'TODAY / PASSED');
+    if(ex45) set('tsS3TargetEx', ex45.ex.label+' (~'+ex45.ex.dte+' DTE)');
+
+    const isMonthEndMon = dow===1 && Math.abs(daysLeft)<=1;
+    const s3VEl=$('tsS3Verdict'), s3Win=$('tsS3Window');
+    if(isMonthEndMon && hm>=9*60 && hm<12*60){
+      if(s3Pass>=5){ if(s3VEl){s3VEl.className='ts-verdict tv-enter';set('tsS3VIcon','✅');set('tsS3VTitle','MONTHLY ENTRY WINDOW — ENTER NOW');set('tsS3VSub','10–11 AM IST · Strike ±11% · Delta 0.12–0.15Δ · SL 2× premium');} if(s3Win)s3Win.classList.add('open'); }
+      else if(s3Pass>=3){ if(s3VEl){s3VEl.className='ts-verdict tv-wait';set('tsS3VIcon','⚠️');set('tsS3VTitle','ENTRY WINDOW — WEAK CONFIRMATION');set('tsS3VSub','Reduce to 0.12Δ. Enter only if IV edge > 8%.');} }
+      else { if(s3VEl){s3VEl.className='ts-verdict tv-skip';set('tsS3VIcon','🚫');set('tsS3VTitle','SKIP THIS MONTH');set('tsS3VSub','Too many conditions failing. Wait for next month.');} }
+    } else {
+      if(s3VEl){s3VEl.className='ts-verdict tv-idle';set('tsS3VIcon','📅');set('tsS3VTitle','NEXT ENTRY: '+fm.toLocaleDateString('en-IN',{day:'numeric',month:'short'}));set('tsS3VSub','First Monday after last Friday of month · 10:00–11:30 AM IST');}
+    }
+
+    /* ──────────────────────────────────────────
+       S4 — POST BIG MOVE
+    ────────────────────────────────────────── */
+    const s4Valid = bmr.daysSince>=3 && bmr.daysSince<=7;
+    const s4VoVFalling = vovTrend<=0;
+    const s4EdgeOK = edge18>=8;
+
+    const s4Checks = [
+      { name:'Big Move Confirmed (4%+)', val:bmr.daysSince>=999?'No recent move':bmr.daysSince+'d ago', pass:bmr.daysSince<=7&&bmr.daysSince>=3, warn:bmr.daysSince===8||bmr.daysSince===2, note:'Valid window: 3–7 days after 4%+ daily move. daysSince from BMR.' },
+      { name:'Not Too Fresh (<3d)', val:bmr.daysSince<3?'TOO FRESH — aftershocks likely':'OK', pass:bmr.daysSince>=3, warn:bmr.daysSince===3, note:'Need at least 3 days for aftershock risk to pass.' },
+      { name:'IV Still Elevated', val:fmtPct(edge18), pass:s4EdgeOK, warn:edge18>=5&&edge18<8, note:'After big move, IV should be HV30 + 12%+. If already collapsed = premium gone.' },
+      { name:'VoV Falling / Stable', val:ds.vov.toFixed(1)+'% ('+(vovTrend>=0?'+':'')+vovTrend.toFixed(1)+' trend)', pass:s4VoVFalling&&ds.vov<20, warn:!s4VoVFalling&&ds.vov<18, note:'VoV spiked during big move — must be declining by Monday night.' },
+      { name:'Not Volatile Month (big60≤6)', val:bmr.count60+' big moves (60D)', pass:bmr.count60<=6, warn:bmr.count60===7||bmr.count60===8, note:'Highly volatile months make fear premium unreliable.' },
+    ];
+    const s4Pass = s4Checks.filter(c=>c.pass===true).length;
+    const s4El=$('tsS4Checks'); if(s4El) s4El.innerHTML=s4Checks.map(c=>chkHTML(c.pass,c.warn,c.name,c.val,c.note)).join('');
+    const s4ScoreEl=$('tsS4Score'); if(s4ScoreEl){s4ScoreEl.textContent=s4Pass+'/'+s4Checks.length;s4ScoreEl.style.cssText=s4Pass>=5?'background:rgba(22,163,74,.15);color:#16a34a':s4Pass>=3?'background:rgba(217,119,6,.15);color:#d97706':'background:rgba(220,38,38,.15);color:#dc2626';}
+    if(sesHi&&sesLo){set('tsS4CallStrike',fmtUSD(Math.round(sesHi*1.05/100)*100));set('tsS4PutStrike',fmtUSD(Math.round(sesLo*0.95/100)*100));}
+    else if(ds.spot>0){set('tsS4CallStrike',fmtUSD(Math.round(ds.spot*1.06/100)*100));set('tsS4PutStrike',fmtUSD(Math.round(ds.spot*0.94/100)*100));}
+    set('tsS4DaysSince', bmr.daysSince>=999?'No recent move':bmr.daysSince+'d');
+    set('tsS4AvgGap', bmr.freq);
+    set('tsS4Big60', bmr.count60+' moves');
+    set('tsS4Calm', bmr.calm+'d calm streak');
+    const s4ValidEl=$('tsS4Valid'); if(s4ValidEl){s4ValidEl.textContent=s4Valid?'✓ VALID WINDOW — S4 ACTIVE':'✗ NOT VALID';s4ValidEl.className='ts-sig-val '+(s4Valid?'ts-green':'ts-red');}
+
+    const s4VEl=$('tsS4Verdict'), s4Win=$('tsS4Window');
+    if(s4Valid && isMondayEvening){
+      if(s4Pass>=5){ if(s4VEl){s4VEl.className='ts-verdict tv-enter';set('tsS4VIcon','✅');set('tsS4VTitle','S4 ACTIVE — ENTER FEAR PREMIUM TRADE');set('tsS4VSub','Replaces S2 tonight · Strike ±5% · Delta 0.08–0.10Δ · SL 2× premium');} if(s4Win)s4Win.classList.add('open'); }
+      else if(s4Pass>=3){ if(s4VEl){s4VEl.className='ts-verdict tv-wait';set('tsS4VIcon','⚠️');set('tsS4VTitle','BIG MOVE DETECTED — PARTIAL CONDITIONS');set('tsS4VSub','Enter at reduced size 0.08Δ only. Check VoV direction.');} }
+      else { if(s4VEl){s4VEl.className='ts-verdict tv-skip';set('tsS4VIcon','🚫');set('tsS4VTitle','BIG MOVE DETECTED — SKIP S4');set('tsS4VSub','Conditions not right. Revert to standard S2 if edge exists.');} }
+    } else if(s4Valid){
+      if(s4VEl){s4VEl.className='ts-verdict tv-wait';set('tsS4VIcon','🔥');set('tsS4VTitle','BIG MOVE '+(bmr.daysSince>=999?'—':bmr.daysSince+'D AGO')+' — S4 ARMED');set('tsS4VSub','Entry window opens Monday 8:45 PM IST · Fear premium still elevated');}
+    } else {
+      if(s4VEl){s4VEl.className='ts-verdict tv-idle';set('tsS4VIcon','⏳');set('tsS4VTitle','S4 NOT TRIGGERED');set('tsS4VSub','No qualifying 4%+ move in 3–7 day window. Run standard S2 on Mondays.');}
+    }
+
+    /* ──────────────────────────────────────────
+       SIGNALS TAB
+    ────────────────────────────────────────── */
+    function setSig(id,val,cls){ const e=$(id); if(e){e.textContent=val;e.className='ts-sig-val '+cls;} }
+    setSig('tsSigIVHV', fmtPct(edge)+' (IV '+nearIV.toFixed(1)+'% vs HV '+ds.hv30.toFixed(1)+'%)', edge>=10?'ts-green':edge>=5?'ts-amber':'ts-red');
+    setSig('tsSigVRP', (vrp>=0?'+':'')+vrp.toFixed(0)+' var pts²', vrp>0?'ts-green':'ts-red');
+    setSig('tsSigQuality', edge>=15?'RICH':edge>=5?'FAIR':'POOR', edge>=15?'ts-green':edge>=5?'ts-amber':'ts-red');
+    setSig('tsSigDVOL', ds.dvol.toFixed(1)+'%'+(ds.dvol>=35&&ds.dvol<55?' ✓':ds.dvol>=55?' HIGH':' LOW'), ds.dvol>=35&&ds.dvol<55?'ts-green':ds.dvol<55?'ts-amber':'ts-red');
+    setSig('tsSigVoV', ds.vov.toFixed(1)+'% '+(vovTrend>0.3?'↑ Rising':vovTrend<-0.3?'↓ Falling':'→ Flat'), ds.vov<14?'ts-green':ds.vov<20?'ts-amber':'ts-red');
+    setSig('tsSigIVTrend', (ivTrend>=0?'+':'')+ivTrend.toFixed(2)+'% recent', Math.abs(ivTrend)<0.5?'ts-green':Math.abs(ivTrend)<1.5?'ts-amber':'ts-red');
+    setSig('tsSigTS', tsSlope!=null?(tsSlope>0?'Normal ↑ +'+tsSlope.toFixed(1)+'%':tsSlope>-2?'Flat '+tsSlope.toFixed(1)+'%':'Inverted ↓ '+tsSlope.toFixed(1)+'%'):'—', tsSlope!=null&&tsSlope>0?'ts-green':tsSlope!=null&&tsSlope>-2?'ts-amber':'ts-red');
+    setSig('tsSigIVR', ivr+'%'+(ivr>=60?' ✓ Sell':ivr>=40?' Marginal':' Low'), ivr>=60?'ts-green':ivr>=40?'ts-amber':'ts-red');
+    setSig('tsSigRegime', reg.title||reg.regime, reg.regime==='choppy'||reg.regime==='normal'?'ts-green':reg.regime==='iv'||reg.regime==='gamma'?'ts-amber':'ts-red');
+    setSig('tsSigPCR', pcr.toFixed(2)+(pcr>1.2?' Bearish':pcr<0.8?' Bullish':' Neutral'), pcr>=0.7&&pcr<=1.3?'ts-green':pcr>=0.5&&pcr<=1.5?'ts-amber':'ts-red');
+    setSig('tsSigSession', activeSes?activeSes.name+' ACTIVE':'Off-Session', inNY?'ts-red':activeSes?'ts-amber':'ts-green');
+    setSig('tsSigEvent', hasEvent?'EVENT IN NEAR EXPIRY':'Clear — no events', hasEvent?'ts-red':'ts-green');
+    setSig('tsSigMPO', !mpo.loaded?'Loading…':confirmed.length===0?'CLEAR — no patterns':confirmed.map(p=>p.name||'Pattern').join(', '), mpoOK?'ts-green':bearish.length>0?'ts-red':'ts-amber');
+    setSig('tsSigMove', expectedMove!=null?'±'+expectedMove.toFixed(1)+'%':'—', expectedMove<2?'ts-green':expectedMove<3.5?'ts-amber':'ts-red');
+    setSig('tsSigTheta', theta!=null?'$'+Math.abs(Math.round(theta))+'/day':'—', theta&&Math.abs(theta)>100?'ts-green':theta&&Math.abs(theta)>30?'ts-amber':'ts-red');
+    setSig('tsSigGamma', gamma!=null?'$'+Math.round(Math.abs(gamma)).toLocaleString():'—', gamma&&Math.abs(gamma)<60000?'ts-green':gamma&&Math.abs(gamma)<100000?'ts-amber':'ts-red');
+    setSig('tsSigVega', vega!=null?'$'+Math.abs(Math.round(vega))+'/1% IV':'—', 'ts-blue');
+    setSig('tsSigTVR', thetaPerVega!=null?thetaPerVega.toFixed(3):'—', thetaPerVega>0.05?'ts-green':thetaPerVega>0.02?'ts-amber':'ts-red');
+    setSig('tsSigBMRDays', bmr.daysSince>=999?'No recent move':bmr.daysSince+'d since last 4%+ move', bmr.daysSince>=7?'ts-green':bmr.daysSince>=3?'ts-amber':'ts-red');
+    setSig('tsSigBMR60', bmr.count60+' big moves in 60 days', bmr.count60<=3?'ts-green':bmr.count60<=6?'ts-amber':'ts-red');
+    setSig('tsSigBMRGap', bmr.freq+' avg cycle', 'ts-blue');
+    setSig('tsSigBMRCalm', bmr.calm+'d calm streak', bmr.calm>=5?'ts-green':bmr.calm>=2?'ts-amber':'ts-red');
+    setSig('tsSigBMRDec', bmr.isSafe?'✓ SAFE WINDOW':bmr.isDanger?'✗ DANGER':'⚠ CAUTION', bmr.isSafe?'ts-green':bmr.isDanger?'ts-red':'ts-amber');
+
+    // Update timestamp
+    set('tsUpdateTs', 'Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  };
+
+  /* ── Auto-update every 10 seconds ── */
+  setInterval(()=>{ try{ tsUpdate(); }catch(e){} }, 10000);
+  setTimeout(()=>{ try{ tsUpdate(); }catch(e){} }, 4000);
+
+  /* ── Auto-open on Friday/Monday evening ── */
+  setInterval(()=>{
+    const ao = shouldAutoOpen();
+    const alertDot = $('tsFabAlert');
+    if(alertDot) alertDot.style.display = ao ? 'block' : 'none';
+  }, 60000);
+
+})();
+</script>
+
 </body>
 </html>
