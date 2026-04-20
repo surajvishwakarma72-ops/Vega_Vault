@@ -3563,22 +3563,57 @@ function vapSwitchTab(name){
   if(tc) tc.classList.add('active');
 }
 
-/* ── Compute RV5 (Parkinson or Close-to-Close from kline data) ── */
+/* ── Compute RV5 (Parkinson 5-day from OHLC candle data) ── */
 function vapComputeRV5(){
-  // Use OHLC candle history from ohlcState if available
-  if(typeof ohlcState !== 'undefined' && ohlcState.candles && ohlcState.candles.length >= 5){
-    const candles = ohlcState.candles.slice(-5);
-    // Parkinson estimator: σ² = (1/(4·N·ln2)) · Σ(ln(H/L))²
-    let sumLnHL2 = 0;
-    candles.forEach(c=>{
-      if(c.h>0 && c.l>0) sumLnHL2 += Math.pow(Math.log(c.h/c.l), 2);
-    });
-    const parkinson = Math.sqrt(sumLnHL2 / (4 * candles.length * Math.log(2))) * Math.sqrt(365) * 100;
-    if(parkinson > 1 && parkinson < 300) return parseFloat(parkinson.toFixed(2));
+  // Prefer daily-resolution candles stored in ohlcState.dailyCandles (added below).
+  // Falls back to 1-min candles only when we have enough of them to span ~5 days (7200 mins).
+  // NEVER use a random multiplier — that injects artificial noise into every VRP calculation.
+  if(typeof ohlcState !== 'undefined'){
+    // Prefer explicitly tagged daily candles
+    const daily = ohlcState.dailyCandles || [];
+    if(daily.length >= 5){
+      const candles = daily.slice(-5);
+      let sumLnHL2 = 0, count = 0;
+      candles.forEach(c => {
+        if(c.h > 0 && c.l > 0){ sumLnHL2 += Math.pow(Math.log(c.h / c.l), 2); count++; }
+      });
+      if(count >= 3){
+        // Parkinson annualised: σ = sqrt(Σ(ln H/L)² / (4·N·ln2)) · sqrt(365)
+        const parkinson = Math.sqrt(sumLnHL2 / (4 * count * Math.log(2))) * Math.sqrt(365) * 100;
+        if(parkinson > 1 && parkinson < 300) return parseFloat(parkinson.toFixed(2));
+      }
+    }
+
+    // Intraday 1-min candles — only usable when we have 5 full trading days worth (~7200 bars)
+    const intraday = ohlcState.candles || [];
+    if(intraday.length >= 7200){
+      const candles = intraday.slice(-7200);
+      let sumLnHL2 = 0, count = 0;
+      // Aggregate into daily H/L buckets for a proper Parkinson estimate
+      const dailyBuckets = {};
+      candles.forEach(c => {
+        const dayKey = c.t ? c.t.toString().slice(0, 8) : count;
+        if(!dailyBuckets[dayKey]) dailyBuckets[dayKey] = { h: c.h, l: c.l };
+        else {
+          dailyBuckets[dayKey].h = Math.max(dailyBuckets[dayKey].h, c.h);
+          dailyBuckets[dayKey].l = Math.min(dailyBuckets[dayKey].l, c.l);
+        }
+      });
+      const days = Object.values(dailyBuckets).slice(-5);
+      days.forEach(d => {
+        if(d.h > 0 && d.l > 0){ sumLnHL2 += Math.pow(Math.log(d.h / d.l), 2); count++; }
+      });
+      if(count >= 3){
+        const parkinson = Math.sqrt(sumLnHL2 / (4 * count * Math.log(2))) * Math.sqrt(365) * 100;
+        if(parkinson > 1 && parkinson < 300) return parseFloat(parkinson.toFixed(2));
+      }
+    }
   }
-  // Fallback: derive from HV30 with slight random walk
-  if(typeof state !== 'undefined' && state.hv30){
-    return parseFloat((state.hv30 * (0.9 + Math.random()*0.25)).toFixed(2));
+
+  // Clean fallback: use HV30 directly — it's computed from real price history and is stable.
+  // Do NOT add randomness here; that causes RV5 to jump ±12% on every 15-second update cycle.
+  if(typeof state !== 'undefined' && state.hv30 > 0){
+    return parseFloat(state.hv30.toFixed(2));
   }
   return 35;
 }
@@ -6291,9 +6326,12 @@ function _wsInitBinance(){
             const subEl = document.getElementById('markSub');
             if(subEl) subEl.textContent = '$'+Math.round(spot).toLocaleString('en-US')+' (Binance WS)';
           }
-          // Push into history for HV computation (throttled: max 1 per 10s)
-          const lastHist = state.btcHistory.at(-1);
-          if(!lastHist || Date.now() - _ws.lastTick.binance > 10000){
+          // Push into history for HV computation (throttled: max 1 per 60s)
+          // Using a dedicated guard — _ws.lastTick.binance resets on every tick so it
+          // cannot serve as a 10-second throttle; this one fires at the correct interval.
+          if(!window._hvHistoryLastPush) window._hvHistoryLastPush = 0;
+          if(Date.now() - window._hvHistoryLastPush >= 60000){
+            window._hvHistoryLastPush = Date.now();
             const ts = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
             state.btcHistory.push({t:ts, btc:spot, dvol:state.dvolBase, spot});
             if(state.btcHistory.length > 80) state.btcHistory.shift();
@@ -6672,10 +6710,16 @@ function simulate(spotFromDelta, ivLiveFetched=false){
     state.btcBase = clamp(state.btcBase + rnd(-200,200), 60000, 120000);
   }
   // Only jitter DVOL/HV30 if we don't have a recent live Deribit value (older than 60s)
+  // AND computeLiveHV30 hasn't run yet (i.e. not enough history points yet)
   const dvolStale = (Date.now() - _dvolLastFetch) > 60000;
+  const hvIsLive  = typeof _hvLastCompute !== 'undefined' && _hvLastCompute > 0;
   if(!ivLiveFetched && dvolStale){
-    state.dvolBase= clamp(state.dvolBase + rnd(-0.35,0.35), 30, 75);
-    state.hv30    = clamp(state.hv30    + rnd(-0.07,0.07), 24, 50);
+    state.dvolBase = clamp(state.dvolBase + rnd(-0.35,0.35), 30, 75);
+    // Only simulate HV30 drift when we have no real data; once computeLiveHV30 has run,
+    // leave hv30 alone — random drift causes RV/VRP to oscillate every update tick.
+    if(!hvIsLive){
+      state.hv30 = clamp(state.hv30 + rnd(-0.07,0.07), 24, 50);
+    }
   }
 
   const vols = [0.9, 0.75, 0.7, 0.5, 0.35, 0.22, 0.15, 0.12, 0.10, 0.08, 0.07];
@@ -7850,10 +7894,17 @@ async function fetchLiveDVOL(){
 /* ═══════════════════════════════════════════════════════════════
    LIVE HV30 CALCULATION — from recent BTC price history
    ═══════════════════════════════════════════════════════════════ */
+/* ── HV30 throttle guard: only recompute once per 60 s to match actual push cadence ── */
+let _hvLastCompute = 0;
+
 function computeLiveHV30(){
-  // Need at least 20 price points to compute meaningful HV
+  const now = Date.now();
+  // Recompute at most once per 60 seconds — avoids EMA over-smoothing when called on every WS tick
+  if(now - _hvLastCompute < 60000) return;
+  _hvLastCompute = now;
+
   const prices = state.btcHistory.map(d => d.spot || d.btc).filter(Boolean);
-  if(prices.length < 10) return; // not enough data yet
+  if(prices.length < 10) return;
 
   // Log returns
   const returns = [];
@@ -7862,18 +7913,20 @@ function computeLiveHV30(){
   }
   if(returns.length < 5) return;
 
-  // Annualised HV (assuming each data point ≈ 10 seconds → 3153600 periods/yr, but scale to 30D)
-  // We'll compute std dev of returns and annualise assuming 10-second bars
-  const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
-  const variance = returns.reduce((s, r) => s + (r - mean)**2, 0) / (returns.length - 1);
-  const stddev = Math.sqrt(variance);
-  // Annualise: sqrt(365 * 24 * 360) = sqrt(3153600) ≈ 1775.8 for 10-sec bars
-  // Cap HV to reasonable range [15, 80] and blend with anchor to avoid wild jumps
-  const annHV = stddev * Math.sqrt(3153600) * 100;
-  if(annHV > 10 && annHV < 120){
-    // Blend: 70% live, 30% prior value (smooth out noise)
-    state.hv30 = parseFloat((0.7 * annHV + 0.3 * state.hv30).toFixed(1));
-    state.hv30 = Math.max(15, Math.min(80, state.hv30));
+  // Each history entry is pushed at most once per 60 s (see WS throttle + simulate cadence).
+  // 60-second bars → 365 * 24 * 60 = 525,600 periods per year.
+  // Use sample variance (N-1) for unbiased estimate.
+  const PERIODS_PER_YEAR = 525600; // 60-second bars
+  const mean     = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1);
+  const stddev   = Math.sqrt(variance);
+  const annHV    = stddev * Math.sqrt(PERIODS_PER_YEAR) * 100;
+
+  if(annHV > 10 && annHV < 150){
+    // Slow EMA (α = 0.15): keeps HV stable, prevents tick-noise from whipsawing the display
+    const alpha = 0.15;
+    state.hv30 = parseFloat((alpha * annHV + (1 - alpha) * state.hv30).toFixed(1));
+    state.hv30 = Math.max(15, Math.min(90, state.hv30));
   }
 }
 
