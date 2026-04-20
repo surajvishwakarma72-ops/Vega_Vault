@@ -5765,10 +5765,16 @@ setTimeout(()=>{
 
   <!-- All-Expiries compact status row -->
   <div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
-    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:6px">All Expiries — Greek Danger Status (ATM Short Straddle Seller View)</div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:6px">All Expiries — IV · HV · RV · Straddle · Greek Danger Status (ATM Short Straddle Seller View)</div>
     <div id="gcdAllExpiryRow" style="display:flex;gap:5px;flex-wrap:wrap"></div>
     <div style="font-size:9px;color:var(--color-text-secondary);margin-top:5px">
       Note: For ATM option seller — <b style="color:#22c55e">14 DTE = Optimal</b>. <b style="color:#ef4444">7→0 DTE = Danger Zone</b> (Gamma accelerates). Expiry resets daily at 5:30 PM IST.
+    </div>
+    <div style="font-size:8px;color:var(--color-text-secondary);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+      <span><b style="color:#f59e0b">IV</b> = Implied Vol (options market)</span>
+      <span><b style="color:#a78bfa">HV</b> = 30-Day Historical Vol</span>
+      <span><b style="color:#3b82f6">RV</b> = 5-Day Realized Vol (Parkinson)</span>
+      <span>Edge % = IV − HV · <b style="color:#22c55e">green ≥ +10%</b> · <b style="color:#f59e0b">amber ≥ +5%</b> · <b style="color:#ef4444">red &lt; +5%</b></span>
     </div>
   </div>
 
@@ -12285,6 +12291,10 @@ function gcdRenderAllExpiries(spot){
   const row = document.getElementById('gcdAllExpiryRow');
   if(!row) return;
 
+  // Pull shared vol metrics once
+  const hv30 = (typeof state !== 'undefined' && state.hv30 > 0) ? state.hv30 : 35;
+  const rv5  = (typeof vapComputeRV5 === 'function') ? (vapComputeRV5() || hv30) : hv30;
+
   row.innerHTML = EXPIRIES.map((ex,i)=>{
     if(ex.expired) return '';
 
@@ -12294,6 +12304,15 @@ function gcdRenderAllExpiries(spot){
     const c    = bsGreeksLot(spot, K, T, iv/100, 'call');
     const p    = bsGreeksLot(spot, K, T, iv/100, 'put');
     const gamma = Math.abs(c.gamma + p.gamma);
+
+    // Straddle premium (call + put mark price in USD)
+    const straddle = Math.round((c.markUSD || 0) + (p.markUSD || 0));
+    const strDisplay = straddle > 0 ? '$' + straddle.toLocaleString() : '—';
+
+    // IV vs HV/RV edge colours
+    const ivHvEdge = iv - hv30;
+    const ivRvEdge = iv - rv5;
+    const edgeCol  = ivHvEdge >= 10 ? '#22c55e' : ivHvEdge >= 5 ? '#f59e0b' : '#ef4444';
 
     // Overall danger = gamma risk
     const isDanger  = ex.dte <= 7;
@@ -12307,12 +12326,21 @@ function gcdRenderAllExpiries(spot){
     const ring = isSelected ? 'box-shadow:0 0 0 2px #3b82f6;' : '';
     const label = isDanger ? '🔴 DANGER' : isOptimal ? '🟢 OPTIMAL' : '🟡 WATCH';
 
-    return `<div style="padding:5px 9px;border-radius:7px;border:1.5px solid ${border};background:${bg};cursor:pointer;${ring}"
+    return `<div style="padding:6px 9px;border-radius:7px;border:1.5px solid ${border};background:${bg};cursor:pointer;${ring};min-width:105px"
               onclick="gcdState.selectedIdx=${i};gcdOnExpiryChange();gcdSyncSelect()">
       <div style="font-size:9px;font-weight:700;color:var(--color-text-primary)">${ex.label}</div>
       <div style="font-size:8px;color:var(--color-text-secondary)">DTE ${ex.dte}${ex.note?' · '+ex.note:''}</div>
       <div style="font-size:9px;font-weight:600;margin-top:2px;color:${isDanger?'#ef4444':isOptimal?'#22c55e':'#f59e0b'}">${label}</div>
-      <div style="font-size:8px;color:var(--color-text-secondary)">IV ${iv.toFixed(1)}% · Γ${gamma.toFixed(3)}</div>
+      <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 6px">
+        <div style="font-size:8px;color:var(--color-text-secondary)">IV <b style="color:#f59e0b">${iv.toFixed(1)}%</b></div>
+        <div style="font-size:8px;color:var(--color-text-secondary)">HV <b style="color:#a78bfa">${hv30.toFixed(1)}%</b></div>
+        <div style="font-size:8px;color:var(--color-text-secondary)">RV <b style="color:#3b82f6">${rv5.toFixed(1)}%</b></div>
+        <div style="font-size:8px;color:var(--color-text-secondary)">Γ <b style="color:var(--color-text-primary)">${gamma.toFixed(3)}</b></div>
+      </div>
+      <div style="margin-top:4px;display:flex;justify-content:space-between;align-items:center;border-top:0.5px solid var(--color-border-tertiary);padding-top:3px">
+        <div style="font-size:8px;color:var(--color-text-secondary)">Straddle <b style="color:#22c55e">${strDisplay}</b></div>
+        <div style="font-size:8px;font-weight:700;color:${edgeCol}">${ivHvEdge>=0?'+':''}${ivHvEdge.toFixed(1)}%</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -12497,29 +12525,11 @@ function ivSnapshot(){
   const day   = now.getUTCDay(); // 0=Sun,1=Mon,...,5=Fri,6=Sat
   const h     = now.getUTCHours();
   const m     = now.getUTCMinutes();
-  const label = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day];
-  const time  = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')} IST`;
-  const dateStr = `${now.getUTCDate()}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getUTCMonth()]}-${String(now.getUTCFullYear()).slice(-2)}`;
-
-  const snap = {
-    ts:    Date.now(),
-    date:  dateStr,
-    day:   label,
-    time,
-    spot:  Math.round(state.btcSpotLive || state.btcBase),
-    dvol:  parseFloat(state.dvolBase.toFixed(2)),
-    hv30:  parseFloat(state.hv30.toFixed(1)),
-    expiries: EXPIRIES.map((ex, i) => ({
-      label: ex.label,
-      dte:   ex.dte,
-      iv:    parseFloat((state.ivHistory[i]?.at(-1) ?? ex.base).toFixed(2)),
-    })).filter(e => !EXPIRIES[EXPIRIES.findIndex(ex=>ex.label===e.label)]?.expired)
-  };
-
-  const recs = loadIVRecords();
+  const recs  = loadIVRecords();
   // Avoid duplicate within same hour
   const lastRec = recs.at(-1);
   if(lastRec && Math.abs(Date.now()-lastRec.ts) < 55*60000) return;
+  const snap  = { ...ivSnapshotData(), manual: false };
   recs.push(snap);
   saveIVRecords(recs);
   renderIVRecorder();
@@ -12541,20 +12551,31 @@ function ivSnapshotData(){
   const label = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day];
   const time  = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')} IST`;
   const dateStr = `${now.getUTCDate()}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getUTCMonth()]}-${String(now.getUTCFullYear()).slice(-2)}`;
+  const spot  = Math.round(state.btcSpotLive || state.btcBase);
+  const hv30  = parseFloat(state.hv30.toFixed(1));
+  const rv5   = (typeof vapComputeRV5 === 'function') ? parseFloat((vapComputeRV5() || hv30).toFixed(1)) : hv30;
   return {
     ts:    Date.now(),
     date:  dateStr,
     day:   label,
     time,
-    spot:  Math.round(state.btcSpotLive || state.btcBase),
+    spot,
     dvol:  parseFloat(state.dvolBase.toFixed(2)),
-    hv30:  parseFloat(state.hv30.toFixed(1)),
+    hv30,
+    rv5,
     manual: false,
-    expiries: EXPIRIES.map((ex, i) => ({
-      label: ex.label,
-      dte:   ex.dte,
-      iv:    parseFloat((state.ivHistory[i]?.at(-1) ?? ex.base).toFixed(2)),
-    }))
+    expiries: EXPIRIES.map((ex, i) => {
+      const iv  = parseFloat((state.ivHistory[i]?.at(-1) ?? ex.base).toFixed(2));
+      const T   = Math.max(ex.dte, 0.001) / 365;
+      const K   = Math.round(spot / 500) * 500;
+      const bsC = (typeof bsGreeksLot === 'function') ? bsGreeksLot(spot, K, T, iv/100, 'call') : {};
+      const bsP = (typeof bsGreeksLot === 'function') ? bsGreeksLot(spot, K, T, iv/100, 'put')  : {};
+      const straddle = Math.round((bsC.markUSD||0) + (bsP.markUSD||0));
+      const theta    = parseFloat(((bsC.theta||0) + (bsP.theta||0)).toFixed(0));
+      const gamma    = parseFloat(Math.abs((bsC.gamma||0) + (bsP.gamma||0)).toFixed(4));
+      const vega     = parseFloat(Math.abs((bsC.vega||0)  + (bsP.vega||0)).toFixed(0));
+      return { label: ex.label, dte: ex.dte, iv, straddle, theta, gamma, vega };
+    })
   };
 }
 
@@ -12573,33 +12594,93 @@ function renderIVRecorder(){
     return;
   }
   const recent = [...recs].reverse().slice(0,15);
-  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:10px">
+
+  // Build per-expiry sub-columns: IV | Straddle | θ | Γ | V
+  const sampleExpiries = recent[0]?.expiries || [];
+
+  const th = (txt, extra='') => `<th style="text-align:right;padding:3px 5px;color:var(--color-text-secondary);white-space:nowrap;${extra}">${txt}</th>`;
+  const thL = (txt) => `<th style="text-align:left;padding:3px 5px;color:var(--color-text-secondary);white-space:nowrap">${txt}</th>`;
+
+  // Expiry header groups
+  const expiryHeaders = sampleExpiries.map(e => {
+    const shortLabel = e.label.split('-')[0];
+    return `
+      <th colspan="5" style="text-align:center;padding:3px 5px;color:#7c3aed;font-weight:700;border-left:1px solid var(--color-border-tertiary);white-space:nowrap">${shortLabel} (${e.dte}d)</th>`;
+  }).join('');
+
+  const expirySubHeaders = sampleExpiries.map(() => `
+      ${th('IV%','border-left:1px solid var(--color-border-tertiary)')}
+      ${th('Strad$')}
+      ${th('θ/d')}
+      ${th('Γ')}
+      ${th('V/$')}
+  `).join('');
+
+  el.innerHTML = `
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+  <table style="width:100%;border-collapse:collapse;font-size:9.5px;min-width:700px">
     <thead>
       <tr style="border-bottom:1px solid var(--color-border-tertiary)">
-        <th style="text-align:left;padding:3px 6px;color:var(--color-text-secondary)">Date</th>
-        <th style="text-align:left;padding:3px 6px;color:var(--color-text-secondary)">Day</th>
-        <th style="text-align:left;padding:3px 6px;color:var(--color-text-secondary)">Time</th>
-        <th style="text-align:right;padding:3px 6px;color:var(--color-text-secondary)">BTC</th>
-        <th style="text-align:right;padding:3px 6px;color:var(--color-text-secondary)">DVOL</th>
-        ${recent[0]?.expiries?.map(e=>`<th style="text-align:right;padding:3px 6px;color:var(--color-text-secondary)">${e.label.split('-')[0]+' IV'}</th>`).join('')||''}
-        <th style="text-align:left;padding:3px 6px;color:var(--color-text-secondary)">Type</th>
+        ${thL('Date')}${thL('Day')}${thL('Time')}
+        ${th('BTC $')}${th('DVOL%')}${th('HV30%')}${th('RV5%')}${th('Edge')}
+        ${expiryHeaders}
+        ${thL('Type')}
+      </tr>
+      <tr style="border-bottom:1px solid var(--color-border-tertiary);background:var(--color-background-secondary)">
+        <td colspan="8"></td>
+        ${expirySubHeaders}
+        <td></td>
       </tr>
     </thead>
     <tbody>
-      ${recent.map(r=>`<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
-        <td style="padding:3px 6px;color:var(--color-text-primary)">${r.date}</td>
-        <td style="padding:3px 6px;font-weight:600;color:${r.day==='Fri'||r.day==='Mon'?'#7c3aed':'var(--color-text-primary)'}">${r.day}</td>
-        <td style="padding:3px 6px;color:var(--color-text-secondary)">${r.time}</td>
-        <td style="padding:3px 6px;text-align:right;color:var(--color-text-primary)">$${(r.spot||0).toLocaleString()}</td>
-        <td style="padding:3px 6px;text-align:right;color:#a855f7">${r.dvol||'—'}%</td>
-        ${(r.expiries||[]).map(e=>{
-          const trend = e.iv > 50 ? '#ef4444' : e.iv < 40 ? '#22c55e' : 'var(--color-text-primary)';
-          return `<td style="padding:3px 6px;text-align:right;font-weight:600;color:${trend}">${e.iv}%</td>`;
-        }).join('')}
-        <td style="padding:3px 6px"><span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${r.manual?'rgba(59,130,246,0.12)':'rgba(124,58,237,0.12)'};color:${r.manual?'#3b82f6':'#7c3aed'}">${r.manual?'Manual':'Auto'}</span></td>
-      </tr>`).join('')}
+      ${recent.map(r => {
+        const hv   = r.hv30 || '—';
+        const rv   = r.rv5  || '—';
+        const dvol = r.dvol || '—';
+        const edge = (typeof hv === 'number' && typeof dvol === 'number') ? (dvol - hv).toFixed(1) : '—';
+        const edgeCol = edge !== '—' ? (parseFloat(edge) >= 10 ? '#22c55e' : parseFloat(edge) >= 5 ? '#f59e0b' : '#ef4444') : 'var(--color-text-secondary)';
+
+        const expiryCells = (r.expiries||[]).map(e => {
+          const ivCol  = e.iv > 50 ? '#ef4444' : e.iv < 40 ? '#22c55e' : 'var(--color-text-primary)';
+          const str    = e.straddle > 0 ? '$'+e.straddle.toLocaleString() : '—';
+          const theta  = e.theta ? '$'+Math.abs(e.theta) : '—';
+          const gamma  = e.gamma ? e.gamma.toFixed(4) : '—';
+          const vega   = e.vega  ? '$'+e.vega : '—';
+          return `
+            <td style="padding:3px 5px;text-align:right;font-weight:700;color:${ivCol};border-left:1px solid var(--color-border-tertiary)">${e.iv}%</td>
+            <td style="padding:3px 5px;text-align:right;color:#22c55e;font-weight:600">${str}</td>
+            <td style="padding:3px 5px;text-align:right;color:#f59e0b">${theta}</td>
+            <td style="padding:3px 5px;text-align:right;color:#3b82f6">${gamma}</td>
+            <td style="padding:3px 5px;text-align:right;color:#a78bfa">${vega}</td>`;
+        }).join('');
+
+        return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+          <td style="padding:3px 5px;color:var(--color-text-primary);white-space:nowrap">${r.date}</td>
+          <td style="padding:3px 5px;font-weight:700;color:${r.day==='Fri'||r.day==='Mon'?'#7c3aed':'var(--color-text-primary)'}">${r.day}</td>
+          <td style="padding:3px 5px;color:var(--color-text-secondary);white-space:nowrap">${r.time}</td>
+          <td style="padding:3px 5px;text-align:right;color:var(--color-text-primary);font-weight:600">$${(r.spot||0).toLocaleString()}</td>
+          <td style="padding:3px 5px;text-align:right;color:#a855f7">${dvol}%</td>
+          <td style="padding:3px 5px;text-align:right;color:#a78bfa">${hv}%</td>
+          <td style="padding:3px 5px;text-align:right;color:#3b82f6">${rv}%</td>
+          <td style="padding:3px 5px;text-align:right;font-weight:700;color:${edgeCol}">${edge !== '—' ? (parseFloat(edge)>=0?'+':'')+edge+'%' : '—'}</td>
+          ${expiryCells}
+          <td style="padding:3px 5px"><span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${r.manual?'rgba(59,130,246,0.12)':'rgba(124,58,237,0.12)'};color:${r.manual?'#3b82f6':'#7c3aed'}">${r.manual?'Manual':'Auto'}</span></td>
+        </tr>`;
+      }).join('')}
     </tbody>
-  </table>`;
+  </table>
+  </div>
+  <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;font-size:8px;color:var(--color-text-secondary)">
+    <span><b style="color:#a855f7">DVOL</b> Deribit IV Index</span>
+    <span><b style="color:#a78bfa">HV30</b> 30-Day Historical Vol</span>
+    <span><b style="color:#3b82f6">RV5</b> 5-Day Realized Vol</span>
+    <span><b style="color:#f59e0b">IV%</b> Implied Vol per expiry</span>
+    <span><b style="color:#22c55e">Strad$</b> ATM Straddle Premium</span>
+    <span><b style="color:#f59e0b">θ/d</b> Theta per day</span>
+    <span><b style="color:#3b82f6">Γ</b> Gamma</span>
+    <span><b style="color:#a78bfa">V/$</b> Vega per 1% IV</span>
+    <span>Edge = DVOL − HV30 · <b style="color:#22c55e">≥+10% Rich</b> · <b style="color:#f59e0b">≥+5% Fair</b> · <b style="color:#ef4444">&lt;+5% Poor</b></span>
+  </div>`;
 }
 
 // Auto-snapshot scheduler — checks every minute
