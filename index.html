@@ -7530,9 +7530,9 @@ window.btgTest = async function(){
   if(!ready()){ info('Save token & chat ID first','err'); return; }
   dot('busy'); info('Sending test…','busy');
   try{
-    await tgSend('✅ <b>BRAHMASTRA Connected!</b>
+    await tgSend(`✅ <b>BRAHMASTRA Connected!</b>
 
-Telegram alerts are working. You will receive live summaries and smart alerts. 🔱');
+Telegram alerts are working. You will receive live summaries and smart alerts. 🔱`);
     dot('ok'); info('✅ Test sent!','ok');
   } catch(e){ dot('err'); info('❌ '+e.message,'err'); }
 };
@@ -7598,8 +7598,7 @@ function buildSummary(){
 
   // IV cards
   const ivCards = Array.from(document.querySelectorAll('.iv-card:not(.expired)')).slice(0,3).map(c=>{
-    const lbl = c.querySelector('.expiry-label')?.textContent.trim().split('
-')[0]||'?';
+    const lbl = c.querySelector('.expiry-label')?.textContent.trim().split('\n')[0]||'?';
     const val = c.querySelector('.iv-val')?.textContent.trim()||'?';
     const dir = c.classList.contains('rising')?'↑':c.classList.contains('falling')?'↓':'→';
     return `${lbl}:${val}${dir}`;
@@ -7647,8 +7646,7 @@ function buildSummary(){
     `${amd}`,
     ``,
     `<i>— BRAHMASTRA Dashboard</i>`,
-  ].join('
-');
+  ].join('\n');
 }
 
 /* ── Preview ── */
@@ -9295,11 +9293,23 @@ setTimeout(()=>{
         const vol = parseFloat(t.volume || 0);
         const strike = parsed.strike;
 
+        // Sanity-check the mark: Delta's mark_price field occasionally returns
+        // garbage for thin OTM options (stale cache, fair-price-band edge cases).
+        // If mark is wildly outside the bid/ask envelope, fall back to mid.
+        // Envelope: [bid × 0.5, ask × 2] — generous enough for legitimate
+        // fair-price-band moves but catches 20x+ outliers like $5281 on a $230 bid.
+        let safeMark;
+        if(mark > 0 && bid > 0 && ask > 0 && (mark < bid * 0.5 || mark > ask * 2)){
+          safeMark = (bid + ask) / 2;  // reject outlier, use mid
+        } else {
+          safeMark = mark > 0 ? mark : (bid + ask) / 2;
+        }
+
         const leg = {
           symbol: t.symbol,
           strike, type,
           bid, ask,
-          mark: mark > 0 ? mark : (bid+ask)/2,
+          mark: safeMark,
           iv: isFinite(iv) ? iv : 0,
           delta: isFinite(delta) ? delta : 0,
           gamma: isFinite(gamma) ? gamma : 0,
@@ -10044,7 +10054,7 @@ setTimeout(()=>{
     $set('simNetVega', '$'+netVega.toFixed(2));
     $set('simPremCap', '$'+pos.creditInitial.toFixed(2));
     $set('simPctMaxProfit', pctMaxProfit.toFixed(1)+'%');
-    $set('simDteLeft', dte+'D');
+    $set('simDteLeft', dte.toFixed(2)+'D');
     // Hook 7: portfolio Greeks aggregation via BrPortfolio
     if(typeof BrPortfolio !== 'undefined'){
       try{
@@ -14134,7 +14144,10 @@ function toggleView(mode){
 }
 
 function setRefresh(ms){
-  state.refreshRate=parseInt(ms);
+  // Guard against NaN / invalid input — setInterval(fn, NaN) fires every ~4ms
+  // and would DDoS our own API endpoints. Floor at 2s, default 5s.
+  const parsed = parseInt(ms, 10);
+  state.refreshRate = Math.max(2000, Number.isFinite(parsed) ? parsed : 5000);
   if(state.refreshTimer) clearInterval(state.refreshTimer);
   state.refreshTimer=setInterval(fullUpdate,state.refreshRate);
 }
