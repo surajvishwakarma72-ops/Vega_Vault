@@ -7400,327 +7400,6 @@ setTimeout(()=>{
 </script>
 
 
-
-<!-- ══════════════════════════════════════════════════════
-     📱 BRAHMASTRA TELEGRAM — Unified Summary Panel
-══════════════════════════════════════════════════════ -->
-<style>
-#btgWrap{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:14px;padding:14px 16px;margin-bottom:12px;position:relative;overflow:hidden}
-#btgWrap::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#0088cc,#29b6f6,#22c55e);border-radius:14px 14px 0 0}
-.btg-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-top:4px;margin-bottom:11px}
-.btg-hdr-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--color-text-primary)}
-.btg-chip{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(135deg,#0088cc,#29b6f6);color:#fff}
-.btg-dot{width:7px;height:7px;border-radius:50%;background:#6b7280;display:inline-block;transition:background .4s}
-.btg-dot.ok{background:#22c55e;animation:btgPulse 2s infinite}
-.btg-dot.err{background:#ef4444}
-.btg-dot.busy{background:#f59e0b}
-@keyframes btgPulse{0%,100%{opacity:1}50%{opacity:.35}}
-/* Config row */
-.btg-cfg{display:grid;grid-template-columns:1fr 1fr auto auto;gap:6px;margin-bottom:10px;align-items:center}
-@media(max-width:520px){.btg-cfg{grid-template-columns:1fr 1fr;}}
-.btg-cfg input{font-size:10px;padding:5px 9px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);width:100%}
-.btg-cfg input::placeholder{color:var(--color-text-secondary)}
-/* Buttons */
-.btg-btn{font-size:10px;font-weight:700;padding:5px 13px;border-radius:7px;border:none;cursor:pointer;white-space:nowrap;transition:opacity .15s}
-.btg-btn:active{opacity:.75}
-.bb-save{background:#0088cc;color:#fff}
-.bb-test{background:rgba(0,136,204,.12);color:#0088cc;border:1px solid rgba(0,136,204,.3)}
-.bb-send{background:linear-gradient(135deg,#0088cc,#22c55e);color:#fff;font-size:11px;padding:6px 18px;border-radius:8px}
-/* Toggles */
-.btg-toggles{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
-.btg-tog{font-size:9px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid var(--color-border-tertiary);cursor:pointer;background:var(--color-background-secondary);color:var(--color-text-secondary);transition:all .15s}
-.btg-tog.on{background:rgba(0,136,204,.12);color:#0088cc;border-color:rgba(0,136,204,.4)}
-/* Auto button */
-.btg-auto{font-size:10px;font-weight:700;padding:5px 12px;border-radius:7px;border:1px solid var(--color-border-tertiary);cursor:pointer;background:var(--color-background-secondary);color:var(--color-text-secondary)}
-.btg-auto.on{background:rgba(34,197,94,.1);color:#16a34a;border-color:rgba(34,197,94,.4)}
-/* Preview */
-.btg-preview{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;padding:10px 12px;font-size:8.5px;font-family:monospace;white-space:pre-wrap;line-height:1.75;color:var(--color-text-secondary);max-height:240px;overflow-y:auto;margin-bottom:10px}
-/* Bottom row */
-.btg-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btg-info{font-size:9px;color:var(--color-text-secondary)}
-.btg-info.ok{color:#16a34a;font-weight:700}
-.btg-info.err{color:#dc2626;font-weight:700}
-.btg-info.busy{color:#0088cc;font-weight:700}
-</style>
-
-<div id="btgWrap">
-  <div class="btg-hdr">
-    <div class="btg-hdr-left">
-      📱 Telegram
-      <span class="btg-chip">BRAHMASTRA</span>
-      <span class="btg-dot" id="btgDot"></span>
-      <span style="font-size:9px;font-weight:400;color:var(--color-text-secondary)" id="btgStatusTxt">Not configured</span>
-    </div>
-    <button class="btg-auto" id="btgAutoBtn" onclick="btgToggleAuto()">⏸ Auto OFF</button>
-  </div>
-
-  <div class="btg-cfg">
-    <input id="btgToken" type="password" placeholder="🤖 Bot Token (@BotFather)">
-    <input id="btgChat"  type="text"     placeholder="💬 Chat ID (-100…)">
-    <button class="btg-btn bb-save" onclick="btgSave()">💾 Save</button>
-    <button class="btg-btn bb-test" onclick="btgTest()">✅ Test</button>
-  </div>
-
-  <div class="btg-toggles">
-    <span style="font-size:9px;color:var(--color-text-secondary)">Alert on:</span>
-    <button class="btg-tog on"  id="btTog0" onclick="this.classList.toggle('on')">🏛 Regime Change</button>
-    <button class="btg-tog on"  id="btTog1" onclick="this.classList.toggle('on')">🚨 Strangle Enemy</button>
-    <button class="btg-tog on"  id="btTog2" onclick="this.classList.toggle('on')">✅ Sell Signal</button>
-    <button class="btg-tog on"  id="btTog3" onclick="this.classList.toggle('on')">📊 DVOL Pattern</button>
-    <button class="btg-tog"     id="btTog4" onclick="this.classList.toggle('on')">💓 Heartbeat 30m</button>
-  </div>
-
-  <div class="btg-preview" id="btgPreview">Loading preview…</div>
-
-  <div class="btg-foot">
-    <button class="btg-btn bb-send" onclick="btgSendNow()">✈️ Send Summary Now</button>
-    <button class="btg-btn bb-test" style="font-size:9px" onclick="btgBuildPreview()">↻ Preview</button>
-    <span class="btg-info" id="btgInfo">—</span>
-  </div>
-</div>
-
-<script>
-(function(){
-'use strict';
-
-/* ── helpers ── */
-const $   = id => document.getElementById(id);
-const txt = id => { const e=$(id); return e ? e.textContent.trim() : '—'; };
-const qs  = s  => { const e=document.querySelector(s); return e ? e.textContent.trim() : '—'; };
-const togOn = id => { const e=$(id); return e && e.classList.contains('on'); };
-
-function dot(s){ const d=$('btgDot'); if(d){ d.className='btg-dot '+(s||''); } }
-function info(msg,cls){ const e=$('btgInfo'); if(e){e.textContent=msg; e.className='btg-info '+(cls||'');} }
-function status(msg){ const e=$('btgStatusTxt'); if(e) e.textContent=msg; }
-
-/* ── storage ── */
-function getToken(){ return localStorage.getItem('btg_tok') || ($('btgToken') ? $('btgToken').value.trim() : ''); }
-function getChat() { return localStorage.getItem('btg_chat')|| ($('btgChat')  ? $('btgChat').value.trim()  : ''); }
-function ready()   { return getToken().length > 10 && getChat().length > 3; }
-
-function btgLoad(){
-  const t=localStorage.getItem('btg_tok')||'';
-  const c=localStorage.getItem('btg_chat')||'';
-  if(t && $('btgToken')) $('btgToken').value=t;
-  if(c && $('btgChat'))  $('btgChat').value=c;
-}
-
-window.btgSave = function(){
-  const t=($('btgToken')||{}).value||'';
-  const c=($('btgChat')||{}).value||'';
-  localStorage.setItem('btg_tok',t.trim());
-  localStorage.setItem('btg_chat',c.trim());
-  dot(ready()?'ok':'');
-  status(ready()?'✅ Configured':'⚠ Incomplete');
-  info('Saved','ok');
-};
-
-/* ── Telegram send ── */
-async function tgSend(msg){
-  if(!ready()) throw new Error('Save token + chat ID first');
-  const r = await fetch(`https://api.telegram.org/bot${getToken()}/sendMessage`,{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ chat_id:getChat(), text:msg, parse_mode:'HTML', disable_web_page_preview:true })
-  });
-  const d = await r.json();
-  if(!d.ok) throw new Error(d.description||'Telegram error');
-}
-
-window.btgTest = async function(){
-  if(!ready()){ info('Save token & chat ID first','err'); return; }
-  dot('busy'); info('Sending test…','busy');
-  try{
-    await tgSend(`✅ <b>BRAHMASTRA Connected!</b>
-
-Telegram alerts are working. You will receive live summaries and smart alerts. 🔱`);
-    dot('ok'); info('✅ Test sent!','ok');
-  } catch(e){ dot('err'); info('❌ '+e.message,'err'); }
-};
-
-/* ════════════════════════════════════════
-   SUMMARY BUILDER — reads entire dashboard
-════════════════════════════════════════ */
-function buildSummary(){
-  const now  = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Kolkata'});
-  const date = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Kolkata'});
-
-  // Market
-  const spot    = txt('btcSpot')||txt('spotPrice')||'—';
-  const chg     = txt('btcChg24h')||txt('btcChange')||'—';
-  const dvolV   = txt('dvolVal')||'—';
-  const fund    = txt('fundingRate')||txt('fundingVal')||'—';
-
-  // Trade signal
-  const sig     = txt('tsbStatusLabel')||txt('dpTitle')||'—';
-  const sigSub  = (txt('tsbSubtitle')||txt('dpSubtitle')||'—').slice(0,100);
-
-  // Regime
-  const regEl   = document.querySelector('.mb-active-trendy,.mb-active-choppy,.mb-active-manip,.mb-active-iv,.mb-active-gamma');
-  const regime  = regEl ? (regEl.querySelector('.mkt-beh-name')?.textContent.trim()||'—') : '—';
-  const regVal  = regEl ? (regEl.querySelector('.mkt-beh-val')?.textContent.trim()||'—')  : '—';
-  const regStr  = regEl ? (regEl.querySelector('.mkt-beh-strat')?.textContent.trim()||'—'): '—';
-
-  // ATM
-  const atmSt   = qs('.atm-strike-pill')||'—';
-  const atmIV   = qs('.atm-iv')||'—';
-  const theta   = txt('atmTheta')||'—';
-
-  // DVOL MPO
-  const dvV     = txt('dmpoWarnVerdict');
-  const dvTitle = txt('dmpoWarnTitle').slice(0,80);
-  const dvDvol  = txt('dmpoStatDvol');
-  const dvTrend = txt('dmpoStatTrend');
-  const dvIVR   = txt('dmpoStatIVR');
-  const dvVRP   = txt('dmpoStatVRP');
-  const dvRisk  = txt('dmpoStatRisk');
-  const dvPats  = Array.from(document.querySelectorAll('#dmpoGrid .mpo-confirmed .mpo-card-name')).slice(0,4).map(e=>e.textContent.trim()).join(', ')||'None';
-
-  // AI MPO
-  const aiV     = txt('mpoWarnVerdict');
-  const aiTitle = txt('mpoWarnTitle').slice(0,90);
-  const aiConf  = txt('mpoConfidence');
-  const aiRisk  = txt('mpoStrangleRisk');
-  const aiPats  = Array.from(document.querySelectorAll('#mpoGrid .mpo-confirmed .mpo-card-name')).slice(0,4).map(e=>e.textContent.trim()).join(', ')||'None';
-
-  // Relationship
-  const relScoreEls = document.querySelectorAll('.rel-score-val');
-  const relScore    = relScoreEls.length ? relScoreEls[relScoreEls.length-1].textContent.trim() : '—';
-  const relBadge    = qs('.rel-final-badge')||'—';
-  const relTitle    = qs('.rel-final-title')?.slice(0,90)||'—';
-  const relCells    = document.querySelectorAll('.rel-action-grid .rac-val');
-  const relParams   = relCells.length>=4
-    ? `Size:${relCells[0].textContent} · Delta:${relCells[1].textContent} · Stop:${relCells[2].textContent} · Target:${relCells[3].textContent}`
-    : '—';
-
-  // VoV
-  const vovR    = qs('.vov-regime-pill')||'—';
-  const vovVal  = qs('.vov-regime-val')||'—';
-
-  // IV cards
-  const ivCards = Array.from(document.querySelectorAll('.iv-card:not(.expired)')).slice(0,3).map(c=>{
-    const lbl = c.querySelector('.expiry-label')?.textContent.trim().split('\n')[0]||'?';
-    const val = c.querySelector('.iv-val')?.textContent.trim()||'?';
-    const dir = c.classList.contains('rising')?'↑':c.classList.contains('falling')?'↓':'→';
-    return `${lbl}:${val}${dir}`;
-  }).join(' | ')||'—';
-
-  // AMD
-  const amd = txt('amdVerdictTitle').slice(0,100)||'—';
-
-  return [
-    `🔱 <b>BRAHMASTRA v22 — Live Summary</b>`,
-    `📅 ${date}  ⏰ ${now} IST`,
-    ``,
-    `━━━ 💰 MARKET ━━━`,
-    `BTC <b>${spot}</b>  24h:${chg}  DVOL:${dvolV}  Funding:${fund}`,
-    `ATM Strike:${atmSt}  ATM IV:${atmIV}  θ/day:${theta}`,
-    ``,
-    `━━━ 🏛 REGIME ━━━`,
-    `<b>${regime}</b>  ${regVal}`,
-    `Strategy: ${regStr}`,
-    ``,
-    `━━━ 🎯 TRADE SIGNAL ━━━`,
-    `<b>${sig}</b>  —  ${sigSub}`,
-    ``,
-    `━━━ 📊 DVOL PATTERN OBSERVER ━━━`,
-    `Verdict: <b>${dvV}</b>  ${dvTitle}`,
-    `DVOL:${dvDvol}  Trend:${dvTrend}  IVR:${dvIVR}  VRP:${dvVRP}`,
-    `Risk: ${dvRisk}`,
-    `Patterns: ${dvPats.slice(0,90)}`,
-    ``,
-    `━━━ 🔮 AI PATTERN OBSERVER ━━━`,
-    `Verdict: <b>${aiV}</b>  Conf:${aiConf}  Risk:${aiRisk}`,
-    `${aiTitle}`,
-    `Patterns: ${aiPats.slice(0,90)}`,
-    ``,
-    `━━━ 🔗 CROSS-SIGNAL VERDICT ━━━`,
-    `Score: <b>${relScore}/100</b>  → <b>${relBadge}</b>`,
-    `${relTitle}`,
-    `${relParams}`,
-    ``,
-    `━━━ 🌊 VOL REGIME ━━━`,
-    `VoV: ${vovR}  ${vovVal}`,
-    `IV: ${ivCards}`,
-    ``,
-    `━━━ 🕐 AMD SESSION ━━━`,
-    `${amd}`,
-    ``,
-    `<i>— BRAHMASTRA Dashboard</i>`,
-  ].join('\n');
-}
-
-/* ── Preview ── */
-window.btgBuildPreview = function(){
-  const pre = $('btgPreview');
-  if(pre) pre.textContent = buildSummary().replace(/<[^>]+>/g,'');
-};
-
-/* ── Send now ── */
-window.btgSendNow = async function(){
-  if(!ready()){ info('Configure token + chat ID first','err'); return; }
-  dot('busy'); info('Sending…','busy');
-  try{
-    await tgSend(buildSummary());
-    dot('ok');
-    info('✅ Sent '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'})+' IST','ok');
-  } catch(e){ dot('err'); info('❌ '+e.message,'err'); }
-};
-
-/* ── Auto-alert engine ── */
-let _auto=false, _last={regime:'',aiV:'',dvV:'',hb:0};
-
-window.btgToggleAuto = function(){
-  _auto = !_auto;
-  const btn = $('btgAutoBtn');
-  if(btn){ btn.textContent = _auto ? '▶ Auto ON' : '⏸ Auto OFF'; btn.classList.toggle('on',_auto); }
-  dot(_auto && ready() ? 'ok' : '');
-  if(_auto) _autoTick();
-};
-
-async function _autoTick(){
-  if(!_auto || !ready()) return;
-  const now = Date.now();
-  const regime = document.querySelector('.mb-active-trendy,.mb-active-choppy,.mb-active-manip,.mb-active-iv,.mb-active-gamma')?.querySelector('.mkt-beh-name')?.textContent||'';
-  const aiV    = txt('mpoWarnVerdict');
-  const dvV    = txt('dmpoWarnVerdict');
-  const enCnt  = document.querySelectorAll('#mpoGrid .mpo-confirmed').length + document.querySelectorAll('.s-enemy').length;
-
-  let reason='';
-  if(togOn('btTog0') && regime && regime !== _last.regime && _last.regime) reason=`🏛 Regime: ${_last.regime}→${regime}`;
-  else if(togOn('btTog1') && enCnt>0 && aiV==='ACT NOW' && _last.aiV!=='ACT NOW')  reason='🚨 Strangle Enemy ACTIVE';
-  else if(togOn('btTog2') && aiV==='CLEAR' && _last.aiV!=='CLEAR')                  reason='✅ AI MPO cleared — sell edge';
-  else if(togOn('btTog3') && dvV==='SELL'  && _last.dvV!=='SELL')                   reason='📊 DVOL sell signal triggered';
-  else if(togOn('btTog4') && now-_last.hb > 1800000){ reason='💓 30-min heartbeat'; _last.hb=now; }
-
-  if(reason){
-    try{
-      await tgSend(`⚡ <b>${reason}</b>
-
-`+buildSummary());
-      info('⚡ '+reason.slice(0,45),'ok');
-    } catch(e){ info('❌ '+e.message,'err'); }
-  }
-  _last = { regime, aiV, dvV, hb: _last.hb };
-  setTimeout(_autoTick, 15000);
-}
-
-/* ── Expose globally for other dashboard parts ── */
-window.sendTG = async function(_key, msg){ try{ await tgSend(msg||_key); }catch(e){ console.warn('[TG]',e.message); } };
-window.sendWA = window.sendTG;
-
-/* ── Boot ── */
-setTimeout(()=>{
-  btgLoad();
-  dot(ready()?'ok':'');
-  status(ready()?'✅ Configured':'Not configured');
-  btgBuildPreview();
-  setInterval(btgBuildPreview, 30000);
-}, 1800);
-
-})();
-</script>
-
-
 <!-- ═══════════════════════════════════════════════════════════
      ATM STRADDLE PRICE vs IV RELATIONSHIP WINDOW
      Both falling = Seller's Friend | Both rising = Seller's Enemy
@@ -9237,8 +8916,13 @@ setTimeout(()=>{
     if(chainStatus){ chainStatus.textContent='Chain: Fetching…'; chainStatus.className='sim-status-pill warn'; }
 
     try {
-      const urlCall = 'https://api.india.delta.exchange/v2/tickers?contract_type=call_options&underlying_asset_symbol=BTC';
-      const urlPut  = 'https://api.india.delta.exchange/v2/tickers?contract_type=put_options&underlying_asset_symbol=BTC';
+      // Delta Exchange India v2 API uses PLURAL parameter names.
+      // Singular forms (contract_type, underlying_asset_symbol) are silently
+      // ignored, making both requests return the same unfiltered dataset —
+      // which manifests as calls and puts showing identical values at every strike.
+      // Ref: https://docs.delta.exchange/ — GET /v2/tickers?contract_types=...
+      const urlCall = 'https://api.india.delta.exchange/v2/tickers?contract_types=call_options&underlying_asset_symbols=BTC';
+      const urlPut  = 'https://api.india.delta.exchange/v2/tickers?contract_types=put_options&underlying_asset_symbols=BTC';
       const [rc, rp] = await Promise.all([safeFetch(urlCall,{},8000), safeFetch(urlPut,{},8000)]);
       if(!rc.ok || !rp.ok) throw new Error('Delta Exchange fetch failed');
       const [dc, dp] = await Promise.all([rc.json(), rp.json()]);
@@ -9246,9 +8930,18 @@ setTimeout(()=>{
 
       // Group by expiry
       const expiryMap = {};  // { '24-Apr-26': {calls:[], puts:[]} }
-      const processTicker = (t, type) => {
+      const seenSymbols = new Set(); // dedupe across both responses
+      const processTicker = (t) => {
         const parsed = parseDeltaSymbol(t.symbol);
         if(!parsed) return;
+        if(seenSymbols.has(t.symbol)) return;
+        seenSymbols.add(t.symbol);
+        // Derive type from the symbol itself (C-BTC-... or P-BTC-...) — this is
+        // ground truth. Previously the type came from which URL fetched it, but
+        // that's fragile: if Delta's API returns mixed data (as happened when
+        // we were using the wrong singular query-param names), the whole chain
+        // gets mis-categorized. The symbol never lies.
+        const type = parsed.type;
         const exp = parsed.expLabel;
         if(!expiryMap[exp]) expiryMap[exp] = {calls:[], puts:[]};
         // Extract fields safely — Delta tickers include quotes and greeks
@@ -9282,16 +8975,39 @@ setTimeout(()=>{
         if(iv > 0 && iv < 5) iv = 0;     // rejected — probably wrong field
         if(iv > 400) iv = 0;              // rejected — probably parse artefact
 
-        const delta = parseFloat(t.greeks?.delta || 0);
-        const gamma = parseFloat(t.greeks?.gamma || 0);
-        const theta = parseFloat(t.greeks?.theta || 0);
-        const vega = parseFloat(t.greeks?.vega || 0);
         const oi = parseFloat(t.oi || t.open_interest || 0);
         // Delta Exchange provides OI notional in USD directly — preferred
         // Fallback: compute from contracts × contract_size × spot
         const oiValueUsd = parseFloat(t.oi_value_usd || t.oi_usd_value || 0);
         const vol = parseFloat(t.volume || 0);
         const strike = parsed.strike;
+
+        // ── Greeks with BS backfill ─────────────────────────────────────
+        // Delta India's /v2/tickers intermittently returns empty greeks for
+        // thin strikes (or delta="0" for legitimately computable strikes).
+        // When that happens, auto-strike selection silently rejects the
+        // strike (filter: delta > 0.01) and picks the wrong neighbor.
+        // Fix: when API delta is missing/zero but we have IV + quotes, compute
+        // greeks from Black-Scholes ourselves.
+        let delta = parseFloat(t.greeks?.delta || 0);
+        let gamma = parseFloat(t.greeks?.gamma || 0);
+        let theta = parseFloat(t.greeks?.theta || 0);
+        let vega  = parseFloat(t.greeks?.vega  || 0);
+
+        const needsGreeksBackfill = (!isFinite(delta) || delta === 0)
+                                    && iv > 0
+                                    && strike > 0;
+        if(needsGreeksBackfill){
+          const S = getLiveSpot();
+          const T = Math.max(1/(365*24), computeDTEFractional(exp)/365);
+          if(S > 0 && T > 0){
+            const bs = bsGreeks(S, strike, T, RISK_FREE_RATE, iv/100, type === 'C');
+            delta = bs.delta;
+            gamma = bs.gamma;
+            theta = bs.theta;
+            vega  = bs.vega;
+          }
+        }
 
         // Sanity-check the mark: Delta's mark_price field occasionally returns
         // garbage for thin OTM options (stale cache, fair-price-band edge cases).
@@ -9322,8 +9038,11 @@ setTimeout(()=>{
         (type === 'C' ? expiryMap[exp].calls : expiryMap[exp].puts).push(leg);
       };
 
-      (dc.result || []).forEach(t => processTicker(t, 'C'));
-      (dp.result || []).forEach(t => processTicker(t, 'P'));
+      // With the symbol-derived type, we no longer need to keep call/put
+      // responses separate. We could merge; but keeping both fetches lets Delta
+      // parallelize and is resilient to their pagination or result caps.
+      (dc.result || []).forEach(t => processTicker(t));
+      (dp.result || []).forEach(t => processTicker(t));
 
       // Sort each by strike ascending
       Object.values(expiryMap).forEach(e => {
@@ -9414,14 +9133,17 @@ setTimeout(()=>{
     const shown = strikes.slice(rangeStart, rangeEnd);
 
     // Pick target strikes (auto-delta)
+    // Require both a target-range delta AND tradable quotes (bid>0 AND ask>0).
+    // Without the liquidity guard, a strike with BS-backfilled delta but no
+    // live quotes could get picked despite being un-executable.
     const callPick = ex.calls
-      .filter(c => c.delta > 0.01 && c.delta < 0.5)
+      .filter(c => c.delta > 0.01 && c.delta < 0.5 && c.bid > 0 && c.ask > 0)
       .reduce((best, c) => {
         if(!best) return c;
         return Math.abs(c.delta - simState.targetDelta) < Math.abs(best.delta - simState.targetDelta) ? c : best;
       }, null);
     const putPick = ex.puts
-      .filter(p => p.delta < -0.01 && p.delta > -0.5)
+      .filter(p => p.delta < -0.01 && p.delta > -0.5 && p.bid > 0 && p.ask > 0)
       .reduce((best, p) => {
         if(!best) return p;
         return Math.abs(Math.abs(p.delta) - simState.targetDelta) < Math.abs(Math.abs(best.delta) - simState.targetDelta) ? p : best;
@@ -9574,10 +9296,10 @@ setTimeout(()=>{
     if(!ex){ el.textContent='No chain data for '+simState.currentExpiry; return; }
 
     const callPick = ex.calls
-      .filter(c => c.delta > 0.01 && c.delta < 0.5)
+      .filter(c => c.delta > 0.01 && c.delta < 0.5 && c.bid > 0 && c.ask > 0)
       .reduce((best, c) => !best ? c : (Math.abs(c.delta-simState.targetDelta)<Math.abs(best.delta-simState.targetDelta)?c:best), null);
     const putPick = ex.puts
-      .filter(p => p.delta < -0.01 && p.delta > -0.5)
+      .filter(p => p.delta < -0.01 && p.delta > -0.5 && p.bid > 0 && p.ask > 0)
       .reduce((best, p) => !best ? p : (Math.abs(Math.abs(p.delta)-simState.targetDelta)<Math.abs(Math.abs(best.delta)-simState.targetDelta)?p:best), null);
 
     if(!callPick || !putPick){
@@ -9677,6 +9399,13 @@ setTimeout(()=>{
 
   // ── Compute execution price given slippage model ──
   function getExecPrice(leg, side, mode){
+    // Guard: if the leg has no live quotes on either side, we cannot simulate
+    // a realistic fill. Previously this silently returned $0.01 (from the
+    // Math.max floor below), producing phantom credit. Return a zero price
+    // with an infinite slippage marker so callers can reject the leg.
+    if(!leg || (!(leg.bid > 0) && !(leg.ask > 0))){
+      return { px: 0, slipBps: Infinity, noLiquidity: true };
+    }
     const mid = (leg.bid + leg.ask)/2;
     const spread = leg.ask - leg.bid;
     let px, slipBps;
@@ -9721,10 +9450,10 @@ setTimeout(()=>{
     }
 
     const callPick = ex.calls
-      .filter(c => c.delta > 0.01 && c.delta < 0.5)
+      .filter(c => c.delta > 0.01 && c.delta < 0.5 && c.bid > 0 && c.ask > 0)
       .reduce((best, c) => !best ? c : (Math.abs(c.delta-simState.targetDelta)<Math.abs(best.delta-simState.targetDelta)?c:best), null);
     const putPick = ex.puts
-      .filter(p => p.delta < -0.01 && p.delta > -0.5)
+      .filter(p => p.delta < -0.01 && p.delta > -0.5 && p.bid > 0 && p.ask > 0)
       .reduce((best, p) => !best ? p : (Math.abs(Math.abs(p.delta)-simState.targetDelta)<Math.abs(Math.abs(best.delta)-simState.targetDelta)?p:best), null);
 
     if(!callPick || !putPick){ alert('Could not find strikes matching target delta'); return; }
