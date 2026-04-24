@@ -1503,6 +1503,338 @@ window._brahmastraADX = _ciComputeADX;
 </div>
 
 
+<!-- ═══ MARKET ENVIRONMENT ═══ -->
+
+<!-- ₿ BTC SPOT PRICE — HUGE LIVE DISPLAY -->
+<div id="btcSpotHero" style="
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 18px 24px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+">
+  <div style="position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:200px;height:120px;background:radial-gradient(ellipse,rgba(247,147,26,0.15),transparent 70%);pointer-events:none"></div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="font-size:36px;line-height:1">₿</div>
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;margin-bottom:2px">BTC / USD · Live Spot</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:#0f3d2a;color:#6ee7b7">● Binance</span>
+        <span style="font-size:9px;color:#64748b" id="btcHeroTs">—</span>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;flex:1;min-width:200px">
+    <div id="btcHeroPrice" style="font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;color:#f8fafc;letter-spacing:-1px;line-height:1;text-shadow:0 2px 20px rgba(247,147,26,0.4)">—</div>
+    <div id="btcHeroChange" style="font-size:14px;font-weight:700;margin-top:4px;color:#94a3b8">Loading…</div>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end">
+    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H HIGH</div>
+      <div id="btcHeroHigh" style="font-size:16px;font-weight:800;color:#22c55e;font-variant-numeric:tabular-nums">—</div>
+    </div>
+    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H LOW</div>
+      <div id="btcHeroLow" style="font-size:16px;font-weight:800;color:#ef4444;font-variant-numeric:tabular-nums">—</div>
+    </div>
+    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H VOL</div>
+      <div id="btcHeroVol" style="font-size:16px;font-weight:800;color:#f59e0b;font-variant-numeric:tabular-nums">—</div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  let _btcHeroLast = 0;
+  function updateBtcHero(){
+    const spot = (typeof state !== 'undefined' && (state.btcSpotLive || state.btcBase)) || 0;
+    const priceEl = document.getElementById('btcHeroPrice');
+    const changeEl = document.getElementById('btcHeroChange');
+    const tsEl = document.getElementById('btcHeroTs');
+    if(!priceEl) return;
+    if(spot > 0){
+      priceEl.textContent = '$' + spot.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+      priceEl.classList.add('price-flash');
+      setTimeout(() => priceEl.classList.remove('price-flash'), 400);
+      const chg = spot - _btcHeroLast;
+      if(_btcHeroLast > 0 && changeEl){
+        const pct = ((chg / _btcHeroLast) * 100).toFixed(2);
+        const sign = chg >= 0 ? '+' : '';
+        changeEl.textContent = sign + '$' + Math.abs(chg).toFixed(0) + '  (' + sign + pct + '% today)';
+        changeEl.style.color = chg >= 0 ? '#22c55e' : '#ef4444';
+      }
+      _btcHeroLast = spot;
+    }
+    if(tsEl) tsEl.textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const h24 = (typeof state !== 'undefined') ? state.btcHigh24 || state.high24 : null;
+    const l24 = (typeof state !== 'undefined') ? state.btcLow24  || state.low24  : null;
+    const v24 = (typeof state !== 'undefined') ? state.btcVol24  || state.vol24  : null;
+    const hiEl = document.getElementById('btcHeroHigh');
+    const loEl = document.getElementById('btcHeroLow');
+    const volEl= document.getElementById('btcHeroVol');
+    if(hiEl && h24 > 0) hiEl.textContent = '$' + Math.round(h24).toLocaleString();
+    if(loEl && l24 > 0) loEl.textContent = '$' + Math.round(l24).toLocaleString();
+    if(volEl && v24 > 0){ volEl.textContent = v24 > 1000 ? (v24/1000).toFixed(1) + 'K BTC' : v24.toFixed(0) + ' BTC'; }
+  }
+  setInterval(updateBtcHero, 3000);
+  setTimeout(updateBtcHero, 2000);
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════
+     TRADINGVIEW LIVE ANALYSIS — BTC/USDT + DVOL
+     Short Straddle Multi-Indicator Dashboard
+     ═══════════════════════════════════════════ -->
+<div class="tv-panel" id="tvPanel">
+  <div class="tv-header">
+    <div class="tv-title">
+      📊 TradingView Live Analysis
+      <span class="tv-badge">LIVE</span>
+      <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-secondary)">Short Straddle Multi-Signal</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="font-size:9px;color:var(--color-text-secondary)" id="tvLastUpdate">Auto-linked</span>
+      <button onclick="tvRefreshSignals()" style="font-size:10px;padding:2px 9px;border-radius:5px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:700">↻ Signals</button>
+    </div>
+  </div>
+
+  <!-- Chart tab selector -->
+  <div class="tv-tabs">
+    <button class="tv-tab active" id="tvTab0" onclick="switchTVTab(0)">₿ BTC/USDT — 4H</button>
+    <button class="tv-tab" id="tvTab1" onclick="switchTVTab(1)">📈 BTC/USDT — 1H</button>
+    <button class="tv-tab" id="tvTab2" onclick="switchTVTab(2)">🌊 DVOL Index</button>
+    <button class="tv-tab" id="tvTab3" onclick="switchTVTab(3)">📐 BB Squeeze</button>
+    <button class="tv-tab" id="tvTab4" onclick="switchTVTab(4)">⚡ BTC Dominance</button>
+    <button class="tv-tab" id="tvTab5" onclick="switchTVTab(5)">📊 ADX + SMC</button>
+    <button class="tv-tab" id="tvTab6" onclick="switchTVTab(6)">🕐 ICT Kill Zones</button>
+    <button class="tv-tab" id="tvTab7" onclick="switchTVTab(7)">⚡ Strangle Effect</button>
+  </div>
+
+  <!-- TradingView Chart containers -->
+  <div id="tvChartWrap">
+    <div id="tvChart0" class="tv-chart-frame" style="height:420px"></div>
+    <div id="tvChart1" class="tv-chart-frame" style="height:420px;display:none"></div>
+    <div id="tvChart2" class="tv-chart-frame" style="height:380px;display:none"></div>
+    <div id="tvChart3" class="tv-chart-frame" style="height:380px;display:none"></div>
+    <div id="tvChart4" class="tv-chart-frame" style="height:340px;display:none"></div>
+    <div id="tvChart5" class="tv-chart-frame" style="height:460px;display:none"></div>
+    <div id="tvChart6" class="tv-chart-frame" style="height:420px;display:none"></div>
+
+    <!-- Tab 7: Short Strangle Effect Panel -->
+    <div id="tvChart7" style="display:none;padding:4px 0">
+
+      <style>
+      /* ── Short Strangle Effect Panel ── */
+      .sse-wrap{background:var(--color-background-secondary);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+      .sse-section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+      /* P&L Visualizer */
+      .sse-pnl-wrap{position:relative;width:100%;height:160px;margin-bottom:6px}
+      .sse-pnl-wrap canvas{width:100%!important;height:160px!important}
+      /* Strike inputs */
+      .sse-input-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end}
+      .sse-input-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}
+      .sse-input-group label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary)}
+      .sse-input-group input{font-size:12px;font-weight:700;padding:6px 10px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:inherit;font-variant-numeric:tabular-nums}
+      .sse-calc-btn{font-size:11px;font-weight:800;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;cursor:pointer;white-space:nowrap;transition:opacity .2s;align-self:flex-end}
+      .sse-calc-btn:hover{opacity:.85}
+      /* Metrics grid */
+      .sse-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px;margin-bottom:10px}
+      .sse-metric{border-radius:9px;padding:9px 11px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
+      .sse-metric-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
+      .sse-metric-val{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+      .sse-metric-sub{font-size:8px;color:var(--color-text-secondary);margin-top:2px}
+      /* Scenario table */
+      .sse-table{width:100%;border-collapse:collapse;font-size:10px}
+      .sse-table th{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);padding:4px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right}
+      .sse-table th:first-child{text-align:left}
+      .sse-table td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right;font-variant-numeric:tabular-nums}
+      .sse-table td:first-child{text-align:left;font-weight:600}
+      .sse-table tr:last-child td{border-bottom:none}
+      .sse-profit{color:#22c55e;font-weight:700}
+      .sse-loss{color:#ef4444;font-weight:700}
+      .sse-breakeven{color:#f59e0b;font-weight:700}
+      /* Adjustment signal */
+      .sse-adj-banner{border-radius:10px;padding:10px 13px;display:flex;align-items:flex-start;gap:10px;border:1.5px solid transparent;margin-bottom:8px;transition:all .3s}
+      .sse-adj-safe{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25)}
+      .sse-adj-warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25)}
+      .sse-adj-danger{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.25)}
+      .sse-adj-icon{font-size:22px;flex-shrink:0;line-height:1}
+      .sse-adj-body{flex:1}
+      .sse-adj-title{font-size:12px;font-weight:800;margin-bottom:2px}
+      .sse-adj-safe .sse-adj-title{color:#059669}
+      .sse-adj-warn .sse-adj-title{color:#d97706}
+      .sse-adj-danger .sse-adj-title{color:#dc2626}
+      .sse-adj-desc{font-size:10px;color:var(--color-text-secondary);line-height:1.5}
+      .sse-adj-steps{margin-top:5px;display:flex;flex-direction:column;gap:3px}
+      .sse-adj-step{font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;display:flex;align-items:center;gap:5px}
+      .sse-adj-safe .sse-adj-step{background:rgba(34,197,94,.1);color:#059669}
+      .sse-adj-warn .sse-adj-step{background:rgba(245,158,11,.1);color:#d97706}
+      .sse-adj-danger .sse-adj-step{background:rgba(239,68,68,.1);color:#dc2626}
+      /* Greeks impact */
+      .sse-greeks-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+      .sse-greek-tile{flex:1;min-width:80px;border-radius:8px;padding:7px 10px;text-align:center;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
+      .sse-greek-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
+      .sse-greek-val{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+      .sse-greek-impact{font-size:8px;margin-top:2px}
+      </style>
+
+      <!-- Input Row -->
+      <div class="sse-wrap">
+        <div class="sse-section-title">⚙️ Position Setup — Auto-filled from Live Data</div>
+        <div class="sse-input-row">
+          <div class="sse-input-group">
+            <label>Spot Price ($)</label>
+            <input type="number" id="sseSpot" placeholder="85000" oninput="sseCompute()">
+          </div>
+          <div class="sse-input-group">
+            <label>Call Strike ($)</label>
+            <input type="number" id="sseCallStrike" placeholder="93000" oninput="sseCompute()">
+          </div>
+          <div class="sse-input-group">
+            <label>Put Strike ($)</label>
+            <input type="number" id="ssePutStrike" placeholder="77000" oninput="sseCompute()">
+          </div>
+          <div class="sse-input-group">
+            <label>Premium Collected ($)</label>
+            <input type="number" id="ssePremium" placeholder="400" oninput="sseCompute()">
+          </div>
+          <div class="sse-input-group">
+            <label>DTE Remaining</label>
+            <input type="number" id="sseDTE" placeholder="18" oninput="sseCompute()">
+          </div>
+          <div class="sse-input-group">
+            <label>IV% (ATM)</label>
+            <input type="number" id="sseIV" placeholder="55" oninput="sseCompute()">
+          </div>
+          <button class="sse-calc-btn" onclick="sseAutoFill()">⚡ Auto-Fill Live</button>
+        </div>
+
+        <!-- Adjustment Signal Banner -->
+        <div class="sse-adj-banner sse-adj-safe" id="sseAdjBanner">
+          <span class="sse-adj-icon" id="sseAdjIcon">✅</span>
+          <div class="sse-adj-body">
+            <div class="sse-adj-title" id="sseAdjTitle">POSITION SAFE — No Adjustment Needed</div>
+            <div class="sse-adj-desc" id="sseAdjDesc">Enter position details above or click Auto-Fill to analyse your current strangle in real time.</div>
+            <div class="sse-adj-steps" id="sseAdjSteps"></div>
+          </div>
+        </div>
+
+        <!-- Greeks Impact Row -->
+        <div class="sse-section-title">🔢 Live Greeks Impact on Your Strangle</div>
+        <div class="sse-greeks-row">
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">Δ Delta</div>
+            <div class="sse-greek-val" id="sseGDelta" style="color:#3b82f6">—</div>
+            <div class="sse-greek-impact" id="sseGDeltaImp" style="color:var(--color-text-secondary)">Net position delta</div>
+          </div>
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">Γ Gamma</div>
+            <div class="sse-greek-val" id="sseGGamma" style="color:#f97316">—</div>
+            <div class="sse-greek-impact" id="sseGGammaImp" style="color:var(--color-text-secondary)">Risk per $1 move</div>
+          </div>
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">Θ Theta</div>
+            <div class="sse-greek-val" id="sseGTheta" style="color:#22c55e">—</div>
+            <div class="sse-greek-impact" id="sseGThetaImp" style="color:var(--color-text-secondary)">Daily profit</div>
+          </div>
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">V Vega</div>
+            <div class="sse-greek-val" id="sseGVega" style="color:#a855f7">—</div>
+            <div class="sse-greek-impact" id="sseGVegaImp" style="color:var(--color-text-secondary)">Per 1% IV change</div>
+          </div>
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">P&L Today</div>
+            <div class="sse-greek-val" id="sseGPnL" style="color:#22c55e">—</div>
+            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">Theta − Vega drag</div>
+          </div>
+          <div class="sse-greek-tile">
+            <div class="sse-greek-lbl">Days to 50%</div>
+            <div class="sse-greek-val" id="sseGDays" style="color:#f59e0b">—</div>
+            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">At current theta</div>
+          </div>
+        </div>
+
+        <!-- P&L Chart -->
+        <div class="sse-section-title">📈 P&L At Expiry — Short Strangle Payoff Diagram</div>
+        <div class="sse-pnl-wrap"><canvas id="ssePnLChart"></canvas></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:9px;color:var(--color-text-secondary);margin-bottom:8px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#22c55e;border-radius:2px;display:inline-block"></span>Profit Zone</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#ef4444;border-radius:2px;display:inline-block"></span>Loss Zone</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#f59e0b;border-radius:2px;display:inline-block"></span>Breakeven</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#3b82f6;border-radius:2px;display:inline-block"></span>Current Spot</span>
+        </div>
+
+        <!-- Scenario Table -->
+        <div class="sse-section-title">📊 Scenario Analysis — What Happens If BTC Moves?</div>
+        <div style="overflow-x:auto">
+          <table class="sse-table">
+            <thead>
+              <tr>
+                <th>BTC Price</th><th>Move%</th><th>Call P&L</th><th>Put P&L</th><th>Net P&L</th><th>% of Premium</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="sseScenarioBody">
+              <tr><td colspan="7" style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:10px">Enter position details above and click Auto-Fill</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Key Levels -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px" id="sseLevelsRow">
+          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📈 Upper Breakeven</div>
+            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseUBE">—</div>
+            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Call Strike + Premium</div>
+          </div>
+          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(34,197,94,.08);border:0.5px solid rgba(34,197,94,.25);text-align:center">
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#059669;margin-bottom:3px">💰 Max Profit Zone</div>
+            <div style="font-size:13px;font-weight:900;color:#059669;font-variant-numeric:tabular-nums" id="sseMaxProfit">—</div>
+            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Between strikes</div>
+          </div>
+          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📉 Lower Breakeven</div>
+            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseLBE">—</div>
+            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Put Strike − Premium</div>
+          </div>
+          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(245,158,11,.08);border:0.5px solid rgba(245,158,11,.25);text-align:center">
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#d97706;margin-bottom:3px">🛑 Stop Loss (2×)</div>
+            <div style="font-size:16px;font-weight:900;color:#d97706;font-variant-numeric:tabular-nums" id="sseSL">—</div>
+            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Close at this loss</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tvChart7 -->
+  </div><!-- end tvChartWrap -->
+
+  <!-- Short Straddle Signal Row -->
+  <div class="tv-signal-row" id="tvSignalRow">
+    <div class="tv-signal-card"><div class="tv-signal-lbl">BB Width</div><div class="tv-signal-val" id="tvSigBB">—</div></div>
+    <div class="tv-signal-card"><div class="tv-signal-lbl">Volume</div><div class="tv-signal-val" id="tvSigVol">—</div></div>
+    <div class="tv-signal-card"><div class="tv-signal-lbl">Trend</div><div class="tv-signal-val" id="tvSigTrend">—</div></div>
+    <div class="tv-signal-card" style="border-left:2px solid #a855f7"><div class="tv-signal-lbl">ADX(14)</div><div class="tv-signal-val" id="tvSigADX">—</div></div>
+    <div class="tv-signal-card" style="border-left:2px solid #f59e0b"><div class="tv-signal-lbl">SMC Bias</div><div class="tv-signal-val" id="tvSigSMC">—</div></div>
+    <div class="tv-signal-card" style="border-left:2px solid #22c55e"><div class="tv-signal-lbl">IVP %ile</div><div class="tv-signal-val" id="tvSigIVP">—</div></div>
+    <div class="tv-signal-card" style="border-left:2px solid #3b82f6"><div class="tv-signal-lbl">Kill Zone</div><div class="tv-signal-val" id="tvSigKZ">—</div></div>
+  </div>
+
+  <!-- Straddle interpretation overlay -->
+  <div class="tv-straddle-overlay" id="tvStraddleOverlay">
+    <b>📐 Short Straddle Interpretation:</b> Loading TradingView signals…
+    <div class="tv-indicator-pills" id="tvIndPills"></div>
+  </div>
+</div>
+
+
+
 <!-- ═══════════════════════════════════════════════════════════
      FRIDAY NIGHT STRANGLE PANEL — CME Settlement Based Entry
      Auto-fetches BTC price · 8:45 PM IST Entry · 2x SL
@@ -3044,390 +3376,21 @@ setTimeout(()=>{
 </div>
 
 
-<div class="metric-row">
-  <div class="metric"><label>BTC Spot <span class="delta-src">delta.exchange</span></label><span id="btcSpot">—</span><div class="metric-sub" id="btcChg">Fetching…</div></div>
-  <div class="metric"><label>Mark Price</label><span id="markPrice">—</span><div class="metric-sub" id="markSub">Delta mark</div></div>
-  <div class="metric"><label>DVOL Index</label><span id="dvolVal">—</span><div class="metric-sub">Deribit BTC DVOL</div></div>
-  <div class="metric"><label>30D HV</label><span id="hv30">—</span><div class="metric-sub">Realised vol</div></div>
-  <!-- VoV Seller Panel -->
-  <div class="metric" style="min-width:300px;flex:3;padding:0;background:transparent;border:none">
-    <div id="dashVoVPanel" style="border-radius:10px;border:1px solid var(--color-border-tertiary);overflow:hidden;background:var(--color-background-primary)">
-      <!-- Header row -->
-      <div id="dashVoVHeader" style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--color-background-secondary);border-bottom:1px solid var(--color-border-tertiary)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:13px">🌊</span>
-          <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-primary)">VoV — Seller Regime</span>
-          <span id="dashVoVRegimePill" class="vov-regime-pill" style="background:rgba(107,114,128,.1);color:#6b7280;border-color:rgba(107,114,128,.2)">Loading…</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="dashVoVTrend" class="vov-regime-trend" style="font-size:11px">—</span>
-          <span id="dashVoVVal" class="vov-regime-val" style="font-size:15px;font-weight:900;font-variant-numeric:tabular-nums">—</span>
-        </div>
-      </div>
-      <!-- Seller action bar -->
-      <div style="padding:6px 12px;border-bottom:1px solid var(--color-border-tertiary)">
-        <div id="dashVoVAction" style="font-size:10px;font-weight:700;color:var(--color-text-primary);line-height:1.4">—</div>
-        <div id="dashVoVDesc" class="vov-regime-desc" style="margin-top:2px">—</div>
-      </div>
-      <!-- 3-metric row -->
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--color-border-tertiary)">
-        <div style="flex:1;padding:6px 10px;text-align:center;border-right:1px solid var(--color-border-tertiary)">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Best Expiry</div>
-          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVExpiry">—</div>
-        </div>
-        <div style="flex:1;padding:6px 10px;text-align:center;border-right:1px solid var(--color-border-tertiary)">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Strike Width</div>
-          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVWidth">—</div>
-        </div>
-        <div style="flex:1;padding:6px 10px;text-align:center">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary)">Size</div>
-          <div style="font-size:11px;font-weight:800;margin-top:2px" id="dashVoVSize">—</div>
-        </div>
-      </div>
-      <!-- Narration row -->
-      <div style="padding:5px 12px">
-        <span id="ivRiseNarration" class="iv-rise-narration ivn-flat" style="display:block;font-size:9px;margin-bottom:3px">Loading IV trend…</span>
-        <span id="vovNarration" class="vov-narration vovn-calm" style="display:block;font-size:9px">Loading VoV…</span>
-      </div>
-    </div>
-    <!-- Keep hidden legacy elements for compatibility -->
-    <span id="vovVal" style="display:none">—</span>
-    <div id="vovSub" style="display:none">—</div>
-  </div>
-  <div class="metric"><label>Front−Back Skew</label><span id="ivSkew">—</span><div class="metric-sub" id="ivSkewSub">Loading expiries…</div></div>
-</div>
-
-
-
-<!-- ₿ BTC SPOT PRICE — HUGE LIVE DISPLAY -->
-<div id="btcSpotHero" style="
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 18px 24px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  position: relative;
-  overflow: hidden;
-">
-  <div style="position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:200px;height:120px;background:radial-gradient(ellipse,rgba(247,147,26,0.15),transparent 70%);pointer-events:none"></div>
-  <div style="display:flex;align-items:center;gap:14px">
-    <div style="font-size:36px;line-height:1">₿</div>
-    <div>
-      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;margin-bottom:2px">BTC / USD · Live Spot</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;background:#0f3d2a;color:#6ee7b7">● Binance</span>
-        <span style="font-size:9px;color:#64748b" id="btcHeroTs">—</span>
-      </div>
-    </div>
-  </div>
-  <div style="text-align:center;flex:1;min-width:200px">
-    <div id="btcHeroPrice" style="font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;color:#f8fafc;letter-spacing:-1px;line-height:1;text-shadow:0 2px 20px rgba(247,147,26,0.4)">—</div>
-    <div id="btcHeroChange" style="font-size:14px;font-weight:700;margin-top:4px;color:#94a3b8">Loading…</div>
-  </div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end">
-    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H HIGH</div>
-      <div id="btcHeroHigh" style="font-size:16px;font-weight:800;color:#22c55e;font-variant-numeric:tabular-nums">—</div>
-    </div>
-    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H LOW</div>
-      <div id="btcHeroLow" style="font-size:16px;font-weight:800;color:#ef4444;font-variant-numeric:tabular-nums">—</div>
-    </div>
-    <div style="text-align:center;padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:3px">24H VOL</div>
-      <div id="btcHeroVol" style="font-size:16px;font-weight:800;color:#f59e0b;font-variant-numeric:tabular-nums">—</div>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  let _btcHeroLast = 0;
-  function updateBtcHero(){
-    const spot = (typeof state !== 'undefined' && (state.btcSpotLive || state.btcBase)) || 0;
-    const priceEl = document.getElementById('btcHeroPrice');
-    const changeEl = document.getElementById('btcHeroChange');
-    const tsEl = document.getElementById('btcHeroTs');
-    if(!priceEl) return;
-    if(spot > 0){
-      priceEl.textContent = '$' + spot.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
-      priceEl.classList.add('price-flash');
-      setTimeout(() => priceEl.classList.remove('price-flash'), 400);
-      const chg = spot - _btcHeroLast;
-      if(_btcHeroLast > 0 && changeEl){
-        const pct = ((chg / _btcHeroLast) * 100).toFixed(2);
-        const sign = chg >= 0 ? '+' : '';
-        changeEl.textContent = sign + '$' + Math.abs(chg).toFixed(0) + '  (' + sign + pct + '% today)';
-        changeEl.style.color = chg >= 0 ? '#22c55e' : '#ef4444';
-      }
-      _btcHeroLast = spot;
-    }
-    if(tsEl) tsEl.textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    const h24 = (typeof state !== 'undefined') ? state.btcHigh24 || state.high24 : null;
-    const l24 = (typeof state !== 'undefined') ? state.btcLow24  || state.low24  : null;
-    const v24 = (typeof state !== 'undefined') ? state.btcVol24  || state.vol24  : null;
-    const hiEl = document.getElementById('btcHeroHigh');
-    const loEl = document.getElementById('btcHeroLow');
-    const volEl= document.getElementById('btcHeroVol');
-    if(hiEl && h24 > 0) hiEl.textContent = '$' + Math.round(h24).toLocaleString();
-    if(loEl && l24 > 0) loEl.textContent = '$' + Math.round(l24).toLocaleString();
-    if(volEl && v24 > 0){ volEl.textContent = v24 > 1000 ? (v24/1000).toFixed(1) + 'K BTC' : v24.toFixed(0) + ' BTC'; }
-  }
-  setInterval(updateBtcHero, 3000);
-  setTimeout(updateBtcHero, 2000);
-})();
-</script>
-
-
-<!-- ═══ MARKET ENVIRONMENT ═══ -->
-
-<!-- ═══════════════════════════════════════════
-     TRADINGVIEW LIVE ANALYSIS — BTC/USDT + DVOL
-     Short Straddle Multi-Indicator Dashboard
-     ═══════════════════════════════════════════ -->
-<div class="tv-panel" id="tvPanel">
-  <div class="tv-header">
-    <div class="tv-title">
-      📊 TradingView Live Analysis
-      <span class="tv-badge">LIVE</span>
-      <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-secondary)">Short Straddle Multi-Signal</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <span style="font-size:9px;color:var(--color-text-secondary)" id="tvLastUpdate">Auto-linked</span>
-      <button onclick="tvRefreshSignals()" style="font-size:10px;padding:2px 9px;border-radius:5px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:700">↻ Signals</button>
-    </div>
-  </div>
-
-  <!-- Chart tab selector -->
-  <div class="tv-tabs">
-    <button class="tv-tab active" id="tvTab0" onclick="switchTVTab(0)">₿ BTC/USDT — 4H</button>
-    <button class="tv-tab" id="tvTab1" onclick="switchTVTab(1)">📈 BTC/USDT — 1H</button>
-    <button class="tv-tab" id="tvTab2" onclick="switchTVTab(2)">🌊 DVOL Index</button>
-    <button class="tv-tab" id="tvTab3" onclick="switchTVTab(3)">📐 BB Squeeze</button>
-    <button class="tv-tab" id="tvTab4" onclick="switchTVTab(4)">⚡ BTC Dominance</button>
-    <button class="tv-tab" id="tvTab5" onclick="switchTVTab(5)">📊 ADX + SMC</button>
-    <button class="tv-tab" id="tvTab6" onclick="switchTVTab(6)">🕐 ICT Kill Zones</button>
-    <button class="tv-tab" id="tvTab7" onclick="switchTVTab(7)">⚡ Strangle Effect</button>
-  </div>
-
-  <!-- TradingView Chart containers -->
-  <div id="tvChartWrap">
-    <div id="tvChart0" class="tv-chart-frame" style="height:420px"></div>
-    <div id="tvChart1" class="tv-chart-frame" style="height:420px;display:none"></div>
-    <div id="tvChart2" class="tv-chart-frame" style="height:380px;display:none"></div>
-    <div id="tvChart3" class="tv-chart-frame" style="height:380px;display:none"></div>
-    <div id="tvChart4" class="tv-chart-frame" style="height:340px;display:none"></div>
-    <div id="tvChart5" class="tv-chart-frame" style="height:460px;display:none"></div>
-    <div id="tvChart6" class="tv-chart-frame" style="height:420px;display:none"></div>
-
-    <!-- Tab 7: Short Strangle Effect Panel -->
-    <div id="tvChart7" style="display:none;padding:4px 0">
-
-      <style>
-      /* ── Short Strangle Effect Panel ── */
-      .sse-wrap{background:var(--color-background-secondary);border-radius:12px;padding:12px 14px;margin-bottom:10px}
-      .sse-section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-      /* P&L Visualizer */
-      .sse-pnl-wrap{position:relative;width:100%;height:160px;margin-bottom:6px}
-      .sse-pnl-wrap canvas{width:100%!important;height:160px!important}
-      /* Strike inputs */
-      .sse-input-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end}
-      .sse-input-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}
-      .sse-input-group label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary)}
-      .sse-input-group input{font-size:12px;font-weight:700;padding:6px 10px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:inherit;font-variant-numeric:tabular-nums}
-      .sse-calc-btn{font-size:11px;font-weight:800;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;cursor:pointer;white-space:nowrap;transition:opacity .2s;align-self:flex-end}
-      .sse-calc-btn:hover{opacity:.85}
-      /* Metrics grid */
-      .sse-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px;margin-bottom:10px}
-      .sse-metric{border-radius:9px;padding:9px 11px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
-      .sse-metric-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
-      .sse-metric-val{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-      .sse-metric-sub{font-size:8px;color:var(--color-text-secondary);margin-top:2px}
-      /* Scenario table */
-      .sse-table{width:100%;border-collapse:collapse;font-size:10px}
-      .sse-table th{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);padding:4px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right}
-      .sse-table th:first-child{text-align:left}
-      .sse-table td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right;font-variant-numeric:tabular-nums}
-      .sse-table td:first-child{text-align:left;font-weight:600}
-      .sse-table tr:last-child td{border-bottom:none}
-      .sse-profit{color:#22c55e;font-weight:700}
-      .sse-loss{color:#ef4444;font-weight:700}
-      .sse-breakeven{color:#f59e0b;font-weight:700}
-      /* Adjustment signal */
-      .sse-adj-banner{border-radius:10px;padding:10px 13px;display:flex;align-items:flex-start;gap:10px;border:1.5px solid transparent;margin-bottom:8px;transition:all .3s}
-      .sse-adj-safe{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25)}
-      .sse-adj-warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25)}
-      .sse-adj-danger{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.25)}
-      .sse-adj-icon{font-size:22px;flex-shrink:0;line-height:1}
-      .sse-adj-body{flex:1}
-      .sse-adj-title{font-size:12px;font-weight:800;margin-bottom:2px}
-      .sse-adj-safe .sse-adj-title{color:#059669}
-      .sse-adj-warn .sse-adj-title{color:#d97706}
-      .sse-adj-danger .sse-adj-title{color:#dc2626}
-      .sse-adj-desc{font-size:10px;color:var(--color-text-secondary);line-height:1.5}
-      .sse-adj-steps{margin-top:5px;display:flex;flex-direction:column;gap:3px}
-      .sse-adj-step{font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;display:flex;align-items:center;gap:5px}
-      .sse-adj-safe .sse-adj-step{background:rgba(34,197,94,.1);color:#059669}
-      .sse-adj-warn .sse-adj-step{background:rgba(245,158,11,.1);color:#d97706}
-      .sse-adj-danger .sse-adj-step{background:rgba(239,68,68,.1);color:#dc2626}
-      /* Greeks impact */
-      .sse-greeks-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-      .sse-greek-tile{flex:1;min-width:80px;border-radius:8px;padding:7px 10px;text-align:center;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
-      .sse-greek-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
-      .sse-greek-val{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
-      .sse-greek-impact{font-size:8px;margin-top:2px}
-      </style>
-
-      <!-- Input Row -->
-      <div class="sse-wrap">
-        <div class="sse-section-title">⚙️ Position Setup — Auto-filled from Live Data</div>
-        <div class="sse-input-row">
-          <div class="sse-input-group">
-            <label>Spot Price ($)</label>
-            <input type="number" id="sseSpot" placeholder="85000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Call Strike ($)</label>
-            <input type="number" id="sseCallStrike" placeholder="93000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Put Strike ($)</label>
-            <input type="number" id="ssePutStrike" placeholder="77000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Premium Collected ($)</label>
-            <input type="number" id="ssePremium" placeholder="400" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>DTE Remaining</label>
-            <input type="number" id="sseDTE" placeholder="18" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>IV% (ATM)</label>
-            <input type="number" id="sseIV" placeholder="55" oninput="sseCompute()">
-          </div>
-          <button class="sse-calc-btn" onclick="sseAutoFill()">⚡ Auto-Fill Live</button>
-        </div>
-
-        <!-- Adjustment Signal Banner -->
-        <div class="sse-adj-banner sse-adj-safe" id="sseAdjBanner">
-          <span class="sse-adj-icon" id="sseAdjIcon">✅</span>
-          <div class="sse-adj-body">
-            <div class="sse-adj-title" id="sseAdjTitle">POSITION SAFE — No Adjustment Needed</div>
-            <div class="sse-adj-desc" id="sseAdjDesc">Enter position details above or click Auto-Fill to analyse your current strangle in real time.</div>
-            <div class="sse-adj-steps" id="sseAdjSteps"></div>
-          </div>
-        </div>
-
-        <!-- Greeks Impact Row -->
-        <div class="sse-section-title">🔢 Live Greeks Impact on Your Strangle</div>
-        <div class="sse-greeks-row">
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Δ Delta</div>
-            <div class="sse-greek-val" id="sseGDelta" style="color:#3b82f6">—</div>
-            <div class="sse-greek-impact" id="sseGDeltaImp" style="color:var(--color-text-secondary)">Net position delta</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Γ Gamma</div>
-            <div class="sse-greek-val" id="sseGGamma" style="color:#f97316">—</div>
-            <div class="sse-greek-impact" id="sseGGammaImp" style="color:var(--color-text-secondary)">Risk per $1 move</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Θ Theta</div>
-            <div class="sse-greek-val" id="sseGTheta" style="color:#22c55e">—</div>
-            <div class="sse-greek-impact" id="sseGThetaImp" style="color:var(--color-text-secondary)">Daily profit</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">V Vega</div>
-            <div class="sse-greek-val" id="sseGVega" style="color:#a855f7">—</div>
-            <div class="sse-greek-impact" id="sseGVegaImp" style="color:var(--color-text-secondary)">Per 1% IV change</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">P&L Today</div>
-            <div class="sse-greek-val" id="sseGPnL" style="color:#22c55e">—</div>
-            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">Theta − Vega drag</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Days to 50%</div>
-            <div class="sse-greek-val" id="sseGDays" style="color:#f59e0b">—</div>
-            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">At current theta</div>
-          </div>
-        </div>
-
-        <!-- P&L Chart -->
-        <div class="sse-section-title">📈 P&L At Expiry — Short Strangle Payoff Diagram</div>
-        <div class="sse-pnl-wrap"><canvas id="ssePnLChart"></canvas></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:9px;color:var(--color-text-secondary);margin-bottom:8px">
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#22c55e;border-radius:2px;display:inline-block"></span>Profit Zone</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#ef4444;border-radius:2px;display:inline-block"></span>Loss Zone</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#f59e0b;border-radius:2px;display:inline-block"></span>Breakeven</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#3b82f6;border-radius:2px;display:inline-block"></span>Current Spot</span>
-        </div>
-
-        <!-- Scenario Table -->
-        <div class="sse-section-title">📊 Scenario Analysis — What Happens If BTC Moves?</div>
-        <div style="overflow-x:auto">
-          <table class="sse-table">
-            <thead>
-              <tr>
-                <th>BTC Price</th><th>Move%</th><th>Call P&L</th><th>Put P&L</th><th>Net P&L</th><th>% of Premium</th><th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="sseScenarioBody">
-              <tr><td colspan="7" style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:10px">Enter position details above and click Auto-Fill</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Key Levels -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px" id="sseLevelsRow">
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📈 Upper Breakeven</div>
-            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseUBE">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Call Strike + Premium</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(34,197,94,.08);border:0.5px solid rgba(34,197,94,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#059669;margin-bottom:3px">💰 Max Profit Zone</div>
-            <div style="font-size:13px;font-weight:900;color:#059669;font-variant-numeric:tabular-nums" id="sseMaxProfit">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Between strikes</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📉 Lower Breakeven</div>
-            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseLBE">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Put Strike − Premium</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(245,158,11,.08);border:0.5px solid rgba(245,158,11,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#d97706;margin-bottom:3px">🛑 Stop Loss (2×)</div>
-            <div style="font-size:16px;font-weight:900;color:#d97706;font-variant-numeric:tabular-nums" id="sseSL">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Close at this loss</div>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- end tvChart7 -->
-  </div><!-- end tvChartWrap -->
-
-  <!-- Short Straddle Signal Row -->
-  <div class="tv-signal-row" id="tvSignalRow">
-    <div class="tv-signal-card"><div class="tv-signal-lbl">BB Width</div><div class="tv-signal-val" id="tvSigBB">—</div></div>
-    <div class="tv-signal-card"><div class="tv-signal-lbl">Volume</div><div class="tv-signal-val" id="tvSigVol">—</div></div>
-    <div class="tv-signal-card"><div class="tv-signal-lbl">Trend</div><div class="tv-signal-val" id="tvSigTrend">—</div></div>
-    <div class="tv-signal-card" style="border-left:2px solid #a855f7"><div class="tv-signal-lbl">ADX(14)</div><div class="tv-signal-val" id="tvSigADX">—</div></div>
-    <div class="tv-signal-card" style="border-left:2px solid #f59e0b"><div class="tv-signal-lbl">SMC Bias</div><div class="tv-signal-val" id="tvSigSMC">—</div></div>
-    <div class="tv-signal-card" style="border-left:2px solid #22c55e"><div class="tv-signal-lbl">IVP %ile</div><div class="tv-signal-val" id="tvSigIVP">—</div></div>
-    <div class="tv-signal-card" style="border-left:2px solid #3b82f6"><div class="tv-signal-lbl">Kill Zone</div><div class="tv-signal-val" id="tvSigKZ">—</div></div>
-  </div>
-
-  <!-- Straddle interpretation overlay -->
-  <div class="tv-straddle-overlay" id="tvStraddleOverlay">
-    <b>📐 Short Straddle Interpretation:</b> Loading TradingView signals…
-    <div class="tv-indicator-pills" id="tvIndPills"></div>
-  </div>
-</div>
+<!-- Hidden legacy elements kept for JS compatibility -->
+<span id="vovVal" style="display:none">—</span>
+<div id="vovSub" style="display:none">—</div>
+<span id="dashVoVRegimePill" style="display:none"></span>
+<span id="dashVoVTrend" style="display:none"></span>
+<span id="dashVoVVal" style="display:none"></span>
+<div id="dashVoVAction" style="display:none"></div>
+<div id="dashVoVDesc" style="display:none"></div>
+<div id="dashVoVExpiry" style="display:none"></div>
+<div id="dashVoVWidth" style="display:none"></div>
+<div id="dashVoVSize" style="display:none"></div>
+<span id="ivRiseNarration" style="display:none"></span>
+<span id="vovNarration" style="display:none"></span>
+<span id="ivSkew" style="display:none"></span>
+<div id="ivSkewSub" style="display:none"></div>
 
 
 
