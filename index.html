@@ -13371,7 +13371,7 @@ setTimeout(()=>{
       </div>
       <div class="sim-ctrl">
         <label class="sim-ctrl-lbl">Lots (size)</label>
-        <input type="number" id="simLots" value="1" min="1" max="100" step="1" onchange="simRecalcPreview()">
+        <input type="number" id="simLots" value="1" min="0.1" max="100" step="0.1" onchange="simRecalcPreview()">
       </div>
       <div class="sim-ctrl">
         <label class="sim-ctrl-lbl">Slippage Model</label>
@@ -13476,7 +13476,7 @@ setTimeout(()=>{
 
         <div class="sim-legs">
           <div class="sim-leg sim-leg-call" id="simLegCall">
-            <div class="sim-leg-head" style="color:#16a34a">SHORT CALL</div>
+            <div class="sim-leg-head" id="simLegCallHead" style="color:#16a34a">SHORT CALL</div>
             <div class="sim-leg-strike" id="simCallStrike">—</div>
             <div class="sim-leg-sub" id="simCallSub">—</div>
             <div class="sim-leg-metrics">
@@ -13496,7 +13496,7 @@ setTimeout(()=>{
           </div>
 
           <div class="sim-leg sim-leg-put" id="simLegPut">
-            <div class="sim-leg-head" style="color:#dc2626">SHORT PUT</div>
+            <div class="sim-leg-head" id="simLegPutHead" style="color:#dc2626">SHORT PUT</div>
             <div class="sim-leg-strike" id="simPutStrike">—</div>
             <div class="sim-leg-sub" id="simPutSub">—</div>
             <div class="sim-leg-metrics">
@@ -15375,43 +15375,192 @@ setTimeout(()=>{
     return 'other';
   }
 
+  // ──────────────────────────────────────────────────────────────────
+  // Parse target deltas from an SDP signal's strategy text. Returns
+  // null if the strategy isn't a recognized credit/debit spread shape.
+  //
+  // Examples handled:
+  //   "BEAR CALL SPREAD (defensive)" → short .25Δ C / long .10Δ C
+  //   "BEAR CALL SPREAD (credit)"    → short .30Δ C / long .15Δ C
+  //   "BULL PUT SPREAD (defensive)"  → short .25Δ P / long .10Δ P
+  //   "BULL PUT SPREAD (credit)"     → short .30Δ P / long .15Δ P
+  // ──────────────────────────────────────────────────────────────────
+  function _simSdpExtractTargets(sdp){
+    const strat = (sdp.strategy || '').toUpperCase();
+    const desc  = (sdp.stratDesc || '').toLowerCase();
+
+    // Try to extract numeric deltas from the description first (most accurate).
+    // Pattern: "sell .30Δ call, buy .15Δ call" or "sell .25Δ put, buy .10Δ put"
+    const sellMatch = desc.match(/sell\s+\.?(\d{1,2})\s*[δd]\s*(call|put)/i);
+    const buyMatch  = desc.match(/buy\s+\.?(\d{1,2})\s*[δd]\s*(call|put)/i);
+
+    let shortDelta, longDelta, side;
+    if(sellMatch && buyMatch){
+      // ".30" stored as "30" → divide by 100; ".25" → 25 → 0.25
+      shortDelta = parseInt(sellMatch[1], 10) / 100;
+      longDelta  = parseInt(buyMatch[1], 10) / 100;
+      side = sellMatch[2].toLowerCase();
+    } else {
+      // Fallback: infer from strategy label
+      if(/BEAR CALL SPREAD/.test(strat)){
+        side = 'call';
+        if(/DEFENSIVE/.test(strat)){ shortDelta = 0.25; longDelta = 0.10; }
+        else                       { shortDelta = 0.30; longDelta = 0.15; }
+      } else if(/BULL PUT SPREAD/.test(strat)){
+        side = 'put';
+        if(/DEFENSIVE/.test(strat)){ shortDelta = 0.25; longDelta = 0.10; }
+        else                       { shortDelta = 0.30; longDelta = 0.15; }
+      } else {
+        return null;  // unsupported shape (jade lizard, iron condor, etc.)
+      }
+    }
+    if(!isFinite(shortDelta) || !isFinite(longDelta)) return null;
+    return { shortDelta, longDelta, side };
+  }
+
+  // Find the chain strike whose delta is closest to target. Requires
+  // tradable quotes (bid>0, ask>0) so we don't pick BS-backfilled rows.
+  // For puts, target delta is treated as positive (we negate when comparing).
+  function _simSdpFindStrikeByDelta(expiryRow, side, targetDelta){
+    if(!expiryRow) return null;
+    const rows = side === 'call' ? expiryRow.calls : expiryRow.puts;
+    if(!rows || !rows.length) return null;
+    // For puts, chain stores deltas as negative; compare on absolute value.
+    return rows
+      .filter(r => r.bid > 0 && r.ask > 0 && isFinite(r.delta))
+      .reduce((best, r) => {
+        const rDelta = Math.abs(r.delta);
+        if(!best) return r;
+        const bestDelta = Math.abs(best.delta);
+        return Math.abs(rDelta - targetDelta) < Math.abs(bestDelta - targetDelta) ? r : best;
+      }, null);
+  }
+
   // Mint a paper-only position from an SDP signal whose strategy isn't
-  // natively simulable. PnL won't tick, but the trade is timestamped and
-  // appears in the roster so you can audit every signal.
+  // natively simulable. For credit spreads (BEAR CALL / BULL PUT), we
+  // populate real legs from the live chain so the panel shows actual
+  // strikes, premiums, greeks, and live P&L. For more complex shapes
+  // (jade lizard, iron condor, debit spreads), legs stay stubbed and
+  // the panel correctly indicates "open in Delta to track real PnL".
   function _simSdpMintPaperPosition(sdp){
     const stype = _simSdpStrategyType(sdp.strategy);
     if(stype === 'stand_aside') return null;   // don't open a trade for AVOID
-    // Strict: refuse to mint a paper position without a recommended expiry.
-    // Falling back to simState.currentExpiry was how stale "20.0D" / "34.0D"
-    // duplicates leaked in.
     const exp = sdp.bestExpiry?.label;
     if(!exp){
       console.warn('[SDP→Paper] refused: no recommended expiry on signal');
       return null;
     }
+
+    // Try to extract real strikes from the chain for credit spreads.
+    // If extraction succeeds, the position becomes "paper but populated"
+    // — strikes/greeks render correctly, but it's still flagged paperOnly
+    // because we're not actually executing on Delta.
+    let callLeg = { strike: null, entryPx: 0, entryIV: 0, entryDelta: 0, currentMark: 0 };
+    let putLeg  = { strike: null, entryPx: 0, entryIV: 0, entryDelta: 0, currentMark: 0 };
+    let creditInitial = 0;
+    let populated = false;
+    let populatedNote = '';
+
+    const targets = _simSdpExtractTargets(sdp);
+    const expiryRow = simState.chain?.expiries?.[exp];
+    if(targets && expiryRow){
+      const shortPick = _simSdpFindStrikeByDelta(expiryRow, targets.side, targets.shortDelta);
+      const longPick  = _simSdpFindStrikeByDelta(expiryRow, targets.side, targets.longDelta);
+      if(shortPick && longPick && shortPick.strike !== longPick.strike){
+        // Slippage model — same as live execution path
+        const slipMode = $('simSlippage')?.value || 'spread50';
+        const _midPx = (r) => (r.bid + r.ask) / 2;
+        const _execShort = slipMode === 'mid' ? _midPx(shortPick)
+                          : slipMode === 'spread50' ? (_midPx(shortPick) - (shortPick.ask - shortPick.bid)*0.25)
+                          : slipMode === 'spread80' ? shortPick.bid
+                          :                            shortPick.bid;
+        const _execLong  = slipMode === 'mid' ? _midPx(longPick)
+                          : slipMode === 'spread50' ? (_midPx(longPick) + (longPick.ask - longPick.bid)*0.25)
+                          : slipMode === 'spread80' ? longPick.ask
+                          :                            longPick.ask;
+        // Net credit = short premium received − long premium paid (per BTC)
+        creditInitial = (_execShort - _execLong);
+
+        // Map the spread legs into call/put slots based on side.
+        // For BEAR CALL SPREAD: both legs are calls — store the SHORT
+        // call in pos.call (the panel labels it "SHORT CALL"), and the
+        // LONG (wing) call in pos.put slot as a workaround so the
+        // panel shows both. Mark the position with `spreadShape` so
+        // downstream code knows.
+        if(targets.side === 'call'){
+          callLeg = {
+            strike: shortPick.strike,
+            entryPx: _execShort,
+            entryIV: shortPick.iv || 0,
+            entryDelta: shortPick.delta,
+            currentMark: _midPx(shortPick),
+            role: 'short',
+          };
+          // Long wing in put slot
+          putLeg = {
+            strike: longPick.strike,
+            entryPx: _execLong,
+            entryIV: longPick.iv || 0,
+            entryDelta: longPick.delta,
+            currentMark: _midPx(longPick),
+            role: 'long_wing',
+          };
+        } else {
+          // BULL PUT SPREAD: both legs are puts
+          putLeg = {
+            strike: shortPick.strike,
+            entryPx: _execShort,
+            entryIV: shortPick.iv || 0,
+            entryDelta: shortPick.delta,
+            currentMark: _midPx(shortPick),
+            role: 'short',
+          };
+          callLeg = {
+            strike: longPick.strike,
+            entryPx: _execLong,
+            entryIV: longPick.iv || 0,
+            entryDelta: longPick.delta,
+            currentMark: _midPx(longPick),
+            role: 'long_wing',
+          };
+        }
+        populated = true;
+        populatedNote = `Auto-picked ${targets.side === 'call' ? 'C' : 'P'}${shortPick.strike} (short, .${Math.round(Math.abs(shortPick.delta)*100)}Δ) / ${targets.side === 'call' ? 'C' : 'P'}${longPick.strike} (long wing, .${Math.round(Math.abs(longPick.delta)*100)}Δ) — net credit $${creditInitial.toFixed(2)}/BTC`;
+      }
+    }
+
+    // Paper-trade lot size: fixed at 100 lots so the simulated dollar
+    // P&L is large enough to be meaningful while testing the auto-trader.
+    // Real (non-paper) trades still use the simLots input value via the
+    // simExecute path.
+    const _paperLots = 100;
     const pos = {
       id: 'pos_sdp_' + Date.now() + '_' + Math.floor(Math.random()*1000),
       source: 'sdp_paper',
       paperOnly: true,
       paperLabel: sdp.strategy,
+      paperPopulated: populated,        // true if we filled real strikes
+      paperNote:      populatedNote,    // human description of the auto-pick
+      spreadShape: targets ? `${targets.side}_credit_spread` : null,
       sourceMeta: { signature: sdp.signature, score: sdp.score, verdict: sdp.verdict, regime: sdp.regime, mpoMove7d: sdp.mpoMove7d, strategy: sdp.strategy },
       expiry: exp,
       entryTs: Date.now(),
       entrySpot: getLiveSpot(),
-      lots: parseInt($('simLots')?.value || 1),
+      lots: _paperLots,
       slipMode: $('simSlippage')?.value || 'spread50',
-      // Synthetic legs: minimal stub so existing readers don't blow up.
-      // Strikes left undefined; UI gates on paperOnly to avoid reading them.
-      call: { strike: null, entryPx: 0, entryIV: 0, entryDelta: 0, currentMark: 0 },
-      put:  { strike: null, entryPx: 0, entryIV: 0, entryDelta: 0, currentMark: 0 },
-      creditInitial: 0,
+      call: callLeg,
+      put:  putLeg,
+      creditInitial: creditInitial,
       slippageCostTotal: 0,
       currentPnl: 0,
       currentDTE: sdp.bestExpiry?.dte || null,
       pctMaxProfit: 0,
-      pnlSeries: [{ t: Date.now(), spot: getLiveSpot(), pnl: 0, callMark: 0, putMark: 0 }],
+      pnlSeries: [{ t: Date.now(), spot: getLiveSpot(), pnl: 0, callMark: callLeg.currentMark, putMark: putLeg.currentMark }],
     };
     simAddPosition(pos);
+    if(populated){
+      console.log('[SDP→Paper] populated:', populatedNote);
+    }
     return pos;
   }
 
@@ -15594,6 +15743,184 @@ setTimeout(()=>{
       const _heldStr = _heldMin>=60 ? `${Math.floor(_heldMin/60)}h ${_heldMin%60}m` : `${_heldMin}m`;
       const sm = pos.sourceMeta || {};
       $set('simPosLabel', `📝 SDP Paper Trade · ${pos.paperLabel || 'strategy'}  ·  📅 Opened ${_entryStr}  ·  ⏱ Held ${_heldStr}`);
+
+      // ── Populated paper trade (credit spread with real strikes) ──
+      // We have real legs, so render their strikes/premiums and compute
+      // a live mark-to-market P&L from the current chain, just like a
+      // real position. Still flagged paperOnly because we're not actually
+      // executing on Delta.
+      if(pos.paperPopulated && pos.call?.strike && pos.put?.strike){
+        const ex = simState.chain?.expiries?.[pos.expiry];
+        const isCallSpread = pos.spreadShape === 'call_credit_spread';
+        const _shortLeg = isCallSpread ? pos.call : pos.put;     // the short (credit) leg
+        const _longLeg  = isCallSpread ? pos.put  : pos.call;    // the long (wing) leg
+        const _shortType = isCallSpread ? 'call' : 'put';
+        const _longType  = isCallSpread ? 'call' : 'put';
+
+        // Live marks from chain (if available)
+        const _findRow = (side, strike) => {
+          if(!ex) return null;
+          const arr = side === 'call' ? ex.calls : ex.puts;
+          return arr?.find(r => r.strike === strike) || null;
+        };
+        const _shortRow = _findRow(_shortType, _shortLeg.strike);
+        const _longRow  = _findRow(_longType,  _longLeg.strike);
+        const _shortMark = _shortRow?.mark > 0 ? _shortRow.mark : _shortLeg.currentMark;
+        const _longMark  = _longRow?.mark  > 0 ? _longRow.mark  : _longLeg.currentMark;
+
+        // Net P&L for credit spread:
+        //   short leg P&L = (entry − current) × lots × contract  (we sold)
+        //   long leg P&L  = (current − entry) × lots × contract  (we bought)
+        const _shortPnl = (_shortLeg.entryPx - _shortMark) * pos.lots * CONTRACT_SIZE;
+        const _longPnl  = (_longMark - _longLeg.entryPx)  * pos.lots * CONTRACT_SIZE;
+        const _totalPnl = _shortPnl + _longPnl;
+        const _maxProfit = pos.creditInitial * pos.lots * CONTRACT_SIZE;
+        const _pctMax    = _maxProfit > 0 ? (_totalPnl / _maxProfit * 100) : 0;
+
+        // Update meta line — show strikes & note
+        $set('simPosMeta', `Verdict: ${sm.verdict||'—'} · Score ${sm.score??'—'}/100 · Expiry: ${pos.expiry} · ${pos.paperNote || 'Auto-picked from chain'} · Lots: ${pos.lots}`);
+
+        // Position-level P&L
+        const pnlEl = $('simPosPnl');
+        if(pnlEl){
+          pnlEl.textContent = `${_totalPnl >= 0 ? '+' : ''}$${_totalPnl.toFixed(2)}`;
+          pnlEl.className = 'sim-pos-pnl ' + (_totalPnl >= 0 ? 'pos-pnl-pos' : 'pos-pnl-neg');
+        }
+        $('simPosCard').className = 'sim-pos-card ' + (_totalPnl >= 0 ? 'pos-pos' : 'pos-neg');
+
+        // Restore leg-card opacity
+        ['simLegCall','simLegPut'].forEach(id => { const el=$(id); if(el) el.style.opacity = '1'; });
+
+        // ── Relabel the leg-head titles to match what's actually in each slot ──
+        // Without this the headers stay "SHORT CALL" / "SHORT PUT" even when
+        // the right slot holds a long-wing call.
+        const callHead = $('simLegCallHead');
+        const putHead  = $('simLegPutHead');
+        const _fmtDol = (n) => `${n >= 0 ? '+' : ''}$${n.toFixed(2)}`;
+        if(isCallSpread){
+          if(callHead){ callHead.textContent = 'SHORT CALL';        callHead.style.color = '#dc2626'; }  // red — net short
+          if(putHead) { putHead.textContent  = 'LONG CALL (WING)';  putHead.style.color  = '#16a34a'; }  // green — protective long
+          $set('simCallStrike', `${pos.call.strike} C (short)`);
+          $set('simCallSub',    `Δ ${pos.call.entryDelta.toFixed(2)} · IV ${pos.call.entryIV.toFixed(1)}%`);
+          $set('simCallPnl',    _fmtDol(_shortPnl));
+          $set('simCallDelta',  pos.call.entryDelta.toFixed(3));
+          $set('simCallMark',   `$${_shortMark.toFixed(2)}`);
+          $set('simPutStrike',  `${pos.put.strike} C (long wing)`);
+          $set('simPutSub',     `Δ ${pos.put.entryDelta.toFixed(2)} · IV ${pos.put.entryIV.toFixed(1)}%`);
+          $set('simPutPnl',     _fmtDol(_longPnl));
+          $set('simPutDelta',   pos.put.entryDelta.toFixed(3));
+          $set('simPutMark',    `$${_longMark.toFixed(2)}`);
+        } else {
+          // Bull put spread: short put in put slot, long put in call slot
+          if(callHead){ callHead.textContent = 'LONG PUT (WING)';   callHead.style.color = '#16a34a'; }
+          if(putHead) { putHead.textContent  = 'SHORT PUT';         putHead.style.color  = '#dc2626'; }
+          $set('simCallStrike', `${pos.call.strike} P (long wing)`);
+          $set('simCallSub',    `Δ ${pos.call.entryDelta.toFixed(2)} · IV ${pos.call.entryIV.toFixed(1)}%`);
+          $set('simCallPnl',    _fmtDol(_longPnl));
+          $set('simCallDelta',  pos.call.entryDelta.toFixed(3));
+          $set('simCallMark',   `$${_longMark.toFixed(2)}`);
+          $set('simPutStrike',  `${pos.put.strike} P (short)`);
+          $set('simPutSub',     `Δ ${pos.put.entryDelta.toFixed(2)} · IV ${pos.put.entryIV.toFixed(1)}%`);
+          $set('simPutPnl',     _fmtDol(_shortPnl));
+          $set('simPutDelta',   pos.put.entryDelta.toFixed(3));
+          $set('simPutMark',    `$${_shortMark.toFixed(2)}`);
+        }
+
+        // ── Populate ALL the metric tiles (Greeks, Premium, %Max, DTE, BE, Margin, ROI) ──
+        // Compute Greeks live using BS on current spot. Both legs are same-side
+        // (both calls or both puts), so we compute each leg's Greeks then net.
+        try {
+          const spot   = getLiveSpot();
+          const dte    = (typeof computeDTEFractional === 'function') ? computeDTEFractional(pos.expiry) : (pos.currentDTE || 7);
+          const tYears = Math.max(1/(365*24), dte/365);
+          const isCall = isCallSpread;
+
+          // Use chain's IV if available, else stored entry IV
+          const _shortIV = (_shortRow?.iv > 0 ? _shortRow.iv : _shortLeg.entryIV) / 100;
+          const _longIV  = (_longRow?.iv  > 0 ? _longRow.iv  : _longLeg.entryIV)  / 100;
+
+          // Sign: short leg's contribution is negated (we sold), long leg's is positive (we bought)
+          const _shortBS = (typeof bsGreeks === 'function')
+            ? bsGreeks(spot, _shortLeg.strike, tYears, RISK_FREE_RATE, _shortIV, isCall)
+            : null;
+          const _longBS = (typeof bsGreeks === 'function')
+            ? bsGreeks(spot, _longLeg.strike, tYears, RISK_FREE_RATE, _longIV, isCall)
+            : null;
+
+          if(_shortBS && _longBS){
+            const lots = pos.lots;
+            // Net = (-short) + (+long), all per-BTC quantities.
+            // Show in BTC-equivalent (per-BTC × lots × CONTRACT_SIZE = BTC exposure).
+            const netDeltaBtc = (-_shortBS.delta + _longBS.delta) * lots * CONTRACT_SIZE;
+            const netGammaBtc = (-_shortBS.gamma + _longBS.gamma) * lots * CONTRACT_SIZE;
+            const netThetaUsd = (-_shortBS.theta + _longBS.theta) * lots * CONTRACT_SIZE;  // theta is already daily $
+            const netVegaUsd  = (-_shortBS.vega  + _longBS.vega)  * lots * CONTRACT_SIZE;
+
+            // Delta in BTC — small for paper trades; show 6dp for readability
+            $set('simNetDelta',  netDeltaBtc.toFixed(6) + ' BTC');
+            $set('simNetGamma',  netGammaBtc.toExponential(2));
+            $set('simNetTheta',  `$${netThetaUsd.toFixed(3)}/d`);
+            $set('simNetVega',   `$${netVegaUsd.toFixed(3)}`);
+          } else {
+            // BS fn unavailable — fallback to entry deltas
+            const netDeltaBtc = (-_shortLeg.entryDelta + _longLeg.entryDelta) * pos.lots * CONTRACT_SIZE;
+            $set('simNetDelta', netDeltaBtc.toFixed(6) + ' BTC');
+            $set('simNetGamma', '—'); $set('simNetTheta', '—'); $set('simNetVega', '—');
+          }
+
+          // Premium captured = initial credit × lots × contract
+          $set('simPremCap', `$${_maxProfit.toFixed(2)}`);
+
+          // % of max profit (current P&L / max possible)
+          $set('simPctMaxProfit', `${_pctMax >= 0 ? '+' : ''}${_pctMax.toFixed(1)}%`);
+
+          // DTE left (fractional, formatted)
+          $set('simDteLeft', dte >= 1 ? `${dte.toFixed(2)}D` : `${(dte*24).toFixed(1)}h`);
+
+          // Break-even spread: for credit spread, BE = short strike +/- net credit
+          const beWidth = Math.abs(pos.call.strike - pos.put.strike);  // strike-distance is the spread width
+          $set('simBeWidth', `$${beWidth.toFixed(0)} wide`);
+
+          // Margin for credit spread: max loss = strike width − credit
+          // Isolated margin (Delta India-style) = max loss in USD
+          const maxLossPerBtc = beWidth - pos.creditInitial;
+          const marginIso = Math.max(0, maxLossPerBtc * pos.lots * CONTRACT_SIZE);
+          $set('simMarginIso', `$${marginIso.toFixed(2)}`);
+          const subIsoEl = $('simMarginIsoSub'); if(subIsoEl) subIsoEl.textContent = 'Defined-risk · max loss';
+
+          // PM margin — for spreads, portfolio margin doesn't reduce a defined-risk
+          // position's margin much (already capped). Estimate ~50% of isolated.
+          const marginPM = marginIso * 0.5;
+          $set('simMarginPM', `$${marginPM.toFixed(2)}`);
+          const subPmEl = $('simMarginPMSub'); if(subPmEl) subPmEl.textContent = '~50% of isolated';
+
+          // ROI on margin = max profit / margin × 100
+          const roi = marginIso > 0 ? (_maxProfit / marginIso * 100) : 0;
+          $set('simROI', `${roi.toFixed(1)}%`);
+
+        } catch(e){
+          console.warn('[paperPopulated] metric tile render error:', e.message);
+        }
+
+        // Update pos.currentPnl + pctMaxProfit so the metric tiles further
+        // down can read sensible numbers if they fall through.
+        pos.currentPnl    = _totalPnl;
+        pos.pctMaxProfit  = _pctMax;
+        // Append to pnlSeries for the live chart
+        try {
+          pos.pnlSeries.push({ t: Date.now(), spot: getLiveSpot(), pnl: _totalPnl, callMark: _shortMark, putMark: _longMark });
+          if(pos.pnlSeries.length > 600) pos.pnlSeries.shift();  // cap history
+        } catch(_e){}
+        return;
+      }
+
+      // ── Stub paper trade (jade lizard / iron condor / unsupported) ──
+      // Reset leg-head labels back to defaults in case a previously-rendered
+      // populated trade left them as "LONG CALL (WING)" etc.
+      const _stubCallHead = $('simLegCallHead');
+      const _stubPutHead  = $('simLegPutHead');
+      if(_stubCallHead){ _stubCallHead.textContent = 'SHORT CALL'; _stubCallHead.style.color = '#16a34a'; }
+      if(_stubPutHead) { _stubPutHead.textContent  = 'SHORT PUT';  _stubPutHead.style.color  = '#dc2626'; }
       $set('simPosMeta', `Verdict: ${sm.verdict||'—'} · Score ${sm.score??'—'}/100 · Expiry: ${pos.expiry} · Regime: ${sm.regime||'—'} · Lots: ${pos.lots} · NOT auto-PnL'd (paper only — close manually)`);
       const pnlEl = $('simPosPnl');
       if(pnlEl){ pnlEl.textContent = '—'; pnlEl.className = 'sim-pos-pnl'; }
