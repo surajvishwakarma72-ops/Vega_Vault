@@ -3454,6 +3454,35 @@ window._brahmastraADX = _ciComputeADX;
 
     <div class="planner-bkt-body" id="plnBktBody" style="display:none">
 
+      <!-- ── Expiry Preset Selector + Master Link ──────────────────────
+           Lets the user pick a DTE bucket (instead of typing raw days)
+           and optionally sync the bucket to the master expiry pill at top. -->
+      <div class="planner-bkt-section-label">Expiry preset (overrides DTE inputs below)</div>
+      <div class="planner-bkt-config" id="plnBktExpiryPresetWrap">
+        <div class="planner-bkt-field">
+          <label for="plnBktExpiryPreset">Expiry bucket</label>
+          <select id="plnBktExpiryPreset">
+            <option value="custom">Custom (use DTE fields below)</option>
+            <option value="7">Weekly · 7 DTE</option>
+            <option value="14" selected>Bi-weekly · 14 DTE</option>
+            <option value="21">3-week · 21 DTE</option>
+            <option value="30">Monthly · 30 DTE</option>
+            <option value="45">~45 DTE</option>
+            <option value="60">~60 DTE</option>
+            <option value="90">Quarterly · 90 DTE</option>
+            <option value="master">🎚 Match Master Expiry</option>
+          </select>
+          <span class="hint">Picks DTE bucket for both modes</span>
+        </div>
+        <div class="planner-bkt-field" style="grid-column:span 2">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="plnBktLinkMaster" style="width:14px;height:14px;cursor:pointer;accent-color:#7c3aed">
+            <span style="font-size:11px;font-weight:600">Link to Master Expiry (auto-update on master change)</span>
+          </label>
+          <span class="hint" id="plnBktLinkMasterHint">When checked, DTE auto-syncs from the master expiry pill at the top of the page.</span>
+        </div>
+      </div>
+
       <!-- Backtest configuration: full strategy controls + backtest-specific controls -->
       <div class="planner-bkt-section-label">Strategy parameters (mirrored from planner — edit independently)</div>
       <div class="planner-bkt-config">
@@ -3564,10 +3593,61 @@ window._brahmastraADX = _ciComputeADX;
           <span class="hint">e.g. 23:30 = 11:30 PM IST</span>
         </div>
         <div class="planner-bkt-field">
-          <label for="plnBktHoldHours">Hold duration (hours)</label>
-          <input type="number" id="plnBktHoldHours" value="24" min="1" max="240" step="1">
-          <span class="hint">e.g. 24 = exit same time next day</span>
+          <label for="plnBktExitMode">Exit mode</label>
+          <select id="plnBktExitMode">
+            <option value="days" selected>Days after entry (any number)</option>
+            <option value="dow">Day of week</option>
+            <option value="date">Specific calendar date</option>
+            <option value="hours">Hours after entry (raw)</option>
+          </select>
+          <span class="hint">How to specify when to exit each trade</span>
         </div>
+        <!-- Mode A: Days after entry (default — most flexible for sweeps) -->
+        <div class="planner-bkt-field" id="plnBktExitDaysWrap">
+          <label for="plnBktExitDays">Days after entry</label>
+          <input type="number" id="plnBktExitDays" value="1" min="0" max="60" step="1">
+          <span class="hint">e.g. 1 = next day · 7 = a week · 30 = month</span>
+        </div>
+        <!-- Mode B: Day of week -->
+        <div class="planner-bkt-field" id="plnBktExitDowWrap" style="display:none">
+          <label for="plnBktExitDow">Exit day-of-week</label>
+          <select id="plnBktExitDow">
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6" selected>Saturday</option>
+            <option value="0">Sunday</option>
+          </select>
+          <span class="hint">Next occurrence after each entry</span>
+        </div>
+        <!-- Mode C: Specific calendar date (single-trade evaluation only) -->
+        <div class="planner-bkt-field" id="plnBktExitDateWrap" style="display:none">
+          <label for="plnBktExitDate">Exit calendar date</label>
+          <input type="date" id="plnBktExitDate">
+          <span class="hint">⚠ Only the most recent entry before this date is tested</span>
+        </div>
+        <!-- Mode D: Raw hours -->
+        <div class="planner-bkt-field" id="plnBktExitHoursWrap" style="display:none">
+          <label for="plnBktExitHoursDirect">Hours after entry</label>
+          <input type="number" id="plnBktExitHoursDirect" value="24" min="1" max="720" step="1">
+          <span class="hint">Raw hour count (e.g. 8 = intraday)</span>
+        </div>
+        <!-- Exit time (IST) — used by all modes except 'hours' -->
+        <div class="planner-bkt-field" id="plnBktExitTimeWrap">
+          <label for="plnBktExitTime">Exit time (IST)</label>
+          <input type="time" id="plnBktExitTime" value="23:30" step="900">
+          <span class="hint">Time of day at exit</span>
+        </div>
+        <div class="planner-bkt-field" style="grid-column:span 2">
+          <label>Computed hold</label>
+          <div id="plnBktHoldComputed" style="font-size:11px;font-weight:700;padding:6px 9px;border-radius:5px;background:rgba(124,58,237,0.08);color:#7c3aed;border:0.5px solid rgba(124,58,237,0.3);font-variant-numeric:tabular-nums">— hours (set entry & exit above)</div>
+          <span class="hint">Auto-computed from entry → exit settings</span>
+        </div>
+        <!-- Hidden field — the engine still reads this. Computed at run-time
+             from the mode-specific inputs above by _bktComputeHoldHours().   -->
+        <input type="hidden" id="plnBktHoldHours" value="24">
         <div class="planner-bkt-field">
           <label for="plnBktWinDTE">DTE at entry (days)</label>
           <input type="number" id="plnBktWinDTE" value="7" min="1" max="60" step="1">
@@ -5258,6 +5338,9 @@ window._brahmastraADX = _ciComputeADX;
       entryIdx, exitIdx,
       entryDate: new Date(candles[entryIdx].t).toISOString().slice(0, 10),
       exitDate:  new Date(candles[exitIdx].t).toISOString().slice(0, 10),
+      entryMs:   candles[entryIdx].t,                          // raw ms for rich rendering
+      exitMs:    candles[exitIdx].t,                           // raw ms for rich rendering
+      holdHours: (candles[exitIdx].t - candles[entryIdx].t)/3600000,  // exact hours held
       entryS: S0,
       exitS:  candles[exitIdx].c,
       entryHV: sigma * 100,  // % annualized
@@ -5529,6 +5612,9 @@ window._brahmastraADX = _ciComputeADX;
       exitDate:  exitDate.toISOString().slice(0, 10),
       entryTime: entryDate.toISOString().slice(11, 16) + 'Z',
       exitTime:  exitDate.toISOString().slice(11, 16) + 'Z',
+      entryMs:   candles[entryIdx].t,                          // raw ms for rich rendering
+      exitMs:    candles[exitIdx].t,                           // raw ms for rich rendering
+      holdHours: (candles[exitIdx].t - candles[entryIdx].t)/3600000,
       entryS: S0,
       exitS:  candles[exitIdx].c,
       entryHV: sigma * 100,
@@ -5851,15 +5937,56 @@ window._brahmastraADX = _ciComputeADX;
     yearlyHtml += '</tbody></table>';
     $('plnBktYearly').innerHTML = yearlyHtml;
 
-    // Trades table
-    let tradesHtml = '<table><thead><tr><th>Entry</th><th>Exit</th><th>Days</th><th>Reason</th><th>Spot Δ</th><th>HV%</th><th>P&L</th></tr></thead><tbody>';
+    // Trades table — rich datetime: day-of-week + date + IST time + holding (d/h/m)
+    // Helper: format ms timestamp as "Tue 15-Apr-26 21:30 IST"
+    const _bktFmtIST = (ms) => {
+      if(!ms || !isFinite(ms)) return '—';
+      const d = new Date(ms);
+      const ist = new Date(ms + 5.5*3600000);  // shift to IST for label parts
+      const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dow = dows[ist.getUTCDay()];
+      const dd = String(ist.getUTCDate()).padStart(2,'0');
+      const mo = mons[ist.getUTCMonth()];
+      const yy = String(ist.getUTCFullYear()).slice(2);
+      const hh = String(ist.getUTCHours()).padStart(2,'0');
+      const mm = String(ist.getUTCMinutes()).padStart(2,'0');
+      return `${dow} ${dd}-${mo}-${yy} ${hh}:${mm} IST`;
+    };
+    // Helper: format hold duration as "1d 11h 30m" (compact for table)
+    const _bktFmtHold = (hours) => {
+      if(!isFinite(hours) || hours <= 0) return '—';
+      const totalMin = Math.round(hours * 60);
+      const d = Math.floor(totalMin / 1440);
+      const h = Math.floor((totalMin % 1440) / 60);
+      const m = totalMin % 60;
+      const parts = [];
+      if(d > 0) parts.push(d+'d');
+      if(h > 0) parts.push(h+'h');
+      if(m > 0 && d === 0) parts.push(m+'m');  // hide minutes when ≥1d for readability
+      return parts.length ? parts.join(' ') : '0m';
+    };
+
+    let tradesHtml = '<table style="font-size:10px"><thead><tr>'
+      + '<th style="text-align:left">Entry (IST)</th>'
+      + '<th style="text-align:left">Exit (IST)</th>'
+      + '<th>Held</th>'
+      + '<th>Reason</th>'
+      + '<th>Spot Δ</th>'
+      + '<th>HV%</th>'
+      + '<th>P&L</th>'
+      + '</tr></thead><tbody>';
     trades.forEach(t => {
       const cls = t.pnl >= 0 ? 'profit' : 'loss';
       const spotDelta = ((t.exitS - t.entryS) / t.entryS * 100).toFixed(1);
+      const entryStr = t.entryMs ? _bktFmtIST(t.entryMs) : t.entryDate;
+      const exitStr  = t.exitMs  ? _bktFmtIST(t.exitMs)  : t.exitDate;
+      const heldStr  = isFinite(t.holdHours) ? _bktFmtHold(t.holdHours)
+                                              : (t.holdDays + 'd');
       tradesHtml += `<tr>
-        <td>${t.entryDate}</td>
-        <td>${t.exitDate}</td>
-        <td>${t.holdDays}</td>
+        <td style="text-align:left;font-variant-numeric:tabular-nums">${entryStr}</td>
+        <td style="text-align:left;font-variant-numeric:tabular-nums">${exitStr}</td>
+        <td style="font-variant-numeric:tabular-nums">${heldStr}</td>
         <td>${t.reason}</td>
         <td>${spotDelta >= 0 ? '+' : ''}${spotDelta}%</td>
         <td>${t.entryHV.toFixed(0)}</td>
@@ -5911,22 +6038,44 @@ window._brahmastraADX = _ciComputeADX;
 
       if(modeWindow){
         // ── TIME-WINDOW MODE ──────────────────────────────────────
+        // Defensively recompute holdHours from the day+time pickers
+        // in case the user typed values without firing change events.
+        if(typeof window._brmRecomputeHold === 'function'){
+          try { window._brmRecomputeHold(); } catch(e){}
+        }
         const entryDow      = parseInt($('plnBktEntryDow').value);
         const entryTimeIst  = $('plnBktEntryTime').value;
         const holdHours     = parseInt($('plnBktHoldHours').value);
+        const exitTimeIst   = $('plnBktExitTime') ? $('plnBktExitTime').value : '';
         const dteDays       = parseInt($('plnBktWinDTE').value);
         const ivMult        = parseFloat($('plnBktWinIVMult').value);
         const years         = parseInt($('plnBktWinYears').value);
 
         if(!Number.isInteger(entryDow) || entryDow < 0 || entryDow > 6) throw new Error('Invalid day of week');
         if(!/^\d{1,2}:\d{2}$/.test(entryTimeIst))                       throw new Error('Invalid entry time format (use HH:MM)');
-        if(!isFinite(holdHours) || holdHours < 1 || holdHours > 240)    throw new Error('Hold hours must be 1–240');
+        if(!isFinite(holdHours) || holdHours < 1 || holdHours > 720)    throw new Error('Hold hours must be 1–720 (≤30 days)');
         if(!isFinite(dteDays) || dteDays < 1 || dteDays > 60)           throw new Error('DTE must be 1–60 days');
         if(!isFinite(ivMult) || ivMult < 0.5 || ivMult > 2.0)           throw new Error('Invalid IV multiplier');
         if(!isFinite(years) || years < 1 || years > 5)                  throw new Error('Invalid years');
 
         const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        modeLabel = `${dowNames[entryDow]} ${entryTimeIst} IST → +${holdHours}h, ${dteDays}D DTE`;
+        const exitMode = $('plnBktExitMode') ? $('plnBktExitMode').value : 'days';
+        let exitLbl;
+        if(exitMode === 'days'){
+          const n = parseInt($('plnBktExitDays')?.value || '1', 10);
+          exitLbl = `+${n}d @ ${exitTimeIst}`;
+        } else if(exitMode === 'dow'){
+          const exitDow = parseInt($('plnBktExitDow')?.value || '6', 10);
+          exitLbl = `next ${dowNames[exitDow]} ${exitTimeIst}`;
+        } else if(exitMode === 'date'){
+          const d = $('plnBktExitDate')?.value || '';
+          exitLbl = `on ${d} ${exitTimeIst}`;
+        } else if(exitMode === 'hours'){
+          exitLbl = `+${holdHours}h`;
+        } else {
+          exitLbl = `+${holdHours}h`;
+        }
+        modeLabel = `${dowNames[entryDow]} ${entryTimeIst} IST → ${exitLbl} (${holdHours}h hold, ${dteDays}D DTE)`;
 
         // Fetch hourly history with progress feedback
         status.textContent = `Fetching ${years}Y of hourly BTC history from Binance (this takes ~10s on first run)…`;
@@ -6040,6 +6189,13 @@ window._brahmastraADX = _ciComputeADX;
     if($('plnBktEntryDow'))   $('plnBktEntryDow').value   = '5';      // Friday
     if($('plnBktEntryTime'))  $('plnBktEntryTime').value  = '23:30';
     if($('plnBktHoldHours'))  $('plnBktHoldHours').value  = '24';
+    if($('plnBktExitMode'))   $('plnBktExitMode').value   = 'days';
+    if($('plnBktExitDays'))   $('plnBktExitDays').value   = '1';
+    if($('plnBktExitDow'))    $('plnBktExitDow').value    = '6';       // Saturday
+    if($('plnBktExitDate'))   $('plnBktExitDate').value   = '';
+    if($('plnBktExitHoursDirect')) $('plnBktExitHoursDirect').value = '24';
+    if($('plnBktExitTime'))   $('plnBktExitTime').value   = '23:30';
+    if(typeof window._brmRecomputeHold === 'function') window._brmRecomputeHold();
     if($('plnBktWinDTE'))     $('plnBktWinDTE').value     = '7';
     if($('plnBktWinIVMult'))  $('plnBktWinIVMult').value  = '1.10';
     if($('plnBktWinYears'))   $('plnBktWinYears').value   = '5';
@@ -13237,7 +13393,7 @@ setTimeout(()=>{
          = paper trade). Off by default — opt-in only. -->
     <div style="background:linear-gradient(135deg,rgba(124,58,237,0.04),rgba(37,99,235,0.04));border:1px solid rgba(124,58,237,0.2);border-radius:9px;padding:9px 12px;margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:11px">
-        <input type="checkbox" id="simSdpAutoToggle" onchange="window.simSetSdpAuto(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#7c3aed">
+        <input type="checkbox" id="simSdpAutoToggle" checked onchange="window.simSetSdpAuto(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#7c3aed">
         <span>
           <b style="color:#7c3aed">🎯 Auto-Trade SDP Signals</b>
           <span style="color:var(--color-text-secondary);font-size:10px">— Every fresh Synthesis Decision Panel verdict opens a new "Synthetic Decision Trade" in the simulator. Short-strangle signals run a real sim; spreads &amp; longs are paper-tracked. AVOID signals are logged but no trade is opened.</span>
@@ -15225,13 +15381,20 @@ setTimeout(()=>{
   function _simSdpMintPaperPosition(sdp){
     const stype = _simSdpStrategyType(sdp.strategy);
     if(stype === 'stand_aside') return null;   // don't open a trade for AVOID
-    const exp = sdp.bestExpiry?.label || simState.currentExpiry || '—';
+    // Strict: refuse to mint a paper position without a recommended expiry.
+    // Falling back to simState.currentExpiry was how stale "20.0D" / "34.0D"
+    // duplicates leaked in.
+    const exp = sdp.bestExpiry?.label;
+    if(!exp){
+      console.warn('[SDP→Paper] refused: no recommended expiry on signal');
+      return null;
+    }
     const pos = {
       id: 'pos_sdp_' + Date.now() + '_' + Math.floor(Math.random()*1000),
       source: 'sdp_paper',
       paperOnly: true,
       paperLabel: sdp.strategy,
-      sourceMeta: { signature: sdp.signature, score: sdp.score, verdict: sdp.verdict, regime: sdp.regime, mpoMove7d: sdp.mpoMove7d },
+      sourceMeta: { signature: sdp.signature, score: sdp.score, verdict: sdp.verdict, regime: sdp.regime, mpoMove7d: sdp.mpoMove7d, strategy: sdp.strategy },
       expiry: exp,
       entryTs: Date.now(),
       entrySpot: getLiveSpot(),
@@ -15278,12 +15441,77 @@ setTimeout(()=>{
       return;
     }
 
-    // Switch the chain to the SDP-recommended expiry if available
-    if(sdp.bestExpiry?.label && simState.chain?.expiries?.[sdp.bestExpiry.label]){
-      simState.currentExpiry = sdp.bestExpiry.label;
+    // ── STRICT EXPIRY ENFORCEMENT ──────────────────────────────────
+    // Only open trades on the SDP-recommended expiry. If SDP didn't
+    // recommend a specific expiry, skip — don't fall back to "whatever
+    // is currently selected" (that's how we ended up opening the same
+    // strategy on multiple expiries).
+    const recommendedExpiry = sdp.bestExpiry?.label;
+    if(!recommendedExpiry){
+      logEntry.action = 'skipped (no recommended expiry)';
+      simState.sdpAutoLog.push(logEntry);
+      if(simState.sdpAutoLog.length > 30) simState.sdpAutoLog.shift();
+      return;
+    }
+
+    // ── DUPLICATE PREVENTION ───────────────────────────────────────
+    // If a position is already open for the same strategy type + expiry,
+    // skip. User must manually close (or convert paper→live) before a
+    // new auto-trade for the same setup will fire. This prevents the
+    // "3 BEAR CALL SPREAD paper trades stacked on different expiries"
+    // problem when SDP keeps re-firing the same signal.
+    const existing = (simState.positions || []).find(p => {
+      if(!p) return false;
+      // Match on normalized strategy type so BEAR CALL SPREAD (defensive)
+      // and BEAR CALL SPREAD (credit) collide as the same "credit_spread".
+      const pStype = p.paperOnly
+        ? _simSdpStrategyType(p.paperLabel || '')
+        : (p.sourceMeta?.strategy ? _simSdpStrategyType(p.sourceMeta.strategy) : 'short_strangle');
+      const sameStrat = pStype === stype;
+      const sameExp   = (p.expiry || '') === recommendedExpiry;
+      return sameStrat && sameExp;
+    });
+    if(existing){
+      logEntry.action = `skipped (already open: ${stype} on ${recommendedExpiry}, posId=${existing.id})`;
+      simState.sdpAutoLog.push(logEntry);
+      if(simState.sdpAutoLog.length > 30) simState.sdpAutoLog.shift();
+      // Surface a soft toast so the user knows we suppressed a trade
+      if(typeof showIVToast === 'function'){
+        showIVToast({
+          icon: '🚫',
+          title: 'SDP Auto-Trade · Duplicate Skipped',
+          msg: `${sdp.strategy} on ${recommendedExpiry} already open. Close it manually to allow a new auto-entry.`,
+          type: 'avoid',
+        });
+      }
+      return;
+    }
+
+    // Switch the chain to the SDP-recommended expiry if possible. We try
+    // both the dictionary form (chain.expiries[label]) and the array form
+    // (chain is an array of {expiry,...} rows).
+    const chainHasExpiry = (() => {
+      if(!simState.chain) return false;
+      if(simState.chain.expiries && simState.chain.expiries[recommendedExpiry]) return true;
+      if(Array.isArray(simState.chain) && simState.chain.some(r => r.expiry === recommendedExpiry)) return true;
+      // Master expiry list fallback
+      if(typeof window.EXPIRIES !== 'undefined' && Array.isArray(window.EXPIRIES)){
+        return window.EXPIRIES.some(ex => ex.label === recommendedExpiry && !ex.expired);
+      }
+      return false;
+    })();
+    if(chainHasExpiry){
+      simState.currentExpiry = recommendedExpiry;
       try{ if(typeof renderChain === 'function') renderChain(); }catch(_e){}
       const expSel = $('simExpirySelect');
-      if(expSel) expSel.value = sdp.bestExpiry.label;
+      if(expSel) expSel.value = recommendedExpiry;
+    } else {
+      // Recommended expiry isn't in the chain — abort instead of
+      // falling back. This is the user's #1 ask: don't auto-pick.
+      logEntry.action = `skipped (recommended expiry ${recommendedExpiry} not in chain)`;
+      simState.sdpAutoLog.push(logEntry);
+      if(simState.sdpAutoLog.length > 30) simState.sdpAutoLog.shift();
+      return;
     }
 
     let opened = null;
@@ -27109,6 +27337,704 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
     if(alertDot) alertDot.style.display = ao ? 'block' : 'none';
   }, 60000);
 
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BRAHMASTRA ENHANCEMENT PACK — patches added 2026-04-25
+     ──────────────────────────────────────────────────────────────────────
+       1. TradingView tab + scroll-state persistence (localStorage)
+       2. Auto-Trade SDP Signals checkbox state persistence (localStorage)
+       3. Backtest expiry preset dropdown + master-expiry link
+       4. Trade Journal — log live strangles you've taken, persisted locally
+     All wrapped in a single IIFE; runs after main script. Safe to remove
+     this whole <script> block to revert.                                    -->
+<script>
+(function(){
+  'use strict';
+  const LS = {
+    TV_TAB:        'brm.tv.activeTab',
+    TV_SCROLL:     'brm.tv.scrollY',
+    SDP_AUTO:      'brm.sim.sdpAutoTrade',
+    BKT_PRESET:    'brm.bkt.expiryPreset',
+    BKT_LINK:      'brm.bkt.linkMaster',
+    JOURNAL:       'brm.journal.trades',
+  };
+  const safeGet = (k, fallback) => {
+    try { const v = localStorage.getItem(k); return v == null ? fallback : v; }
+    catch(e){ return fallback; }
+  };
+  const safeSet = (k, v) => {
+    try { localStorage.setItem(k, v); } catch(e){ /* quota exceeded — ignore */ }
+  };
+  const safeJSON = (k, fallback) => {
+    try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }
+    catch(e){ return fallback; }
+  };
+  const $  = (id) => document.getElementById(id);
+
+  /* ════════════════════════════════════════════════════════════════════
+     1. TRADINGVIEW STATE PERSISTENCE
+     ────────────────────────────────────────────────────────────────────
+     The free TradingView embed widget does NOT support saving drawings
+     or indicator overlays — that's a vendor restriction (only the paid
+     Charting Library has save_load_url callbacks). What we CAN persist:
+       • The active chart tab (4H / 1H / DVOL / BB / etc.)
+       • The user's vertical scroll position within the TV panel (so
+         a reload doesn't kick them back to the top of the dashboard)
+     ──────────────────────────────────────────────────────────────────── */
+  function _initTVPersistence(){
+    // Wait until switchTVTab is defined by the main script
+    if(typeof window.switchTVTab !== 'function'){
+      return setTimeout(_initTVPersistence, 300);
+    }
+
+    // Restore the active tab from last session
+    const savedTab = parseInt(safeGet(LS.TV_TAB, '0'), 10);
+    if(isFinite(savedTab) && savedTab >= 0 && savedTab <= 7 && savedTab !== 0){
+      try { window.switchTVTab(savedTab); } catch(e){ /* ignore */ }
+    }
+
+    // Wrap the original switchTVTab to save the new tab on every change
+    const origSwitch = window.switchTVTab;
+    window.switchTVTab = function(idx){
+      const r = origSwitch.apply(this, arguments);
+      safeSet(LS.TV_TAB, String(idx));
+      return r;
+    };
+
+    // Persist scroll position when user navigates inside TV panel.
+    // Throttled to once every 500ms to avoid hammering localStorage.
+    let scrollSaveTimer = null;
+    window.addEventListener('scroll', () => {
+      if(scrollSaveTimer) return;
+      scrollSaveTimer = setTimeout(() => {
+        scrollSaveTimer = null;
+        const tvPanel = $('tvPanel');
+        if(!tvPanel) return;
+        const rect = tvPanel.getBoundingClientRect();
+        // Only save when TV panel is in viewport (user is looking at it)
+        if(rect.top < window.innerHeight && rect.bottom > 0){
+          safeSet(LS.TV_SCROLL, String(window.scrollY));
+        }
+      }, 500);
+    }, {passive:true});
+
+    console.log('[brm-enh] TV persistence active — tab', savedTab, 'restored');
+  }
+  setTimeout(_initTVPersistence, 1500);
+
+  /* ════════════════════════════════════════════════════════════════════
+     2. AUTO-TRADE SDP CHECKBOX PERSISTENCE
+     ────────────────────────────────────────────────────────────────────
+     The HTML default is now `checked`. We additionally remember the
+     user's last toggle state across reloads. If they explicitly unchecked
+     it, we honour that on next load.
+     ──────────────────────────────────────────────────────────────────── */
+  function _initSdpPersistence(){
+    const cb = $('simSdpAutoToggle');
+    if(!cb){ return setTimeout(_initSdpPersistence, 500); }
+
+    const stored = safeGet(LS.SDP_AUTO, null);
+    if(stored === '0') cb.checked = false;
+    else if(stored === '1') cb.checked = true;
+    // else: leave HTML default (which is now checked)
+
+    // Fire the existing handler so simulator state matches checkbox state
+    if(typeof window.simSetSdpAuto === 'function'){
+      try { window.simSetSdpAuto(cb.checked); } catch(e){ /* ignore */ }
+    }
+
+    cb.addEventListener('change', () => {
+      safeSet(LS.SDP_AUTO, cb.checked ? '1' : '0');
+    });
+  }
+  setTimeout(_initSdpPersistence, 1500);
+
+  /* ════════════════════════════════════════════════════════════════════
+     3. BACKTEST EXPIRY PRESET — wires the new dropdown + master-link
+     ────────────────────────────────────────────────────────────────────
+     The HTML for the dropdown was injected at the top of the backtest
+     body. This script handles:
+       • Reading the preset and writing the DTE value into both
+         #plnBktDTE (calendar mode) and #plnBktWinDTE (window mode).
+       • The "Match Master Expiry" option pulls DTE from EXPIRIES[idx]
+         where idx = #masterExpSelect's value.
+       • The "Link to Master Expiry" checkbox subscribes to master
+         expiry changes and re-applies the master DTE on each change.
+       • State persists across reloads.
+     ──────────────────────────────────────────────────────────────────── */
+  function _bktReadMasterDTE(){
+    const sel = $('masterExpSelect');
+    if(!sel) return null;
+    const idx = parseInt(sel.value, 10);
+    if(!isFinite(idx)) return null;
+    if(typeof window.EXPIRIES === 'undefined' || !Array.isArray(window.EXPIRIES)) return null;
+    const ex = window.EXPIRIES[idx];
+    if(!ex || ex.expired) return null;
+    const dte = ex.dte;
+    return (isFinite(dte) && dte > 0) ? Math.round(dte) : null;
+  }
+
+  function _bktApplyPreset(preset, opts){
+    opts = opts || {};
+    const dteCal = $('plnBktDTE');
+    const dteWin = $('plnBktWinDTE');
+    if(!dteCal || !dteWin) return;
+    let dte = null;
+    if(preset === 'master'){
+      dte = _bktReadMasterDTE();
+      if(dte == null){
+        const status = $('plnBktStatus');
+        if(status && !opts.silent) status.textContent = '⚠ Master expiry not loaded yet — DTE unchanged.';
+        return;
+      }
+    } else if(preset !== 'custom'){
+      const n = parseInt(preset, 10);
+      if(isFinite(n) && n > 0) dte = n;
+    }
+    if(dte != null){
+      dteCal.value = dte;
+      dteWin.value = dte;
+      // Visual cue
+      const status = $('plnBktStatus');
+      if(status && !opts.silent){
+        status.textContent = `✓ DTE set to ${dte}d (${preset === 'master' ? 'from master expiry' : preset+'d preset'}).`;
+      }
+    }
+  }
+
+  function _initBktPreset(){
+    const presetSel = $('plnBktExpiryPreset');
+    const linkCb    = $('plnBktLinkMaster');
+    if(!presetSel || !linkCb){ return setTimeout(_initBktPreset, 500); }
+
+    // Restore saved preset (default 'custom' if first run)
+    const savedPreset = safeGet(LS.BKT_PRESET, 'custom');
+    const validVals = [...presetSel.options].map(o => o.value);
+    if(validVals.includes(savedPreset)) presetSel.value = savedPreset;
+
+    // Restore link checkbox
+    linkCb.checked = safeGet(LS.BKT_LINK, '0') === '1';
+
+    // Apply the preset once on load (silently, won't overwrite "custom")
+    if(presetSel.value !== 'custom') _bktApplyPreset(presetSel.value, {silent:true});
+
+    presetSel.addEventListener('change', () => {
+      safeSet(LS.BKT_PRESET, presetSel.value);
+      _bktApplyPreset(presetSel.value, {});
+    });
+
+    linkCb.addEventListener('change', () => {
+      safeSet(LS.BKT_LINK, linkCb.checked ? '1' : '0');
+      if(linkCb.checked){
+        // When link is enabled, force preset to "master" and apply now
+        presetSel.value = 'master';
+        safeSet(LS.BKT_PRESET, 'master');
+        _bktApplyPreset('master', {});
+      }
+    });
+
+    // Subscribe to master expiry changes — when link is on, re-apply master DTE
+    const masterSel = $('masterExpSelect');
+    if(masterSel){
+      masterSel.addEventListener('change', () => {
+        if(linkCb.checked){
+          presetSel.value = 'master';
+          _bktApplyPreset('master', {});
+        }
+      });
+    }
+
+    console.log('[brm-enh] Backtest preset wired — preset:', presetSel.value, 'link:', linkCb.checked);
+  }
+  setTimeout(_initBktPreset, 1500);
+
+  /* ════════════════════════════════════════════════════════════════════
+     3b. EXIT DAY + TIME → HOLD HOURS COMPUTATION
+     ────────────────────────────────────────────────────────────────────
+     The Hold Duration field used to be raw hours. We replaced the input
+     with a "Exit day-of-week + Exit time (IST)" pair, which is far more
+     readable (e.g. "exit Saturday 23:30 IST" instead of "hold 24 hours").
+     This logic computes the equivalent hold-hours from the entry/exit
+     day+time and writes it into the hidden #plnBktHoldHours input that
+     the engine still reads. Re-runs whenever any of the four pickers
+     changes, plus once on init.
+
+     "Exit day = Saturday" + "Entry day = Friday" → engine targets the
+     NEXT Saturday after each Friday entry. If the user picks an exit
+     day before the entry day in the week, we wrap to the next week
+     (e.g. Friday entry, Tuesday exit → +4 days).
+     ──────────────────────────────────────────────────────────────────── */
+  function _bktComputeHoldHours(){
+    const mode      = $('plnBktExitMode')?.value || 'days';
+    const entryDow  = parseInt($('plnBktEntryDow')?.value, 10);
+    const entryTime = $('plnBktEntryTime')?.value || '00:00';
+    const exitTime  = $('plnBktExitTime')?.value  || '00:00';
+    const hidden    = $('plnBktHoldHours');
+    const display   = $('plnBktHoldComputed');
+    if(hidden == null || display == null) return;
+
+    const [eh, em] = entryTime.split(':').map(n => parseInt(n,10) || 0);
+    const [xh, xm] = exitTime.split(':').map(n => parseInt(n,10) || 0);
+    const entryMin = eh*60 + em;
+    const exitMin  = xh*60 + xm;
+
+    // Toggle which input wrapper is visible based on mode
+    const setVis = (id, show) => { const el = $(id); if(el) el.style.display = show ? '' : 'none'; };
+    setVis('plnBktExitDaysWrap',  mode === 'days');
+    setVis('plnBktExitDowWrap',   mode === 'dow');
+    setVis('plnBktExitDateWrap',  mode === 'date');
+    setVis('plnBktExitHoursWrap', mode === 'hours');
+    setVis('plnBktExitTimeWrap',  mode !== 'hours');  // raw-hours mode doesn't need clock time
+
+    let totalMin;
+    let suffix = '';
+    const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    if(mode === 'hours'){
+      // Raw hours after entry — no day/time math, just the number
+      const h = parseInt($('plnBktExitHoursDirect')?.value, 10);
+      if(!isFinite(h) || h <= 0){
+        display.textContent = '— invalid hours';
+        return;
+      }
+      totalMin = h * 60;
+      suffix   = ` → exit ${h}h after entry`;
+    }
+    else if(mode === 'days'){
+      // N days after entry, exit at exitTime
+      const nDays = parseInt($('plnBktExitDays')?.value, 10);
+      if(!isFinite(nDays) || nDays < 0){
+        display.textContent = '— invalid days';
+        return;
+      }
+      const timeDelta = exitMin - entryMin;
+      totalMin = nDays*1440 + timeDelta;
+      // Same-day case: if exit time is at or before entry time, treat as next day
+      if(nDays === 0 && timeDelta <= 0){
+        display.textContent = '— exit must be after entry on same day';
+        return;
+      }
+      suffix = ` → exit ${nDays}d after entry @ ${exitTime} IST`;
+    }
+    else if(mode === 'dow'){
+      const exitDow = parseInt($('plnBktExitDow')?.value, 10);
+      if(!isFinite(entryDow) || !isFinite(exitDow)){
+        display.textContent = '— set entry day first';
+        return;
+      }
+      let dayDelta = (exitDow - entryDow + 7) % 7;
+      const timeDelta = exitMin - entryMin;
+      // Same DOW + earlier time → wraps to next week
+      if(dayDelta === 0 && timeDelta <= 0) dayDelta = 7;
+      totalMin = dayDelta*1440 + timeDelta;
+      suffix = ` → next ${dows[exitDow]} ${exitTime} IST`;
+    }
+    else if(mode === 'date'){
+      // Specific calendar date — only useful for single-shot evaluation,
+      // not historical sweep. We compute hold-hours from "today's IST date"
+      // to the chosen exit date+time. The engine will only test entries
+      // close enough to this date to make sense.
+      const dateStr = $('plnBktExitDate')?.value;
+      if(!dateStr){
+        display.textContent = '— pick an exit date';
+        return;
+      }
+      // Treat dateStr as IST midnight, then add exit time
+      const exitMs = new Date(dateStr + 'T00:00:00+05:30').getTime() + exitMin*60000;
+      const nowMs  = Date.now();
+      const deltaMs = exitMs - nowMs;
+      if(deltaMs <= 0){
+        display.textContent = '— exit date is in the past';
+        return;
+      }
+      totalMin = Math.round(deltaMs / 60000);
+      suffix = ` → exit on ${dateStr} ${exitTime} IST (single-shot eval)`;
+    }
+    else {
+      display.textContent = '— unknown mode';
+      return;
+    }
+
+    if(!isFinite(totalMin) || totalMin <= 0){
+      display.textContent = '— invalid';
+      hidden.value = '24';
+      return;
+    }
+
+    const totalHours = Math.round(totalMin / 60);
+    const capped     = Math.max(1, Math.min(720, totalHours));  // raised cap to 720h (30 days)
+    hidden.value     = String(capped);
+
+    const d = Math.floor(totalHours / 24);
+    const h = totalHours % 24;
+    let prefix = `${totalHours}h`;
+    if(d > 0) prefix += ` (${d}d ${h}h)`;
+    display.textContent = prefix + suffix;
+    if(totalHours > 720){
+      display.textContent += ' · ⚠ capped at 720h';
+    }
+  }
+
+  function _initExitTimePickers(){
+    const ids = [
+      'plnBktEntryDow','plnBktEntryTime',
+      'plnBktExitMode','plnBktExitDays','plnBktExitDow','plnBktExitDate',
+      'plnBktExitHoursDirect','plnBktExitTime'
+    ];
+    if(!$('plnBktExitMode')){ return setTimeout(_initExitTimePickers, 500); }
+    ids.forEach(id => { const el = $(id); if(el) el.addEventListener('change', _bktComputeHoldHours); });
+    // 'input' events too for fast response on number inputs
+    ['plnBktExitDays','plnBktExitHoursDirect'].forEach(id => {
+      const el = $(id); if(el) el.addEventListener('input', _bktComputeHoldHours);
+    });
+    _bktComputeHoldHours();
+    window._brmRecomputeHold = _bktComputeHoldHours;  // expose for reset handler
+    console.log('[brm-enh] Exit pickers wired (4 modes: days/dow/date/hours)');
+  }
+  setTimeout(_initExitTimePickers, 1500);
+
+  /* ════════════════════════════════════════════════════════════════════
+     4. TRADE JOURNAL — log multiple live trades, persisted locally
+     ────────────────────────────────────────────────────────────────────
+     Renders a new panel below the backtest panel. Lets you log every
+     strangle you've actually taken on Delta Exchange with:
+       • Entry datetime (auto-stamped on add, editable)
+       • Both legs: strike + entry premium for each
+       • Lots, target%, stop%
+       • Notes
+       • Status: OPEN / CLOSED (with realized P&L when closed)
+     Stored as JSON array in localStorage — survives reloads, persists
+     until manually cleared.
+     ──────────────────────────────────────────────────────────────────── */
+
+  // Inject panel CSS + HTML right after the backtest panel
+  function _initJournal(){
+    const bktPanel = $('plnBacktest');
+    if(!bktPanel){ return setTimeout(_initJournal, 500); }
+    if($('plnJournal')) return;  // already injected
+
+    // CSS
+    const css = document.createElement('style');
+    css.textContent = `
+      .pln-journal{margin-top:14px;background:var(--color-background-secondary);border-radius:10px;border:0.5px solid var(--color-border-tertiary);overflow:hidden}
+      .pln-journal-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:linear-gradient(135deg,rgba(232,99,10,0.06),rgba(124,58,237,0.04));border-bottom:0.5px solid var(--color-border-tertiary)}
+      .pln-journal-title{font-size:13px;font-weight:800;color:var(--color-text-primary);display:flex;align-items:center;gap:8px}
+      .pln-journal-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:#e8630a;color:#fff;letter-spacing:.04em}
+      .pln-journal-body{padding:12px 14px;display:none}
+      .pln-journal-body.open{display:block}
+      .pln-journal-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px;padding:10px;background:var(--color-background-primary);border-radius:8px;border:0.5px solid var(--color-border-tertiary)}
+      .pln-journal-form label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);display:block;margin-bottom:3px}
+      .pln-journal-form input,.pln-journal-form select{width:100%;font-size:11px;padding:5px 7px;border-radius:5px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);font-family:inherit}
+      .pln-journal-form input:focus,.pln-journal-form select:focus{outline:none;border-color:#e8630a;box-shadow:0 0 0 2px rgba(232,99,10,.18)}
+      .pln-journal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+      .pln-journal-btn{font-size:11px;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-family:inherit}
+      .pln-journal-btn-primary{background:#e8630a;color:#fff}
+      .pln-journal-btn-secondary{background:var(--color-background-primary);color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary)}
+      .pln-journal-btn-danger{background:#dc2626;color:#fff}
+      .pln-journal-table{width:100%;border-collapse:collapse;font-size:10px}
+      .pln-journal-table th{text-align:left;padding:6px 5px;border-bottom:1px solid var(--color-border-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--color-text-secondary);font-size:9px;background:var(--color-background-primary)}
+      .pln-journal-table td{padding:6px 5px;border-bottom:0.5px solid var(--color-border-tertiary);font-variant-numeric:tabular-nums;vertical-align:top}
+      .pln-journal-table tr.open-trade{background:rgba(34,197,94,0.05)}
+      .pln-journal-table tr.closed-trade{opacity:.75}
+      .pln-journal-status-open{color:#16a34a;font-weight:700}
+      .pln-journal-status-closed{color:var(--color-text-secondary);font-weight:600}
+      .pln-journal-pnl-pos{color:#16a34a;font-weight:700}
+      .pln-journal-pnl-neg{color:#dc2626;font-weight:700}
+      .pln-journal-empty{text-align:center;padding:24px;color:var(--color-text-secondary);font-size:11px;font-style:italic}
+      .pln-journal-row-act{display:flex;gap:4px;flex-wrap:wrap}
+      .pln-journal-row-btn{font-size:9px;padding:3px 7px;border-radius:4px;border:none;cursor:pointer;font-weight:700;font-family:inherit}
+    `;
+    document.head.appendChild(css);
+
+    // HTML
+    const panel = document.createElement('div');
+    panel.className = 'pln-journal';
+    panel.id = 'plnJournal';
+    panel.innerHTML = `
+      <div class="pln-journal-hdr">
+        <div class="pln-journal-title">📒 Trade Journal <span class="pln-journal-badge">LIVE TRADES</span></div>
+        <button class="pln-journal-btn pln-journal-btn-secondary" id="plnJournalToggle">▼ Show</button>
+      </div>
+      <div class="pln-journal-body" id="plnJournalBody">
+        <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">
+          Log every strangle/straddle you take on Delta Exchange. Saved to your browser only — no upload.
+          Open trades show live mark-to-market P&L when chain is loaded; closed trades store realized P&L.
+        </div>
+        <div class="pln-journal-form" id="plnJournalForm">
+          <div><label>Entry date</label><input type="date" id="pjEntryDate"></div>
+          <div><label>Entry time (IST)</label><input type="time" id="pjEntryTime" value="21:30"></div>
+          <div><label>Strategy</label>
+            <select id="pjStrategy">
+              <option value="short_strangle">Short Strangle</option>
+              <option value="short_straddle">Short Straddle</option>
+              <option value="long_strangle">Long Strangle</option>
+              <option value="long_straddle">Long Straddle</option>
+              <option value="iron_condor">Iron Condor</option>
+              <option value="naked_call">Naked Short Call</option>
+              <option value="naked_put">Naked Short Put</option>
+            </select>
+          </div>
+          <div><label>Expiry (DD-Mon-YY)</label><input type="text" id="pjExpiry" placeholder="29-May-26"></div>
+          <div><label>Call strike</label><input type="number" id="pjCallStrike" placeholder="120000" step="100"></div>
+          <div><label>Call premium ($)</label><input type="number" id="pjCallPrem" placeholder="450" step="0.1"></div>
+          <div><label>Put strike</label><input type="number" id="pjPutStrike" placeholder="80000" step="100"></div>
+          <div><label>Put premium ($)</label><input type="number" id="pjPutPrem" placeholder="380" step="0.1"></div>
+          <div><label>Lots</label><input type="number" id="pjLots" value="1" min="1" step="1"></div>
+          <div><label>Target %</label><input type="number" id="pjPT" value="50" min="0" max="100" step="5"></div>
+          <div><label>Stop %</label><input type="number" id="pjSL" value="200" min="0" max="500" step="10"></div>
+          <div style="grid-column:1/-1"><label>Notes (optional)</label><input type="text" id="pjNotes" placeholder="e.g. NY-session entry · RVP rising · IVP 78"></div>
+        </div>
+        <div class="pln-journal-actions">
+          <button class="pln-journal-btn pln-journal-btn-primary" id="pjAddBtn">+ Log Trade</button>
+          <button class="pln-journal-btn pln-journal-btn-secondary" id="pjClearAllBtn">🗑 Clear all</button>
+          <button class="pln-journal-btn pln-journal-btn-secondary" id="pjExportBtn">⬇ Export JSON</button>
+          <span style="margin-left:auto;font-size:10px;color:var(--color-text-secondary);align-self:center" id="pjCount">0 trades</span>
+        </div>
+        <div id="pjList"></div>
+      </div>
+    `;
+    bktPanel.parentNode.insertBefore(panel, bktPanel.nextSibling);
+
+    // Default entry date = today (IST)
+    const todayIst = new Date(Date.now() + 5.5*3600000).toISOString().slice(0,10);
+    $('pjEntryDate').value = todayIst;
+
+    // Toggle show/hide body
+    $('plnJournalToggle').addEventListener('click', () => {
+      const body = $('plnJournalBody');
+      const btn  = $('plnJournalToggle');
+      const open = body.classList.toggle('open');
+      btn.textContent = open ? '▲ Hide' : '▼ Show';
+      if(open) _renderJournal();
+    });
+
+    // Wire up buttons
+    $('pjAddBtn').addEventListener('click', _addJournalTrade);
+    $('pjClearAllBtn').addEventListener('click', () => {
+      if(!confirm('Delete ALL journaled trades? This cannot be undone.')) return;
+      safeSet(LS.JOURNAL, '[]');
+      _renderJournal();
+    });
+    $('pjExportBtn').addEventListener('click', () => {
+      const data = safeJSON(LS.JOURNAL, []);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brahmastra-journal-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    _renderJournal();
+    console.log('[brm-enh] Trade Journal initialized');
+  }
+
+  function _addJournalTrade(){
+    const t = {
+      id: 'tj_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      entryDate: $('pjEntryDate').value,
+      entryTime: $('pjEntryTime').value,
+      strategy:  $('pjStrategy').value,
+      expiry:    $('pjExpiry').value.trim(),
+      callStrike: parseFloat($('pjCallStrike').value) || null,
+      callPrem:   parseFloat($('pjCallPrem').value) || null,
+      putStrike:  parseFloat($('pjPutStrike').value) || null,
+      putPrem:    parseFloat($('pjPutPrem').value) || null,
+      lots:       parseInt($('pjLots').value) || 1,
+      pt:         parseFloat($('pjPT').value) || 50,
+      sl:         parseFloat($('pjSL').value) || 200,
+      notes:      $('pjNotes').value.trim(),
+      status:     'OPEN',
+      realizedPnl: null,
+      exitDate:    null,
+      exitTime:    null,
+      createdAt:  Date.now(),
+    };
+    if(!t.entryDate){ alert('Entry date required.'); return; }
+    if(!t.callStrike && !t.putStrike){ alert('At least one strike required.'); return; }
+
+    const trades = safeJSON(LS.JOURNAL, []);
+    trades.unshift(t);  // newest first
+    safeSet(LS.JOURNAL, JSON.stringify(trades));
+
+    // Reset form fields (keep date & strategy & expiry for fast multi-add)
+    $('pjCallStrike').value = '';
+    $('pjCallPrem').value = '';
+    $('pjPutStrike').value = '';
+    $('pjPutPrem').value = '';
+    $('pjNotes').value = '';
+
+    _renderJournal();
+  }
+
+  function _closeJournalTrade(id){
+    const trades = safeJSON(LS.JOURNAL, []);
+    const t = trades.find(x => x.id === id);
+    if(!t) return;
+    const pnlStr = prompt(`Close this trade — enter realized P&L in USD\n(positive = profit, negative = loss):`, '0');
+    if(pnlStr == null) return;
+    const pnl = parseFloat(pnlStr);
+    if(!isFinite(pnl)){ alert('Invalid number.'); return; }
+    t.status = 'CLOSED';
+    t.realizedPnl = pnl;
+    const now = new Date(Date.now() + 5.5*3600000);
+    t.exitDate = now.toISOString().slice(0,10);
+    t.exitTime = now.toISOString().slice(11,16);
+    safeSet(LS.JOURNAL, JSON.stringify(trades));
+    _renderJournal();
+  }
+
+  function _deleteJournalTrade(id){
+    if(!confirm('Delete this trade entry?')) return;
+    const trades = safeJSON(LS.JOURNAL, []).filter(x => x.id !== id);
+    safeSet(LS.JOURNAL, JSON.stringify(trades));
+    _renderJournal();
+  }
+
+  function _liveMTM(t){
+    // Best-effort live mark-to-market using simState's option chain if loaded.
+    // Returns null if chain isn't available.
+    if(t.status !== 'OPEN') return null;
+    if(typeof window.simState === 'undefined' || !window.simState) return null;
+    const chain = window.simState.chain || window.simState.optionChain;
+    if(!chain || !Array.isArray(chain)) return null;
+
+    // Sum entry credit (or debit for longs)
+    const isShort = (t.strategy || '').startsWith('short_') || t.strategy === 'naked_call' || t.strategy === 'naked_put';
+    let entryNet = 0, currentNet = 0;
+    let found = 0, expected = 0;
+
+    if(t.callStrike != null && t.callPrem != null){
+      expected++;
+      entryNet += t.callPrem;
+      const row = chain.find(r => Math.abs((r.strike||r.K) - t.callStrike) < 1);
+      if(row){
+        const mark = row.callMark || row.callMid || (row.call && row.call.mark);
+        if(isFinite(mark)){ currentNet += mark; found++; }
+      }
+    }
+    if(t.putStrike != null && t.putPrem != null){
+      expected++;
+      entryNet += t.putPrem;
+      const row = chain.find(r => Math.abs((r.strike||r.K) - t.putStrike) < 1);
+      if(row){
+        const mark = row.putMark || row.putMid || (row.put && row.put.mark);
+        if(isFinite(mark)){ currentNet += mark; found++; }
+      }
+    }
+    if(found < expected) return null;
+
+    // For short: profit = entry credit - current cost to close
+    // For long:  profit = current value - entry debit
+    const lots = t.lots || 1;
+    const CONTRACT = (typeof window.CONTRACT_SIZE === 'number') ? window.CONTRACT_SIZE : 0.001;
+    const pnl = (isShort ? (entryNet - currentNet) : (currentNet - entryNet)) * lots * CONTRACT;
+    return pnl;
+  }
+
+  function _fmtTradeRow(t){
+    const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let entryFmt = '—';
+    if(t.entryDate){
+      const d = new Date(t.entryDate + 'T00:00:00');
+      const dow = dows[d.getUTCDay()];
+      const dd = String(d.getUTCDate()).padStart(2,'0');
+      const mo = mons[d.getUTCMonth()];
+      const yy = String(d.getUTCFullYear()).slice(2);
+      entryFmt = `${dow} ${dd}-${mo}-${yy}` + (t.entryTime ? ` ${t.entryTime}` : '');
+    }
+
+    const stratLbl = (t.strategy || '').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    let legsTxt = '';
+    if(t.callStrike) legsTxt += `C${t.callStrike}@${t.callPrem||'?'}`;
+    if(t.putStrike)  legsTxt += (legsTxt?' / ':'') + `P${t.putStrike}@${t.putPrem||'?'}`;
+
+    let pnlCell = '—';
+    let pnlCls = '';
+    if(t.status === 'CLOSED' && t.realizedPnl != null){
+      pnlCls = t.realizedPnl >= 0 ? 'pln-journal-pnl-pos' : 'pln-journal-pnl-neg';
+      pnlCell = `${t.realizedPnl >= 0 ? '+' : ''}$${t.realizedPnl.toFixed(2)}`;
+    } else {
+      const mtm = _liveMTM(t);
+      if(mtm != null){
+        pnlCls = mtm >= 0 ? 'pln-journal-pnl-pos' : 'pln-journal-pnl-neg';
+        pnlCell = `${mtm >= 0 ? '+' : ''}$${mtm.toFixed(2)} <span style="font-size:8px;color:var(--color-text-secondary)">live</span>`;
+      } else {
+        pnlCell = '<span style="color:var(--color-text-secondary);font-size:9px">awaiting chain</span>';
+      }
+    }
+
+    const statusCls = t.status === 'OPEN' ? 'pln-journal-status-open' : 'pln-journal-status-closed';
+    const rowCls    = t.status === 'OPEN' ? 'open-trade' : 'closed-trade';
+
+    let actions = '';
+    if(t.status === 'OPEN'){
+      actions += `<button class="pln-journal-row-btn pln-journal-btn-primary" data-act="close" data-id="${t.id}">Close</button>`;
+    }
+    actions += `<button class="pln-journal-row-btn pln-journal-btn-danger" data-act="del" data-id="${t.id}">×</button>`;
+
+    return `<tr class="${rowCls}">
+      <td>${entryFmt}</td>
+      <td>${stratLbl}</td>
+      <td>${t.expiry || '—'}</td>
+      <td>${legsTxt || '—'}</td>
+      <td>${t.lots}</td>
+      <td>${t.pt}/${t.sl}%</td>
+      <td><span class="${statusCls}">${t.status}</span></td>
+      <td class="${pnlCls}">${pnlCell}</td>
+      <td>${t.notes ? '<span title="'+t.notes.replace(/"/g,'&quot;')+'">📝</span>' : ''}</td>
+      <td><div class="pln-journal-row-act">${actions}</div></td>
+    </tr>`;
+  }
+
+  function _renderJournal(){
+    const list = $('pjList');
+    const cnt  = $('pjCount');
+    if(!list) return;
+    const trades = safeJSON(LS.JOURNAL, []);
+    if(cnt){
+      const open = trades.filter(t => t.status === 'OPEN').length;
+      cnt.textContent = `${trades.length} trade${trades.length===1?'':'s'} (${open} open)`;
+    }
+    if(!trades.length){
+      list.innerHTML = '<div class="pln-journal-empty">No trades logged yet. Fill the form above and click "Log Trade".</div>';
+      return;
+    }
+    let html = '<table class="pln-journal-table"><thead><tr>'
+      + '<th>Entry</th><th>Strategy</th><th>Expiry</th><th>Legs</th><th>Lots</th><th>PT/SL</th><th>Status</th><th>P&L</th><th></th><th></th>'
+      + '</tr></thead><tbody>';
+    trades.forEach(t => { html += _fmtTradeRow(t); });
+    html += '</tbody></table>';
+    list.innerHTML = html;
+
+    // Wire row buttons (event delegation)
+    list.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const act = btn.getAttribute('data-act');
+        const id  = btn.getAttribute('data-id');
+        if(act === 'close') _closeJournalTrade(id);
+        else if(act === 'del') _deleteJournalTrade(id);
+      });
+    });
+  }
+
+  setTimeout(_initJournal, 1500);
+
+  // Refresh journal P&L every 15s when chain is live (only updates if open)
+  setInterval(() => {
+    const body = $('plnJournalBody');
+    if(body && body.classList.contains('open')){
+      // Re-render only the open trades to refresh live MTM
+      const trades = safeJSON(LS.JOURNAL, []);
+      if(trades.some(t => t.status === 'OPEN')) _renderJournal();
+    }
+  }, 15000);
+
+  console.log('[brm-enh] Enhancement pack loaded — TV persist · SDP persist · Bkt presets · Trade Journal');
 })();
 </script>
 
