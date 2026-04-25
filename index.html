@@ -15911,6 +15911,17 @@ setTimeout(()=>{
           pos.pnlSeries.push({ t: Date.now(), spot: getLiveSpot(), pnl: _totalPnl, callMark: _shortMark, putMark: _longMark });
           if(pos.pnlSeries.length > 600) pos.pnlSeries.shift();  // cap history
         } catch(_e){}
+
+        // Make sure the LIVE P&L chart at the bottom of the panel renders
+        // for populated paper trades. simState.pnlSeries is a pointer to the
+        // active position's pnlSeries (kept in sync by _simSyncActivePointers),
+        // and drawLivePnlChart reads from there. Without these calls the
+        // chart panel would stay empty even though we have data points.
+        try {
+          if(typeof _simSyncActivePointers === 'function') _simSyncActivePointers();
+          if(typeof drawLivePnlChart === 'function') drawLivePnlChart();
+          if(typeof drawPnlCurve === 'function') drawPnlCurve();
+        } catch(e){ console.warn('[paperPopulated] chart render error:', e.message); }
         return;
       }
 
