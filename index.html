@@ -288,6 +288,9 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 
 .dgt-panel, details#dynGreekThresholds { display: none !important; }
 
+/* ══ SYNTHESIS DECISION PANEL — HIDDEN (do not take trades from it) ══ */
+#sdpWrap, .sdp-wrap { display: none !important; }
+
 /* ══ TELEGRAM INTEGRATION PANEL ══ */
 /* ── Decision Panel ── */
 .decision-panel{border-radius:12px;padding:14px 16px;margin-bottom:12px;border:1px solid transparent;transition:all .4s ease}
@@ -7570,32 +7573,91 @@ function uspUpdate(){
         source:'BVT · Variance Calc',
         icon:nearIV*nearIV>hv30*hv30*1.1?'✅':nearIV*nearIV>hv30*hv30?'⚠️':'❌'
       },
+      // GATE 14 — VRP (Variance Risk Premium) Edge — single-number IV-RV edge tile
+      // Critical strangle metric: a clear "how rich is the premium TODAY" gate
+      (function(){
+        const vrp = parseFloat((nearIV - hv30).toFixed(2));   // vol points
+        const vrpPct = hv30 > 0 ? (vrp / hv30) * 100 : 0;     // % above HV
+        const passVRP = vrp >= 8 && vrpPct >= 25;             // strong edge
+        const warnVRP = vrp >= 4 && vrp < 8;                  // marginal
+        return {
+          name:'VRP Edge ≥8 vol pts',
+          val:`VRP ${vrp>=0?'+':''}${vrp.toFixed(1)} pts (${vrpPct>=0?'+':''}${vrpPct.toFixed(0)}% over HV)`,
+          pass:passVRP, warn:warnVRP,
+          note:'Volatility Risk Premium = IV−RV. Strangle sellers need ≥8pts cushion; <4pts = no edge.',
+          source:'IV vs HV30 · Live',
+          icon:passVRP?'✅':warnVRP?'⚠️':'❌'
+        };
+      })(),
+      // GATE 15 — Probability of Touch (PoT ≈ 2× delta) — for short-strangle .10Δ legs
+      // PoT is the chance price TOUCHES a strike before expiry (≠ POP at expiry)
+      // For .10Δ short strangle: PoT ≈ 20% per leg → ~36% combined (rough)
+      // This is the metric that determines mid-trade pain, not just expiry outcome
+      (function(){
+        // Use user's target delta (default .10) — read from simState if available
+        const tgtDelta = (typeof window.simState!=='undefined' && window.simState && window.simState.targetDelta)
+                        ? window.simState.targetDelta : 0.10;
+        const potPerLeg = Math.min(0.99, 2 * tgtDelta);                       // PoT ≈ 2Δ
+        const potCombined = 1 - Math.pow(1 - potPerLeg, 2) * 0.85;            // ~combined w/ correlation adj
+        const potPct = potCombined * 100;
+        const passPoT = potPct <= 40;       // ≤40% combined touch = clean strangle
+        const warnPoT = potPct > 40 && potPct <= 55;
+        return {
+          name:'PoT (Combined) ≤40%',
+          val:`PoT/leg ${(potPerLeg*100).toFixed(0)}% · Combined ${potPct.toFixed(0)}% (Δ${tgtDelta.toFixed(2)})`,
+          pass:passPoT, warn:warnPoT,
+          note:'Probability of Touch ≈ 2×Δ. Mid-trade adjustment risk. Lower delta = safer strangle.',
+          source:'Greeks · Tastytrade Rule',
+          icon:passPoT?'✅':warnPoT?'⚠️':'❌'
+        };
+      })(),
+      // GATE 16 — Breakeven Cushion vs 1σ Expected Move
+      // Strangle is structurally underpriced if breakeven distance < 1 sigma
+      // 1σ move = spot × IV × √(DTE/365). Cushion = strike distance + premium collected.
+      (function(){
+        const sigma1 = spot * (nearIV/100) * Math.sqrt(Math.max(1,nearDTE)/365);
+        // Approximate strangle cushion: ATM straddle premium (collected) is the cushion
+        // since strangle BE ≈ short strike ± premium collected.
+        const cushion = straddle / 2;   // per-side cushion approximation (USD)
+        const ratio = sigma1 > 0 ? cushion / sigma1 : 0;
+        const ratioPct = ratio * 100;
+        const passBE = ratio >= 1.0;        // cushion ≥ 1σ = priced fairly or rich
+        const warnBE = ratio >= 0.75 && ratio < 1.0;
+        return {
+          name:'BE Cushion ≥1σ Move',
+          val:`Cushion $${cushion.toFixed(0)} vs 1σ $${sigma1.toFixed(0)} = ${ratioPct.toFixed(0)}%`,
+          pass:passBE, warn:warnBE,
+          note:'Strangle breakeven must clear 1 standard-deviation move. <75% = chronic underpricing.',
+          source:'Spot × IV × √T',
+          icon:passBE?'✅':warnBE?'⚠️':'❌'
+        };
+      })(),
     ];
 
     // Score
     const passCount = gates.filter(g=>g.pass).length;
     const warnCount = gates.filter(g=>!g.pass&&g.warn).length;
     const failCount = gates.filter(g=>!g.pass&&!g.warn).length;
-    const hardFails = gates.filter((g,i)=>[0,2,4,7,11].includes(i)&&!g.pass&&!g.warn).length; // critical gates
+    const hardFails = gates.filter((g,i)=>[0,2,4,7,11,13].includes(i)&&!g.pass&&!g.warn).length; // critical gates (VRP added)
 
     // Overall verdict
     let verdict, vClass, vIcon, vSub, aClass, aEmoji, aTitle, aSteps;
-    if(hardFails>=2||(failCount>=5)){
+    if(hardFails>=2||(failCount>=6)){
       verdict='DO NOT SELL'; vClass='usp-avoid'; vIcon='🔴'; aClass='usp-action-avoid'; aEmoji='🚫';
-      aTitle='AVOID SHORT STRADDLE — CRITICAL GATES FAILING';
+      aTitle='AVOID SHORT STRANGLE — CRITICAL GATES FAILING';
       vSub=`${failCount} gates failing (${hardFails} critical). Risk outweighs edge. Wait for conditions to align.`;
-      aSteps=`<b>What's wrong:</b> ${gates.filter(g=>!g.pass&&!g.warn).map(g=>`${g.name}`).join(', ')}.<br><b>Action:</b> Monitor VoV, IV trend, and big move cooldown. Re-evaluate when ≥9 gates pass.`;
-    } else if(passCount>=9&&hardFails===0){
-      verdict='ENTER STRADDLE'; vClass='usp-enter'; vIcon='🟢'; aClass='usp-action-enter'; aEmoji='✅';
-      aTitle=`SHORT STRADDLE — ENTER NOW (${passCount}/13 GATES PASS)`;
-      vSub=`${passCount}/13 gates passing. All critical gates green. Conditions optimal for short straddle entry.`;
+      aSteps=`<b>What's wrong:</b> ${gates.filter(g=>!g.pass&&!g.warn).map(g=>`${g.name}`).join(', ')}.<br><b>Action:</b> Monitor VoV, IV trend, VRP edge, and big move cooldown. Re-evaluate when ≥11 gates pass.`;
+    } else if(passCount>=11&&hardFails===0){
+      verdict='ENTER STRANGLE'; vClass='usp-enter'; vIcon='🟢'; aClass='usp-action-enter'; aEmoji='✅';
+      aTitle=`SHORT STRANGLE — ENTER NOW (${passCount}/16 GATES PASS)`;
+      vSub=`${passCount}/16 gates passing. All critical gates green (incl. VRP, PoT, BE Cushion). Conditions optimal for short strangle entry.`;
       const bestEx=_uspBestExpiry();
-      aSteps=`<b>Recommended:</b> ATM short straddle on <b>${bestEx.label||nearLabel}</b> (${bestEx.dte||nearDTE}DTE)<br><b>Theta/day:</b> +$${theta}<br><b>Stop-loss:</b> 25% debit<br><b>Target:</b> 50% profit or ${Math.round(nearDTE*0.5)}D`;
+      aSteps=`<b>Recommended:</b> .10Δ short strangle on <b>${bestEx.label||nearLabel}</b> (${bestEx.dte||nearDTE}DTE)<br><b>Theta/day:</b> +$${theta}<br><b>Stop-loss:</b> 2× credit received<br><b>Target:</b> 50% profit or ${Math.round(nearDTE*0.5)}D<br><b>Adjust trigger:</b> Tested leg Δ ≥ 0.18`;
     } else {
       verdict='WAIT & MONITOR'; vClass='usp-wait'; vIcon='🟡'; aClass='usp-action-wait'; aEmoji='⏳';
-      aTitle=`MONITOR — ${passCount}/13 GATES PASS (NEED ≥9 FOR ENTRY)`;
-      vSub=`${passCount} passing, ${warnCount} warning, ${failCount} failing. Close but not ready. Need ${Math.max(0,9-passCount)} more gates to flip green.`;
-      aSteps=`<b>Needs improvement:</b> ${gates.filter(g=>!g.pass).slice(0,4).map(g=>g.name).join(', ')}<br><b>Next check:</b> Watch VoV direction, IV trend, and calm streak count.`;
+      aTitle=`MONITOR — ${passCount}/16 GATES PASS (NEED ≥11 FOR ENTRY)`;
+      vSub=`${passCount} passing, ${warnCount} warning, ${failCount} failing. Close but not ready. Need ${Math.max(0,11-passCount)} more gates to flip green.`;
+      aSteps=`<b>Needs improvement:</b> ${gates.filter(g=>!g.pass).slice(0,4).map(g=>g.name).join(', ')}<br><b>Next check:</b> Watch VoV direction, IV trend, VRP edge, and BE-cushion ratio.`;
     }
 
     // ── Update DOM ────────────────────────────────────────────────
@@ -8404,8 +8466,34 @@ function detectMktBehaviour(){
   const dvolCompressing  = dvStructDn || (dvSells>=2&&dvEnemies===0);
 
   // Override conditions
-  // Trending: ADX OR MPO structural trend OR BOS break OR Elliott impulse
-  const isTrendy = (adxTrendy || pctMove>1.8 || hasTrendingStr || (hasBOSBreak&&pctMove>0.8));
+  // Trending: requires CORROBORATION between displacement and at least one
+  // structural / momentum signal. Raw pctMove alone is NOT enough — a market
+  // can drift several percent while ranging (lots of reversals, low ADX,
+  // balanced DI). Previously `pctMove > 1.8` alone fired TRENDING even when
+  // ADX was 13 and +DI/−DI were balanced (e.g. 36/38) — clearly ranging.
+  //
+  // New rule — TRENDING fires when ANY of:
+  //   (a) ADX confirms a real trend (adxTrendy), OR
+  //   (b) MPO structure confirms trend (HH/HL or LH/LL series), OR
+  //   (c) Big move (>1.8%) AND directional dominance (|+DI − −DI| ≥ 8)
+  //       AND few reversals (<3) AND adxProxy efficiency ≥ 0.30, OR
+  //   (d) BOS break AND a meaningful move (>0.8%).
+  //
+  // (c) is the "no ADX yet, infer from price" branch. It now requires a
+  // *clean* directional move, not just a big magnitude.
+  const diSpread     = Math.abs(diPlus - diMinus);
+  const directional  = adxAvailable
+                       ? (diSpread >= 8)
+                       : (adxProxy >= 0.30);
+  const fewReversals = reversals < 3;
+  const bigMove      = pctMove > 1.8;
+
+  const isTrendy = (
+       adxTrendy
+    || hasTrendingStr
+    || (bigMove && directional && fewReversals)
+    || (hasBOSBreak && pctMove > 0.8)
+  );
 
   // Manipulation: sweep detected in price OR liquidity sweep in MPO OR KZ time
   const isManipulating = hasLiqSweepNow || sweepDetected ||
@@ -8436,12 +8524,15 @@ function detectMktBehaviour(){
   if(dvEnemies>0)         evidenceParts.push(`DVOL ${dvEnemies} enemy`);
   const evidenceStr = evidenceParts.slice(0,4).join(' · ')||adxDisplayStr;
 
+  // Pre-formatted move string (avoid raw float like 7.675083333333342% in UI)
+  const pctMoveStr = pctMove.toFixed(2);
+
   // Manipulation detail
   const manipDetail = hasLiqSweepNow
     ? `${sweepDetected?sweepDir+' (price)':''} ${liqSweeps.length?liqSweeps.map(p=>p.name).join(', '):''} — liquidity sweep active. Stop-hunt in progress. Wait for reversal.`
-    : `London KZ active. ${pctMove}% move. MPO enemies: ${mpoEnemyNames||'none'}. Monitor for spike-and-reverse.`;
+    : `London KZ active. ${pctMoveStr}% move. MPO enemies: ${mpoEnemyNames||'none'}. Monitor for spike-and-reverse.`;
 
-  const trendDetail = `BTC moved ${pctMove}% directionally. ${adxDisplayStr} (+DI ${diPlus}/−DI ${diMinus}).`
+  const trendDetail = `BTC moved ${pctMoveStr}% directionally. ${adxDisplayStr} (+DI ${diPlus}/−DI ${diMinus}).`
     + (hasBOSBreak?` BOS break confirmed.`:'')
     + (elliottPat.length?` Elliott: ${elliottPat[0].name}.`:'')
     + (structPats.length?` Structure: ${structPats.map(p=>p.name).join(', ')}.`:'')
@@ -25567,97 +25658,6 @@ function toggleTheme(){
 
 </script>
 
-<!-- ═══════════════════════════════════════════════════════
-     BRAHMASTRA GUIDE BOT  —  reads live DOM only, no APIs
-     ═══════════════════════════════════════════════════════ -->
-<style>
-#gbBot{position:fixed;bottom:22px;right:22px;z-index:99999;display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-sans,sans-serif)}
-
-/* FAB */
-#gbFab{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#2563eb);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 22px rgba(124,58,237,.5);transition:transform .2s;position:relative;flex-shrink:0}
-#gbFab:hover{transform:scale(1.09)}
-#gbFab .gb-ring{position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(124,58,237,.45);animation:gbRing 2.2s infinite}
-@keyframes gbRing{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.6);opacity:0}}
-
-/* Window */
-#gbWin{width:320px;max-width:calc(100vw - 28px);background:var(--color-background-primary,#fff);border:1px solid var(--color-border-tertiary,#e5e7eb);border-radius:18px;box-shadow:0 16px 56px rgba(0,0,0,.22);margin-bottom:12px;display:none;flex-direction:column;overflow:hidden;max-height:500px;animation:gbUp .22s cubic-bezier(.22,1,.36,1)}
-@keyframes gbUp{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
-
-/* Header */
-#gbHead{background:linear-gradient(135deg,#7c3aed,#2563eb);padding:11px 14px;display:flex;align-items:center;gap:9px}
-.gb-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
-.gb-info{flex:1}
-.gb-name{font-size:13px;font-weight:700;color:#fff}
-.gb-sub{font-size:10px;color:rgba(255,255,255,.65);display:flex;align-items:center;gap:4px}
-.gb-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
-#gbClose{background:none;border:none;color:rgba(255,255,255,.65);cursor:pointer;font-size:17px;line-height:1;transition:color .15s}
-#gbClose:hover{color:#fff}
-
-/* Chips */
-#gbChips{padding:8px 11px 5px;display:flex;gap:5px;flex-wrap:wrap;border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb)}
-.gb-chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid rgba(124,58,237,.3);color:#7c3aed;background:rgba(124,58,237,.06);transition:all .15s;white-space:nowrap}
-.gb-chip:hover{background:#7c3aed;color:#fff;border-color:#7c3aed}
-
-/* Messages */
-#gbMsgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:160px;max-height:280px}
-.gb-row{display:flex;gap:7px;align-items:flex-start}
-.gb-row.gb-user{flex-direction:row-reverse}
-.gb-bubble{max-width:84%;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:12px}
-.gb-row:not(.gb-user) .gb-bubble{background:var(--color-background-secondary,#f3f4f6);color:var(--color-text-primary,#111);border-bottom-left-radius:3px}
-.gb-user .gb-bubble{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-bottom-right-radius:3px}
-.gb-av2{width:25px;height:25px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
-.gb-row:not(.gb-user) .gb-av2{background:rgba(124,58,237,.12)}
-.gb-user .gb-av2{background:rgba(37,99,235,.14)}
-.gb-dots{display:flex;align-items:center;gap:4px;padding:3px 0}
-.gb-dots span{width:7px;height:7px;border-radius:50%;background:var(--color-text-secondary,#6b7280);animation:gbDot .9s infinite ease-in-out}
-.gb-dots span:nth-child(2){animation-delay:.15s}
-.gb-dots span:nth-child(3){animation-delay:.3s}
-@keyframes gbDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
-
-/* Input */
-#gbInRow{display:flex;gap:7px;padding:9px 11px;border-top:0.5px solid var(--color-border-tertiary,#e5e7eb);background:var(--color-background-primary,#fff)}
-#gbIn{flex:1;font-size:12px;padding:7px 11px;border-radius:20px;border:1px solid var(--color-border-tertiary,#e5e7eb);background:var(--color-background-secondary,#f3f4f6);color:var(--color-text-primary,#111);outline:none;transition:border-color .15s}
-#gbIn:focus{border-color:#7c3aed}
-#gbSend{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .2s}
-#gbSend:hover{opacity:.85}
-#gbSend:disabled{opacity:.4;cursor:default}
-</style>
-
-<div id="gbBot">
-  <div id="gbWin">
-    <div id="gbHead">
-      <div class="gb-av">🤖</div>
-      <div class="gb-info">
-        <div class="gb-name">BRAHMASTRA Guide</div>
-        <div class="gb-sub"><span class="gb-dot"></span>Reads your live dashboard data</div>
-      </div>
-      <button id="gbClose">✕</button>
-    </div>
-
-    <div id="gbChips">
-      <span class="gb-chip" data-q="Give me a full overview of this dashboard">Overview</span>
-      <span class="gb-chip" data-q="What is the current trade signal and should I trade?">Trade Signal</span>
-      <span class="gb-chip" data-q="What does IV mean and what is it right now?">IV / Vol</span>
-      <span class="gb-chip" data-q="Explain VoV and current regime">VoV</span>
-      <span class="gb-chip" data-q="Explain the Option Chain and Max Pain">Option Chain</span>
-      <span class="gb-chip" data-q="What do the dashboard colors mean?">Colors</span>
-    </div>
-
-    <div id="gbMsgs"></div>
-
-    <div id="gbInRow">
-      <input id="gbIn" type="text" placeholder="Ask anything about the dashboard…" autocomplete="off"/>
-      <button id="gbSend">➤</button>
-    </div>
-  </div>
-
-  <button id="gbFab" title="Dashboard Guide">
-    <div class="gb-ring"></div>
-    🤖
-  </button>
-</div>
-
-
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    📰 INDIA MARKET & CRYPTO INTELLIGENCE ENGINE v2
@@ -26819,6 +26819,563 @@ setTimeout(()=>{try{bmrFetch(true);}catch(e){}},2200);
 setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════
+     🎯 STRANGLE DECISION EDGE — Final Seller's Verdict
+     ──────────────────────────────────────────────────────────────────────
+     Adds three concepts that were missing from the dashboard for a
+     truly complete short-strangle go/no-go decision:
+       1. Probability of Touch (PoT) per leg ≈ 2 × |delta|, plus combined
+       2. Breakeven Cushion — distance from spot expressed as % AND in
+          multiples of the 1σ expected move (sqrt(T)·spot·σ)
+       3. Edge Score — single 0–100 number combining VRP edge,
+          cushion strength, PoT safety, and IVR percentile
+     Reads from: simState.position (live legs) · #rvivIV · #rvivRV ·
+                 #vapZScore (Augen) · IVR if present · current spot
+     No external APIs. Pure DOM read + math.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+.sde-panel{
+  background:var(--color-background-primary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:14px;padding:14px 16px;margin-bottom:12px;
+  position:relative;overflow:hidden;box-sizing:border-box;
+}
+.sde-panel *{box-sizing:border-box;min-width:0}
+.sde-panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#10b981,#06b6d4,#7c3aed);
+  border-radius:14px 14px 0 0;
+}
+.sde-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding-top:4px}
+.sde-title{font-size:13px;font-weight:800;letter-spacing:.03em;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sde-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(135deg,#10b981,#7c3aed);color:#fff;letter-spacing:.04em;white-space:nowrap}
+.sde-status{font-size:9px;color:var(--color-text-secondary);font-weight:600}
+
+/* Verdict bar */
+.sde-verdict{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  margin-bottom:12px;font-size:12px;font-weight:700;
+  background:var(--color-background-secondary);
+  border:1px solid var(--color-border-tertiary);
+}
+.sde-verdict-go    {background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.35);color:#059669}
+.sde-verdict-fair  {background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.35);color:#b45309}
+.sde-verdict-nogo  {background:rgba(220,38,38,.10);border-color:rgba(220,38,38,.35);color:#b91c1c}
+.sde-verdict-wait  {background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.sde-verdict-icon{font-size:18px;line-height:1}
+.sde-verdict-text{flex:1}
+.sde-verdict-score{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* Score bar */
+.sde-bar-wrap{margin-bottom:12px}
+.sde-bar-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#dc2626 0%,#dc2626 35%,#f59e0b 35%,#f59e0b 65%,#10b981 65%,#10b981 100%);position:relative;overflow:hidden}
+.sde-bar-marker{position:absolute;top:-3px;width:3px;height:14px;background:var(--color-text-primary);border-radius:2px;transition:left .4s ease;box-shadow:0 0 0 2px var(--color-background-primary)}
+.sde-bar-labels{display:flex;justify-content:space-between;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-top:4px}
+
+/* Metric grid */
+.sde-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
+@media(min-width:600px){.sde-grid{grid-template-columns:repeat(4,1fr)}}
+.sde-cell{
+  background:var(--color-background-secondary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:8px;padding:8px 10px;
+  border-left:3px solid var(--color-border-tertiary);
+}
+.sde-cell.ok  {border-left-color:#10b981}
+.sde-cell.warn{border-left-color:#f59e0b}
+.sde-cell.bad {border-left-color:#dc2626}
+.sde-cell-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.sde-cell-val{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--color-text-primary);line-height:1.15}
+.sde-cell-sub{font-size:9px;color:var(--color-text-secondary);margin-top:2px;line-height:1.3}
+
+/* Leg row */
+.sde-legs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.sde-leg{
+  background:var(--color-background-secondary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:8px;padding:9px 11px;
+}
+.sde-leg-call{border-top:2px solid #10b981}
+.sde-leg-put {border-top:2px solid #ef4444}
+.sde-leg-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.sde-leg-call .sde-leg-head{color:#059669}
+.sde-leg-put  .sde-leg-head{color:#b91c1c}
+.sde-leg-strike{font-size:13px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
+.sde-leg-row{display:flex;justify-content:space-between;font-size:10px;margin-top:3px}
+.sde-leg-row span:first-child{color:var(--color-text-secondary);font-weight:600}
+.sde-leg-row span:last-child{color:var(--color-text-primary);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Checklist */
+.sde-checks{
+  background:var(--color-background-secondary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:8px;padding:9px 11px;margin-bottom:6px;
+}
+.sde-check-row{display:flex;align-items:flex-start;gap:7px;font-size:10.5px;line-height:1.45;padding:3px 0}
+.sde-check-row + .sde-check-row{border-top:0.5px dashed var(--color-border-tertiary)}
+.sde-check-icon{flex-shrink:0;font-size:11px;line-height:1.4}
+.sde-check-lbl{font-weight:700;color:var(--color-text-primary);min-width:88px}
+.sde-check-detail{flex:1;color:var(--color-text-secondary)}
+.sde-check-detail b{color:var(--color-text-primary);font-weight:700}
+
+.sde-empty{
+  font-size:11px;color:var(--color-text-secondary);text-align:center;
+  padding:18px 10px;font-style:italic;line-height:1.5;
+}
+.sde-foot{font-size:9px;color:var(--color-text-secondary);margin-top:6px;line-height:1.45;font-style:italic}
+.sde-foot b{color:var(--color-text-primary);font-style:normal}
+</style>
+
+<div class="sde-panel" id="sdePanel">
+  <div class="sde-head">
+    <div class="sde-title">
+      🎯 Strangle Decision Edge
+      <span class="sde-badge">FINAL VERDICT</span>
+    </div>
+    <div class="sde-status" id="sdeStatus">⏳ awaiting position…</div>
+  </div>
+
+  <div class="sde-verdict sde-verdict-wait" id="sdeVerdict">
+    <div class="sde-verdict-icon" id="sdeVerdictIcon">⏳</div>
+    <div class="sde-verdict-text" id="sdeVerdictText">Open a short strangle in the simulator to compute edge.</div>
+    <div class="sde-verdict-score" id="sdeVerdictScore">—</div>
+  </div>
+
+  <div class="sde-bar-wrap">
+    <div class="sde-bar-track">
+      <div class="sde-bar-marker" id="sdeBarMarker" style="left:50%"></div>
+    </div>
+    <div class="sde-bar-labels">
+      <span>NO-GO 0</span>
+      <span>FAIR 50</span>
+      <span>GO 100</span>
+    </div>
+  </div>
+
+  <div id="sdeBody">
+    <div class="sde-empty" id="sdeEmpty">
+      No active strangle position detected.<br>
+      Once you fire a short strangle from the simulator (or auto-trade fires),<br>
+      this panel will compute Probability of Touch, Breakeven Cushion, VRP edge<br>
+      and the final go/no-go score.
+    </div>
+
+    <div id="sdeContent" style="display:none">
+      <!-- Per-leg cards -->
+      <div class="sde-legs">
+        <div class="sde-leg sde-leg-call">
+          <div class="sde-leg-head"><span>📞 Short Call</span><span class="sde-leg-strike" id="sdeCStrike">—</span></div>
+          <div class="sde-leg-row"><span>Delta</span><span id="sdeCDelta">—</span></div>
+          <div class="sde-leg-row"><span>PoT (≈2Δ)</span><span id="sdeCPoT">—</span></div>
+          <div class="sde-leg-row"><span>Distance</span><span id="sdeCDist">—</span></div>
+          <div class="sde-leg-row"><span>BE cushion</span><span id="sdeCCush">—</span></div>
+        </div>
+        <div class="sde-leg sde-leg-put">
+          <div class="sde-leg-head"><span>📉 Short Put</span><span class="sde-leg-strike" id="sdePStrike">—</span></div>
+          <div class="sde-leg-row"><span>Delta</span><span id="sdePDelta">—</span></div>
+          <div class="sde-leg-row"><span>PoT (≈2Δ)</span><span id="sdePPoT">—</span></div>
+          <div class="sde-leg-row"><span>Distance</span><span id="sdePDist">—</span></div>
+          <div class="sde-leg-row"><span>BE cushion</span><span id="sdePCush">—</span></div>
+        </div>
+      </div>
+
+      <!-- Aggregate metrics -->
+      <div class="sde-grid">
+        <div class="sde-cell" id="sdeCellAnyTouch">
+          <div class="sde-cell-lbl">🎯 Any-Touch</div>
+          <div class="sde-cell-val" id="sdeAnyTouch">—</div>
+          <div class="sde-cell-sub">prob a leg is tested</div>
+        </div>
+        <div class="sde-cell" id="sdeCellSigma">
+          <div class="sde-cell-lbl">σ Expected Move</div>
+          <div class="sde-cell-val" id="sdeSigma">—</div>
+          <div class="sde-cell-sub" id="sdeSigmaSub">1σ to expiry</div>
+        </div>
+        <div class="sde-cell" id="sdeCellCushSig">
+          <div class="sde-cell-lbl">📏 Cushion / σ</div>
+          <div class="sde-cell-val" id="sdeCushSig">—</div>
+          <div class="sde-cell-sub">tighter leg in σ</div>
+        </div>
+        <div class="sde-cell" id="sdeCellVRP">
+          <div class="sde-cell-lbl">💎 VRP Edge</div>
+          <div class="sde-cell-val" id="sdeVRPEdge">—</div>
+          <div class="sde-cell-sub">IV − RV vol pts</div>
+        </div>
+      </div>
+
+      <!-- Gate checklist -->
+      <div class="sde-checks" id="sdeChecks"></div>
+
+      <div class="sde-foot">
+        <b>How to read:</b> PoT ≈ 2 × |Δ| (industry rule of thumb for one-touch through expiry).
+        BE cushion = distance from spot to breakeven, divided by 1σ expected move
+        (σ_$ = spot × IV × √(DTE/365)). A healthy strangle has cushion ≥ 1.0σ on both legs,
+        any-touch ≤ 50%, and VRP > 5 vol pts. Score combines all four.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   STRANGLE DECISION EDGE — engine
+   ─────────────────────────────────────────────────────────────────────
+   Pure-read computation. Runs every 5s. Falls back gracefully when any
+   data source is missing. Never throws into the page.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function sdeInit(){
+  'use strict';
+
+  function $(id){ return document.getElementById(id); }
+  function num(s){ if(s==null) return NaN; const m=String(s).match(/-?\d+(?:\.\d+)?/); return m?parseFloat(m[0]):NaN; }
+
+  function readDOMVal(id){
+    const el = $(id);
+    return el ? el.textContent : null;
+  }
+
+  /** Get the active strangle position from simState (if any).
+   *  Returns {call, put, expiry, entrySpot, currentSpot, dteDays} or null. */
+  function getActiveStrangle(){
+    try{
+      const s = window.simState;
+      if(!s || !s.position) return null;
+      const p = s.position;
+      if(!p.call || !p.put) return null;
+      if(!isFinite(p.call.strike) || !isFinite(p.put.strike)) return null;
+      // Only treat as strangle if call strike > put strike (and both shorts)
+      if(p.call.strike <= p.put.strike) return null;
+
+      const spot = (typeof window.getLiveSpot === 'function')
+        ? window.getLiveSpot()
+        : (p.entrySpot || 0);
+      if(!isFinite(spot) || spot <= 0) return null;
+
+      // DTE in days
+      let dteDays = null;
+      if(typeof p.currentDTE === 'number' && p.currentDTE > 0){
+        dteDays = p.currentDTE;
+      } else if(p.expiry){
+        // Try to parse expiry like '29-May-26' or ISO
+        const expMs = parseExpiryMs(p.expiry);
+        if(expMs){
+          const ms = expMs - Date.now();
+          if(ms > 0) dteDays = ms / 86400000;
+        }
+      }
+      if(!dteDays || dteDays <= 0) dteDays = 7;  // fallback
+
+      return {
+        call: p.call,
+        put:  p.put,
+        expiry: p.expiry,
+        entrySpot: p.entrySpot,
+        currentSpot: spot,
+        dteDays: dteDays,
+        creditInitial: p.creditInitial || 0,
+      };
+    }catch(e){
+      return null;
+    }
+  }
+
+  function parseExpiryMs(label){
+    if(!label) return null;
+    // Try ISO first
+    const t = Date.parse(label);
+    if(isFinite(t)) return t;
+    // Try DD-MMM-YY (e.g., 29-May-26 → 2026-05-29 16:00 IST settlement)
+    const m = String(label).match(/^(\d{1,2})[-\s]([A-Za-z]{3})[-\s](\d{2,4})$/);
+    if(m){
+      const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+      const mo = months[m[2].toLowerCase()];
+      if(mo == null) return null;
+      let yy = parseInt(m[3],10);
+      if(yy < 100) yy += 2000;
+      const dd = parseInt(m[1],10);
+      // Delta Exchange BTC options settle at 17:30 IST = 12:00 UTC
+      return Date.UTC(yy, mo, dd, 12, 0, 0);
+    }
+    return null;
+  }
+
+  /** Get current ATM IV (in vol pts, e.g. 38.5). Reads RV/IV panel first. */
+  function readATMIV(){
+    let iv = num(readDOMVal('rvivIV'));
+    if(isFinite(iv) && iv > 0) return iv;
+    // Fallback: average leg IV
+    try{
+      const s = window.simState?.position;
+      if(s && s.call && s.put){
+        const avg = (s.call.entryIV + s.put.entryIV) / 2;
+        if(avg > 0) return avg;
+      }
+    }catch(e){}
+    return NaN;
+  }
+
+  /** Get current realised vol (in vol pts). */
+  function readRV(){
+    const v = num(readDOMVal('rvivRV'));
+    return isFinite(v) ? v : NaN;
+  }
+
+  /** Get IVR if present (0–100). */
+  function readIVR(){
+    const ivr = num(readDOMVal('vapIVR'));
+    return isFinite(ivr) ? ivr : NaN;
+  }
+
+  /** Compute 1σ expected $ move = spot · σ · √(T years). */
+  function expectedMove1Sigma(spot, ivPct, dteDays){
+    if(!isFinite(spot) || !isFinite(ivPct) || !isFinite(dteDays)) return NaN;
+    const T = Math.max(dteDays / 365, 1/365);
+    return spot * (ivPct/100) * Math.sqrt(T);
+  }
+
+  /** Format helpers. */
+  function fmtPct(v, dp){ if(!isFinite(v)) return '—'; return v.toFixed(dp==null?1:dp)+'%'; }
+  function fmtUSD(v){ if(!isFinite(v)) return '—'; return '$'+Math.round(v).toLocaleString('en-US'); }
+  function fmtVal(v, dp){ if(!isFinite(v)) return '—'; return v.toFixed(dp==null?2:dp); }
+
+  /** Set cell border color (ok/warn/bad). */
+  function setCellTone(id, tone){
+    const el = $(id);
+    if(!el) return;
+    el.classList.remove('ok','warn','bad');
+    if(tone) el.classList.add(tone);
+  }
+
+  function tone(val, okIfGTE, warnIfGTE){
+    // higher = better
+    if(!isFinite(val)) return null;
+    if(val >= okIfGTE) return 'ok';
+    if(val >= warnIfGTE) return 'warn';
+    return 'bad';
+  }
+  function toneInverse(val, okIfLTE, warnIfLTE){
+    // lower = better
+    if(!isFinite(val)) return null;
+    if(val <= okIfLTE) return 'ok';
+    if(val <= warnIfLTE) return 'warn';
+    return 'bad';
+  }
+
+  /** Main render. */
+  function sdeRender(){
+    try{
+      const ctx = getActiveStrangle();
+      const empty = $('sdeEmpty');
+      const content = $('sdeContent');
+      const status = $('sdeStatus');
+      const verdict = $('sdeVerdict');
+      const verdictIcon = $('sdeVerdictIcon');
+      const verdictText = $('sdeVerdictText');
+      const verdictScore = $('sdeVerdictScore');
+      const marker = $('sdeBarMarker');
+
+      if(!ctx){
+        if(empty) empty.style.display = '';
+        if(content) content.style.display = 'none';
+        if(status) status.textContent = '⏳ awaiting position…';
+        if(verdict){
+          verdict.className = 'sde-verdict sde-verdict-wait';
+          verdictIcon.textContent = '⏳';
+          verdictText.textContent = 'Open a short strangle in the simulator to compute edge.';
+          verdictScore.textContent = '—';
+        }
+        if(marker) marker.style.left = '50%';
+        return;
+      }
+
+      if(empty) empty.style.display = 'none';
+      if(content) content.style.display = '';
+
+      const spot = ctx.currentSpot;
+      const cK = ctx.call.strike, pK = ctx.put.strike;
+      const cDelta = Math.abs(ctx.call.entryDelta || 0);
+      const pDelta = Math.abs(ctx.put.entryDelta || 0);
+
+      // ── Probability of Touch ── PoT ≈ 2 × |Δ| (capped at 100%)
+      const cPoT = Math.min(2 * cDelta * 100, 100);
+      const pPoT = Math.min(2 * pDelta * 100, 100);
+      // Any-touch: P(at least one tested) — assume rough independence for upper/lower legs
+      // P(any) = 1 − (1 − cPoT/100)(1 − pPoT/100). Slight overstatement but conservative for sellers.
+      const anyTouch = (1 - (1 - cPoT/100) * (1 - pPoT/100)) * 100;
+
+      // ── Distance & Breakeven cushion ──
+      // Breakevens: callBE = cK + creditPerSide?  We approximate using credit ÷ 2 if available.
+      const creditTotal = ctx.creditInitial || (ctx.call.entryPx + ctx.put.entryPx) || 0;
+      // For strangles, total credit pushes BOTH breakevens out. Conservative: split equally.
+      const creditPerSide = creditTotal / 2;
+      const callBE = cK + creditPerSide;
+      const putBE  = pK - creditPerSide;
+      const distC$ = callBE - spot;          // +ve if spot below callBE (good)
+      const distP$ = spot - putBE;           // +ve if spot above putBE  (good)
+      const distCpct = (distC$ / spot) * 100;
+      const distPpct = (distP$ / spot) * 100;
+
+      // ── 1σ expected $ move ──
+      const ivPct = readATMIV();
+      const sigma$ = expectedMove1Sigma(spot, ivPct, ctx.dteDays);
+      const cushC = isFinite(sigma$) && sigma$ > 0 ? distC$ / sigma$ : NaN;  // cushion in σ units
+      const cushP = isFinite(sigma$) && sigma$ > 0 ? distP$ / sigma$ : NaN;
+      const cushTighter = (isFinite(cushC) && isFinite(cushP)) ? Math.min(cushC, cushP) : NaN;
+
+      // ── VRP edge ──
+      const rv = readRV();
+      const vrp = (isFinite(ivPct) && isFinite(rv)) ? (ivPct - rv) : NaN;
+
+      // ── IVR (optional) ──
+      const ivr = readIVR();
+
+      // ── Populate per-leg cells ──
+      $('sdeCStrike').textContent = isFinite(cK) ? '$'+Math.round(cK).toLocaleString('en-US') : '—';
+      $('sdePStrike').textContent = isFinite(pK) ? '$'+Math.round(pK).toLocaleString('en-US') : '—';
+      $('sdeCDelta').textContent  = isFinite(cDelta) ? cDelta.toFixed(3) : '—';
+      $('sdePDelta').textContent  = isFinite(pDelta) ? pDelta.toFixed(3) : '—';
+      $('sdeCPoT').textContent    = fmtPct(cPoT, 1);
+      $('sdePPoT').textContent    = fmtPct(pPoT, 1);
+      $('sdeCDist').textContent   = isFinite(distCpct) ? (distCpct>=0?'+':'')+distCpct.toFixed(2)+'%' : '—';
+      $('sdePDist').textContent   = isFinite(distPpct) ? (distPpct>=0?'+':'')+distPpct.toFixed(2)+'%' : '—';
+      $('sdeCCush').textContent   = isFinite(cushC) ? cushC.toFixed(2)+'σ' : '—';
+      $('sdePCush').textContent   = isFinite(cushP) ? cushP.toFixed(2)+'σ' : '—';
+
+      // ── Populate aggregate cells ──
+      $('sdeAnyTouch').textContent = fmtPct(anyTouch, 1);
+      $('sdeSigma').textContent    = isFinite(sigma$) ? fmtUSD(sigma$) : '—';
+      $('sdeSigmaSub').textContent = `${ctx.dteDays.toFixed(1)}d · IV ${isFinite(ivPct)?ivPct.toFixed(1)+'%':'—'}`;
+      $('sdeCushSig').textContent  = isFinite(cushTighter) ? cushTighter.toFixed(2)+'σ' : '—';
+      $('sdeVRPEdge').textContent  = isFinite(vrp) ? (vrp>=0?'+':'')+vrp.toFixed(1)+'pts' : '—';
+
+      // Tones for cells
+      setCellTone('sdeCellAnyTouch', toneInverse(anyTouch, 35, 55));      // ≤35 ok, ≤55 warn, >55 bad
+      setCellTone('sdeCellSigma',    null);                                // contextual only
+      setCellTone('sdeCellCushSig',  tone(cushTighter, 1.0, 0.6));         // ≥1σ ok, ≥0.6σ warn
+      setCellTone('sdeCellVRP',      tone(vrp, 5, 2));                     // ≥5 ok, ≥2 warn
+
+      // ── Edge Score (0–100) ──
+      // Weights: VRP 30 | Cushion 30 | PoT 25 | IVR 15 (if available; else redistributed)
+      let score = 0, weightUsed = 0;
+
+      // VRP component (0–30): map vrp 0..10pts → 0..30
+      if(isFinite(vrp)){
+        const v = Math.max(0, Math.min(vrp, 10));
+        score += (v / 10) * 30;
+        weightUsed += 30;
+      }
+      // Cushion component (0–30): map tighter cushion 0..1.5σ → 0..30
+      if(isFinite(cushTighter)){
+        const c = Math.max(0, Math.min(cushTighter, 1.5));
+        score += (c / 1.5) * 30;
+        weightUsed += 30;
+      }
+      // PoT component (0–25): map any-touch 80..30 → 0..25 (lower touch = higher score)
+      if(isFinite(anyTouch)){
+        const inv = Math.max(0, Math.min(80 - anyTouch, 50));   // 0..50
+        score += (inv / 50) * 25;
+        weightUsed += 25;
+      }
+      // IVR component (0–15): map ivr 0..100 → 0..15
+      if(isFinite(ivr)){
+        const i = Math.max(0, Math.min(ivr, 100));
+        score += (i / 100) * 15;
+        weightUsed += 15;
+      }
+      // Normalise to 0–100 against weights actually used
+      const finalScore = weightUsed > 0 ? (score / weightUsed) * 100 : NaN;
+
+      // Verdict bucket
+      let verCls = 'sde-verdict-wait', icon = '⏳', text = 'Insufficient data — waiting for IV/RV feed.';
+      if(isFinite(finalScore)){
+        if(finalScore >= 70){
+          verCls = 'sde-verdict-go';
+          icon = '✅';
+          text = 'STRONG EDGE — strangle is well-priced for sellers.';
+        } else if(finalScore >= 50){
+          verCls = 'sde-verdict-fair';
+          icon = '⚠️';
+          text = 'FAIR — usable but thin edge. Size down or wait for richer setup.';
+        } else {
+          verCls = 'sde-verdict-nogo';
+          icon = '🚫';
+          text = 'NO-GO — risk/reward inadequate. Wait for IV expansion or wider strikes.';
+        }
+      }
+      verdict.className = 'sde-verdict ' + verCls;
+      verdictIcon.textContent = icon;
+      verdictText.textContent = text;
+      verdictScore.textContent = isFinite(finalScore) ? finalScore.toFixed(0) : '—';
+      if(marker && isFinite(finalScore)){
+        const pct = Math.max(0, Math.min(finalScore, 100));
+        marker.style.left = pct + '%';
+      }
+
+      // ── Gate checklist ──
+      const checks = [];
+      // Gate 1: VRP
+      if(isFinite(vrp)){
+        if(vrp >= 5)      checks.push({i:'✅',lbl:'VRP edge',  d:`<b>+${vrp.toFixed(1)}pts</b> — IV richly priced over RV. Sellers favoured.`});
+        else if(vrp >= 2) checks.push({i:'⚠️',lbl:'VRP edge',  d:`<b>+${vrp.toFixed(1)}pts</b> — thin premium. Need either lower RV or higher IV.`});
+        else if(vrp >= 0) checks.push({i:'🚫',lbl:'VRP edge',  d:`<b>+${vrp.toFixed(1)}pts</b> — barely positive. Theta likely won't beat realised moves.`});
+        else              checks.push({i:'🚫',lbl:'VRP edge',  d:`<b>${vrp.toFixed(1)}pts</b> — IV BELOW RV. You'd be selling cheap vol — do not enter.`});
+      } else {
+        checks.push({i:'⏳',lbl:'VRP edge',  d:'IV/RV feed not yet ready.'});
+      }
+      // Gate 2: Cushion
+      if(isFinite(cushTighter)){
+        if(cushTighter >= 1.0)      checks.push({i:'✅',lbl:'BE cushion', d:`Tighter leg sits <b>${cushTighter.toFixed(2)}σ</b> from spot — comfortable buffer.`});
+        else if(cushTighter >= 0.6) checks.push({i:'⚠️',lbl:'BE cushion', d:`Tighter leg <b>${cushTighter.toFixed(2)}σ</b> from spot — within normal noise. One adverse move tests it.`});
+        else if(cushTighter >= 0)   checks.push({i:'🚫',lbl:'BE cushion', d:`Only <b>${cushTighter.toFixed(2)}σ</b> of cushion — strangle is structurally underpriced.`});
+        else                        checks.push({i:'🚫',lbl:'BE cushion', d:`<b>${cushTighter.toFixed(2)}σ</b> — spot already past breakeven. Defend or close.`});
+      }
+      // Gate 3: Any-touch
+      if(isFinite(anyTouch)){
+        if(anyTouch <= 35)      checks.push({i:'✅',lbl:'Any-touch', d:`<b>${anyTouch.toFixed(0)}%</b> chance a leg is tested — both wings safely OTM.`});
+        else if(anyTouch <= 55) checks.push({i:'⚠️',lbl:'Any-touch', d:`<b>${anyTouch.toFixed(0)}%</b> — coin-flip territory. Be ready to manage.`});
+        else                    checks.push({i:'🚫',lbl:'Any-touch', d:`<b>${anyTouch.toFixed(0)}%</b> — likely to be tested. Strikes too close.`});
+      }
+      // Gate 4: IVR (if available)
+      if(isFinite(ivr)){
+        if(ivr >= 60)      checks.push({i:'✅',lbl:'IV Rank',    d:`<b>${ivr.toFixed(0)}</b> — IV in upper third of 52-week range. Premium regime.`});
+        else if(ivr >= 40) checks.push({i:'⚠️',lbl:'IV Rank',    d:`<b>${ivr.toFixed(0)}</b> — middle of range. Acceptable but not optimal.`});
+        else               checks.push({i:'🚫',lbl:'IV Rank',    d:`<b>${ivr.toFixed(0)}</b> — IV cheap by recent history. Why sell now?`});
+      }
+      // Gate 5: Delta balance (sanity)
+      if(isFinite(cDelta) && isFinite(pDelta)){
+        const skew = Math.abs(cDelta - pDelta);
+        if(skew <= 0.03)  checks.push({i:'✅',lbl:'Δ symmetry', d:`Call Δ${cDelta.toFixed(2)} / Put Δ${pDelta.toFixed(2)} — balanced.`});
+        else              checks.push({i:'⚠️',lbl:'Δ symmetry', d:`Call Δ${cDelta.toFixed(2)} / Put Δ${pDelta.toFixed(2)} — one leg drifting (gap ${skew.toFixed(2)}). Consider adjusting.`});
+      }
+
+      const checksEl = $('sdeChecks');
+      if(checksEl){
+        checksEl.innerHTML = checks.map(c =>
+          `<div class="sde-check-row">
+             <span class="sde-check-icon">${c.i}</span>
+             <span class="sde-check-lbl">${c.lbl}</span>
+             <span class="sde-check-detail">${c.d}</span>
+           </div>`
+        ).join('');
+      }
+
+      if(status) status.textContent = `live · ${ctx.dteDays.toFixed(1)}d to expiry`;
+    }catch(e){
+      console.warn('[SDE] render error:', e);
+    }
+  }
+
+  // Boot + interval
+  setTimeout(sdeRender, 1500);
+  setInterval(sdeRender, 5000);
+  // Expose for manual refresh
+  window.sdeRender = sdeRender;
+
+  console.log('[SDE] Strangle Decision Edge panel initialised.');
+})();
+</script>
+
+
 <!-- ═══════════════════════════════════════════════════════════
      BRAHMASTRA COMPLETE TRADING SYSTEM PANEL
      Four-strategy short vol system · All signals from dashboard
@@ -27678,6 +28235,2431 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 })();
 </script>
 
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     🏛️ PRO-VOL SUITE — Dealer GEX · Max Pain · Funding · 25Δ Skew
+     ──────────────────────────────────────────────────────────────────────
+     Three institutional-grade short-vol context panels added 2026-04-25:
+       1. GEX / Zero-Gamma / Max Pain — dealer positioning context
+       2. Funding Rate + Perp Basis — squeeze risk monitor
+       3. 25Δ Risk Reversal + Butterfly — true market skew structure
+     Reads from: simState.chain (Delta) + Binance funding/basis APIs
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Pro-Vol Suite container ── */
+.pvs-panel{
+  background:var(--color-background-primary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:14px;padding:14px 16px;margin-bottom:12px;
+  position:relative;overflow:hidden;
+  max-width:100%;box-sizing:border-box;
+}
+.pvs-panel *{box-sizing:border-box;min-width:0}
+.pvs-panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#7c3aed,#06b6d4,#10b981);
+  border-radius:14px 14px 0 0;
+}
+.pvs-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-top:4px}
+.pvs-title{font-size:13px;font-weight:800;letter-spacing:.03em;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pvs-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;letter-spacing:.04em;white-space:nowrap}
+.pvs-status{font-size:9px;color:var(--color-text-secondary);font-weight:600}
+.pvs-refresh{font-size:9px;padding:3px 8px;border-radius:5px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer;font-weight:700}
+.pvs-refresh:hover{background:#7c3aed;color:#fff;border-color:#7c3aed}
+
+/* Tab nav */
+.pvs-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;border-bottom:1px solid var(--color-border-tertiary);padding-bottom:8px}
+.pvs-tab{font-size:10px;padding:5px 11px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-secondary);cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.04em;transition:all .2s}
+.pvs-tab:hover{color:var(--color-text-primary);border-color:#7c3aed}
+.pvs-tab.active{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.pvs-tabbody{display:none}
+.pvs-tabbody.active{display:block}
+
+/* Verdict card (top of each tab) */
+.pvs-verdict{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;border:1.5px solid transparent;margin-bottom:11px;transition:all .3s ease}
+.pvs-v-good   {background:rgba(16,185,129,.10);border-color:#10b981}
+.pvs-v-caution{background:rgba(245,158,11,.10);border-color:#f59e0b}
+.pvs-v-danger {background:rgba(220,38,38,.10); border-color:#dc2626}
+.pvs-v-neutral{background:rgba(107,114,128,.08);border-color:#6b7280}
+.pvs-v-icon{font-size:26px;line-height:1;flex-shrink:0}
+.pvs-v-body{flex:1;min-width:0}
+.pvs-v-title{font-size:13px;font-weight:900;letter-spacing:.02em;line-height:1.15;margin-bottom:2px}
+.pvs-v-good    .pvs-v-title{color:#059669}
+.pvs-v-caution .pvs-v-title{color:#d97706}
+.pvs-v-danger  .pvs-v-title{color:#b91c1c}
+.pvs-v-neutral .pvs-v-title{color:var(--color-text-primary)}
+.pvs-v-sub{font-size:10px;color:var(--color-text-secondary);line-height:1.45;margin-top:1px}
+
+/* Metric grid */
+.pvs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:11px;width:100%}
+@media(max-width:480px){
+  .pvs-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+}
+.pvs-mcell{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:8px;padding:8px 10px;overflow:hidden}
+.pvs-mlbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:3px;display:flex;align-items:center;gap:4px;line-height:1.25;word-break:break-word}
+.pvs-mval{font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;line-height:1.1;word-break:break-word}
+.pvs-msub{font-size:9px;color:var(--color-text-secondary);margin-top:2px;font-variant-numeric:tabular-nums;word-break:break-word}
+.pvs-mval.pos{color:#10b981}
+.pvs-mval.neg{color:#dc2626}
+.pvs-mval.warn{color:#f59e0b}
+
+/* Strike bar visualization for GEX & Max Pain */
+.pvs-bars{margin-top:11px;padding-top:11px;border-top:1px solid var(--color-border-tertiary)}
+.pvs-bars-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:9px}
+.pvs-bar-row{display:grid;grid-template-columns:65px 1fr 80px;gap:7px;align-items:center;margin-bottom:4px;font-size:10px}
+.pvs-bar-strike{font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;text-align:right}
+.pvs-bar-strike.spot{color:#7c3aed;font-weight:900}
+.pvs-bar-track{background:var(--color-background-secondary);border-radius:3px;height:14px;position:relative;overflow:hidden}
+.pvs-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.pvs-bar-fill.gex-pos{background:linear-gradient(90deg,#10b981,#059669)}
+.pvs-bar-fill.gex-neg{background:linear-gradient(90deg,#dc2626,#b91c1c)}
+.pvs-bar-fill.pain   {background:linear-gradient(90deg,#f59e0b,#d97706)}
+.pvs-bar-val{font-variant-numeric:tabular-nums;color:var(--color-text-secondary);font-weight:600;text-align:right}
+
+/* Tutorial / methodology */
+.pvs-method{margin-top:10px;font-size:9.5px;color:var(--color-text-secondary);line-height:1.5;background:var(--color-background-secondary);border-radius:7px;padding:8px 10px;border-left:2px solid #7c3aed}
+.pvs-method b{color:var(--color-text-primary)}
+
+/* Skew table */
+.pvs-skew-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px}
+.pvs-skew-table th{text-align:left;padding:5px 7px;background:var(--color-background-secondary);color:var(--color-text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9px;border-bottom:1px solid var(--color-border-tertiary)}
+.pvs-skew-table td{padding:6px 7px;border-bottom:1px solid var(--color-border-tertiary);font-variant-numeric:tabular-nums;color:var(--color-text-primary)}
+.pvs-skew-table tr:last-child td{border-bottom:none}
+
+/* Responsive */
+@media(max-width:600px){
+  .pvs-bar-row{grid-template-columns:55px 1fr 65px;font-size:9px}
+  .pvs-mval{font-size:13px}
+}
+</style>
+
+<div class="pvs-panel" id="pvsPanel">
+  <div class="pvs-header">
+    <div class="pvs-title">
+      🏛️ Pro-Vol Suite
+      <span class="pvs-badge">DEALER FLOW · FUNDING · SKEW</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <span class="pvs-status" id="pvsStatus">initializing…</span>
+      <button class="pvs-refresh" onclick="pvsRefreshAll(true)">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Tab nav -->
+  <div class="pvs-tabs">
+    <button class="pvs-tab active" data-tab="gex"   onclick="pvsSwitchTab('gex')">📊 GEX · Max Pain</button>
+    <button class="pvs-tab"        data-tab="fund"  onclick="pvsSwitchTab('fund')">💸 Funding · Basis</button>
+    <button class="pvs-tab"        data-tab="skew"  onclick="pvsSwitchTab('skew')">📐 25Δ Skew</button>
+  </div>
+
+  <!-- ─── TAB 1: GEX & MAX PAIN ─── -->
+  <div class="pvs-tabbody active" id="pvsTabGex">
+    <div class="pvs-verdict pvs-v-neutral" id="pvsGexVerdict">
+      <div class="pvs-v-icon" id="pvsGexIcon">⏳</div>
+      <div class="pvs-v-body">
+        <div class="pvs-v-title" id="pvsGexTitle">Loading dealer positioning…</div>
+        <div class="pvs-v-sub" id="pvsGexSub">Computing GEX from Delta Exchange option chain</div>
+      </div>
+    </div>
+
+    <div class="pvs-grid">
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📈 Total GEX</div>
+        <div class="pvs-mval" id="pvsTotalGex">—</div>
+        <div class="pvs-msub" id="pvsTotalGexSub">$/1% move</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">⚖ Zero-Gamma</div>
+        <div class="pvs-mval" id="pvsZeroGamma">—</div>
+        <div class="pvs-msub" id="pvsZeroGammaSub">flip price</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🎯 Max Pain</div>
+        <div class="pvs-mval" id="pvsMaxPain">—</div>
+        <div class="pvs-msub" id="pvsMaxPainSub">vs spot</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🧱 Call Wall</div>
+        <div class="pvs-mval" id="pvsCallWall">—</div>
+        <div class="pvs-msub" id="pvsCallWallSub">resistance</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🛡 Put Wall</div>
+        <div class="pvs-mval" id="pvsPutWall">—</div>
+        <div class="pvs-msub" id="pvsPutWallSub">support</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📍 Pin Strength</div>
+        <div class="pvs-mval" id="pvsPinStrength">—</div>
+        <div class="pvs-msub" id="pvsPinStrengthSub">expiry magnet</div>
+      </div>
+    </div>
+
+    <div class="pvs-bars">
+      <div class="pvs-bars-title">📊 GEX Profile by Strike (top 9)</div>
+      <div id="pvsGexBars"><div style="color:var(--color-text-secondary);font-size:10px;padding:8px;text-align:center">Waiting for chain…</div></div>
+    </div>
+
+    <div class="pvs-method">
+      <b>How to read:</b> When spot is <b>above zero-gamma</b>, dealers are net-long gamma → they sell rallies, buy dips → range-bound = <b>short strangles favoured</b>. Below zero-gamma, dealers chase moves → trends extend = <b>strangle killer</b>. Max Pain is the strike where most options expire worthless; price often gravitates toward it into expiry. Strangles with shorts inside the call/put walls have higher win rates.
+    </div>
+  </div>
+
+  <!-- ─── TAB 2: FUNDING & BASIS ─── -->
+  <div class="pvs-tabbody" id="pvsTabFund">
+    <div class="pvs-verdict pvs-v-neutral" id="pvsFundVerdict">
+      <div class="pvs-v-icon" id="pvsFundIcon">⏳</div>
+      <div class="pvs-v-body">
+        <div class="pvs-v-title" id="pvsFundTitle">Loading funding & basis…</div>
+        <div class="pvs-v-sub" id="pvsFundSub">Fetching from Binance / Delta perp APIs</div>
+      </div>
+    </div>
+
+    <div class="pvs-grid">
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">💸 Funding (Binance)</div>
+        <div class="pvs-mval" id="pvsFundBinance">—</div>
+        <div class="pvs-msub" id="pvsFundBinanceSub">per 8h · annualized</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📊 Avg Funding 24h</div>
+        <div class="pvs-mval" id="pvsFund24h">—</div>
+        <div class="pvs-msub" id="pvsFund24hSub">3-period mean</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🌀 Basis (perp-spot)</div>
+        <div class="pvs-mval" id="pvsBasis">—</div>
+        <div class="pvs-msub" id="pvsBasisSub">% premium</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📈 OI Δ24h</div>
+        <div class="pvs-mval" id="pvsOiChange">—</div>
+        <div class="pvs-msub" id="pvsOiChangeSub">perp open interest</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">⚡ Squeeze Score</div>
+        <div class="pvs-mval" id="pvsSqzScore">—</div>
+        <div class="pvs-msub" id="pvsSqzScoreSub">0–100 (higher = risk)</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🎚 Position Bias</div>
+        <div class="pvs-mval" id="pvsPosBias">—</div>
+        <div class="pvs-msub" id="pvsPosBiasSub">long/short crowding</div>
+      </div>
+    </div>
+
+    <div class="pvs-method">
+      <b>How to read:</b> Sustained funding above <b>+0.05%/8h</b> (annualized ≈55%+) means longs are paying heavily — crowded long, vulnerable to long-squeeze (puts get tested hard). Sustained <b>negative funding</b> = crowded short, short-squeeze risk (calls breached). <b>Best short-strangle window:</b> funding near 0 (±0.01%) and basis under 5% annualized — neither side is paying premium = balanced book = sideways range likely. Watch for <b>funding flip</b> — sign-change preceded by OI drop = forced deleveraging in progress.
+    </div>
+  </div>
+
+  <!-- ─── TAB 3: 25Δ SKEW ─── -->
+  <div class="pvs-tabbody" id="pvsTabSkew">
+    <div class="pvs-verdict pvs-v-neutral" id="pvsSkewVerdict">
+      <div class="pvs-v-icon" id="pvsSkewIcon">⏳</div>
+      <div class="pvs-v-body">
+        <div class="pvs-v-title" id="pvsSkewTitle">Loading skew structure…</div>
+        <div class="pvs-v-sub" id="pvsSkewSub">Interpolating IVs at 25Δ from chain</div>
+      </div>
+    </div>
+
+    <div class="pvs-grid">
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🪞 25Δ Risk Reversal</div>
+        <div class="pvs-mval" id="pvsRR25">—</div>
+        <div class="pvs-msub" id="pvsRR25Sub">IV(25P) − IV(25C)</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🦋 25Δ Butterfly</div>
+        <div class="pvs-mval" id="pvsBF25">—</div>
+        <div class="pvs-msub" id="pvsBF25Sub">avg wing − ATM</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📍 ATM IV</div>
+        <div class="pvs-mval" id="pvsAtmIv">—</div>
+        <div class="pvs-msub" id="pvsAtmIvSub">at-the-money</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📉 25Δ Put IV</div>
+        <div class="pvs-mval" id="pvsPut25Iv">—</div>
+        <div class="pvs-msub" id="pvsPut25IvSub">downside skew</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">📈 25Δ Call IV</div>
+        <div class="pvs-mval" id="pvsCall25Iv">—</div>
+        <div class="pvs-msub" id="pvsCall25IvSub">upside skew</div>
+      </div>
+      <div class="pvs-mcell">
+        <div class="pvs-mlbl">🎯 Wing Edge</div>
+        <div class="pvs-mval" id="pvsWingEdge">—</div>
+        <div class="pvs-msub" id="pvsWingEdgeSub">paid for tails</div>
+      </div>
+    </div>
+
+    <div class="pvs-bars">
+      <div class="pvs-bars-title">📋 Skew Snapshot</div>
+      <table class="pvs-skew-table" id="pvsSkewTable">
+        <thead><tr><th>Metric</th><th>Value</th><th>Reading</th></tr></thead>
+        <tbody><tr><td colspan="3" style="text-align:center;color:var(--color-text-secondary)">Awaiting chain data…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="pvs-method">
+      <b>How to read (BTC convention):</b> 25Δ Risk Reversal = IV(25Δ Put) − IV(25Δ Call). In BTC, put-skew is normal (3–8% positive RR). <b>Steep RR (&gt;10%):</b> fear bid → puts rich → put-side credit attractive but means market expects downside, size down. <b>Flat/inverted RR (≤0):</b> euphoria — call-skew unusual = squeeze risk = short call leg dangerous. <b>25Δ Butterfly</b> measures how much wings cost above ATM — high BF means tails are expensive (good for sellers), low/zero BF means market complacent (selling tails undervalued = caution).
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PRO-VOL SUITE ENGINE — computes GEX · Max Pain · Funding · 25Δ Skew
+   ─────────────────────────────────────────────────────────────────────
+   All computations are derived from data already in the page:
+     • simState.chain (Delta Exchange option chain — full Greeks)
+     • Binance public APIs (funding rate, basis — no auth required)
+     • getLiveSpot() for current BTC price
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // Same contract size used everywhere else in Brahmastra
+  const PVS_CONTRACT_SIZE = 0.001;  // BTC per lot — Delta India
+
+  // State — last computed values for cross-tab display
+  const pvsState = {
+    gex:  null,
+    fund: null,
+    skew: null,
+    activeTab: 'gex',
+    lastRefresh: 0,
+  };
+
+  // ── Tab switching ────────────────────────────────────────────────
+  window.pvsSwitchTab = function(name){
+    pvsState.activeTab = name;
+    document.querySelectorAll('#pvsPanel .pvs-tab').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-tab') === name);
+    });
+    document.querySelectorAll('#pvsPanel .pvs-tabbody').forEach(b => {
+      b.classList.toggle('active', b.id === 'pvsTab' + name.charAt(0).toUpperCase() + name.slice(1));
+    });
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function fmtUsd(n){ if(!isFinite(n)) return '—'; const a = Math.abs(n);
+    if(a >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if(a >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if(a >= 1e3) return (n/1e3).toFixed(1) + 'k';
+    return n.toFixed(0);
+  }
+  function fmtPct(n, dec){ if(!isFinite(n)) return '—'; return (n>=0?'+':'') + n.toFixed(dec||2) + '%'; }
+  function fmtPrice(n){ if(!isFinite(n)) return '—'; return '$' + Math.round(n).toLocaleString(); }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SELF-CONTAINED DATA LAYER — does NOT depend on Sim Desk
+  // ─────────────────────────────────────────────────────────────
+  // Strategy:
+  //   • Spot price: from existing Binance/Delta WebSockets via window.state.btcSpotLive
+  //                 (those WS connections are already running and updating state)
+  //   • Option chain: self-fetch via REST every 30s (Delta India /v2/tickers).
+  //                   Independent cache so we never wait on Sim Desk.
+  //   • Live ticker updates: subscribe to Delta WS for ATM strikes and refresh
+  //                          chain entries in-place (real-time Greeks update).
+  // ═══════════════════════════════════════════════════════════════
+  const PVS_CHAIN_TTL_MS = 30000;  // refetch chain every 30s
+  const pvsChainCache = {
+    data: null,           // { expiries: {label: {calls,puts}}, labels: [], ts }
+    fetching: false,
+    lastError: null,
+  };
+
+  function pvsGetSpot(){
+    // Priority 1: window.state.btcSpotLive (kept fresh by existing WS connections)
+    if(typeof window.state !== 'undefined' && window.state.btcSpotLive > 10000) {
+      return window.state.btcSpotLive;
+    }
+    // Priority 2: direct getLiveSpot
+    if(typeof window.getLiveSpot === 'function'){
+      try { const s = window.getLiveSpot(); if(s > 10000) return s; } catch(e){}
+    }
+    // Priority 3: simState
+    if(typeof window.simState !== 'undefined' && window.simState.chain && window.simState.chain.spot > 10000){
+      return window.simState.chain.spot;
+    }
+    return null;
+  }
+
+  // Parse Delta option symbol — same format as Sim Desk: C-BTC-95000-25APR26
+  function pvsParseSymbol(sym){
+    if(!sym) return null;
+    const parts = sym.split('-');
+    if(parts.length !== 4) return null;
+    const type = parts[0] === 'C' ? 'C' : parts[0] === 'P' ? 'P' : null;
+    if(!type) return null;
+    const strike = parseFloat(parts[2]);
+    const dateStr = parts[3];  // e.g. "25APR26"
+    if(!isFinite(strike) || strike <= 0) return null;
+    // Convert "25APR26" → "25-Apr-26"
+    const m = dateStr.match(/^(\d{1,2})([A-Z]{3})(\d{2})$/);
+    if(!m) return null;
+    const months = {JAN:'Jan',FEB:'Feb',MAR:'Mar',APR:'Apr',MAY:'May',JUN:'Jun',JUL:'Jul',AUG:'Aug',SEP:'Sep',OCT:'Oct',NOV:'Nov',DEC:'Dec'};
+    const expLabel = m[1].padStart(2,'0') + '-' + (months[m[2]] || m[2]) + '-' + m[3];
+    return { type, strike, expLabel };
+  }
+
+  function pvsDTE(label){
+    const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    const parts = label.split('-');
+    if(parts.length !== 3) return -1;
+    const d = parseInt(parts[0],10);
+    const mo = months[parts[1]];
+    const y = 2000 + parseInt(parts[2],10);
+    if(mo == null || !isFinite(d) || !isFinite(y)) return -1;
+    const expUTC = Date.UTC(y, mo, d, 12, 0, 0);
+    return (expUTC - Date.now()) / 86400000;
+  }
+
+  // Black-Scholes Greeks (for fallback when API doesn't return them)
+  function pvsBsGreeks(S, K, T, r, sigma, isCall){
+    if(!(S>0 && K>0 && T>0 && sigma>0)) return {delta:0, gamma:0, theta:0, vega:0};
+    const sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(S/K) + (r + sigma*sigma/2)*T) / (sigma*sqrtT);
+    const d2 = d1 - sigma*sqrtT;
+    const normPdf = x => Math.exp(-x*x/2) / Math.sqrt(2*Math.PI);
+    const normCdf = x => {
+      // Abramowitz & Stegun approximation
+      const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+      const sign = x<0 ? -1 : 1;
+      const ax = Math.abs(x)/Math.sqrt(2);
+      const t = 1.0/(1.0 + p*ax);
+      const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-ax*ax);
+      return 0.5*(1.0 + sign*y);
+    };
+    const Nd1 = normCdf(d1);
+    const delta = isCall ? Nd1 : Nd1 - 1;
+    const gamma = normPdf(d1) / (S * sigma * sqrtT);
+    const theta = -(S * normPdf(d1) * sigma / (2*sqrtT)) - (isCall ? r*K*Math.exp(-r*T)*normCdf(d2) : -r*K*Math.exp(-r*T)*normCdf(-d2));
+    const vega  = S * normPdf(d1) * sqrtT;
+    return { delta, gamma, theta: theta/365, vega: vega/100 };
+  }
+
+  // Self-contained chain fetcher — does NOT depend on Sim Desk's fetchLiveChain
+  async function pvsFetchChainDirect(){
+    if(pvsChainCache.fetching) return pvsChainCache.data;
+    pvsChainCache.fetching = true;
+    try {
+      const fetcher = (typeof window.safeFetch === 'function') ? window.safeFetch : fetch;
+      const urlCall = 'https://api.india.delta.exchange/v2/tickers?contract_types=call_options&underlying_asset_symbols=BTC';
+      const urlPut  = 'https://api.india.delta.exchange/v2/tickers?contract_types=put_options&underlying_asset_symbols=BTC';
+      const [rc, rp] = await Promise.all([
+        fetcher(urlCall, {}, 10000),
+        fetcher(urlPut,  {}, 10000),
+      ]);
+      if(!rc.ok || !rp.ok) throw new Error('Delta tickers HTTP failed');
+      const [dc, dp] = await Promise.all([rc.json(), rp.json()]);
+      if(!dc.result || !dp.result) throw new Error('Empty tickers payload');
+
+      const expiryMap = {};
+      const seen = new Set();
+      const spot = pvsGetSpot() || 0;
+      const r = 0.0;  // risk-free rate (BTC convention: 0)
+
+      const processTicker = (t) => {
+        const parsed = pvsParseSymbol(t.symbol);
+        if(!parsed) return;
+        if(seen.has(t.symbol)) return;
+        seen.add(t.symbol);
+        const { type, strike, expLabel } = parsed;
+        if(!expiryMap[expLabel]) expiryMap[expLabel] = { calls: [], puts: [] };
+
+        // Robust IV parsing — matches Sim Desk's logic
+        let iv = 0;
+        const ivSources = [t.mark_iv, t.quotes?.mark_iv, t.quotes?.ask_iv, t.quotes?.bid_iv];
+        for(const src of ivSources){
+          if(src == null || src === '') continue;
+          const v = parseFloat(src);
+          if(!isFinite(v) || v <= 0 || v > 500) continue;
+          iv = v > 5 ? v : v * 100;
+          break;
+        }
+        if(iv > 0 && iv < 5) iv = 0;
+        if(iv > 400) iv = 0;
+
+        const oi   = parseFloat(t.oi || t.open_interest || 0);
+        const mark = parseFloat(t.mark_price || 0);
+        const bid  = parseFloat(t.quotes?.best_bid || 0);
+        const ask  = parseFloat(t.quotes?.best_ask || 0);
+
+        let delta = parseFloat(t.greeks?.delta || 0);
+        let gamma = parseFloat(t.greeks?.gamma || 0);
+        let theta = parseFloat(t.greeks?.theta || 0);
+        let vega  = parseFloat(t.greeks?.vega  || 0);
+
+        // BS backfill if API didn't return Greeks
+        if((!isFinite(delta) || delta === 0) && iv > 0 && spot > 0){
+          const dte = pvsDTE(expLabel);
+          if(dte > 0){
+            const T = Math.max(1/(365*24), dte/365);
+            const bs = pvsBsGreeks(spot, strike, T, r, iv/100, type === 'C');
+            delta = bs.delta; gamma = bs.gamma; theta = bs.theta; vega = bs.vega;
+          }
+        }
+
+        const leg = {
+          symbol: t.symbol, strike, type,
+          bid, ask, mark: mark > 0 ? mark : (bid+ask)/2,
+          iv: isFinite(iv) ? iv : 0,
+          delta: isFinite(delta) ? delta : 0,
+          gamma: isFinite(gamma) ? gamma : 0,
+          theta: isFinite(theta) ? theta : 0,
+          vega:  isFinite(vega)  ? vega  : 0,
+          oi: isFinite(oi) ? oi : 0,
+        };
+        (type === 'C' ? expiryMap[expLabel].calls : expiryMap[expLabel].puts).push(leg);
+      };
+
+      (dc.result || []).forEach(processTicker);
+      (dp.result || []).forEach(processTicker);
+
+      Object.values(expiryMap).forEach(e => {
+        e.calls.sort((a,b)=>a.strike-b.strike);
+        e.puts.sort((a,b)=>a.strike-b.strike);
+      });
+
+      const labels = Object.keys(expiryMap)
+        .map(l => ({label:l, dte: pvsDTE(l)}))
+        .filter(e => e.dte >= 0 && e.dte <= 180)
+        .sort((a,b)=>a.dte - b.dte)
+        .map(e => e.label);
+
+      pvsChainCache.data = { expiries: expiryMap, labels, ts: Date.now() };
+      pvsChainCache.lastError = null;
+      console.log('[pvs] Chain fetched directly:', labels.length, 'expiries');
+      return pvsChainCache.data;
+    } catch(e){
+      pvsChainCache.lastError = e.message;
+      console.warn('[pvs] Direct chain fetch failed:', e.message);
+      return null;
+    } finally {
+      pvsChainCache.fetching = false;
+    }
+  }
+
+  // Get chain — prefer fresh cache, then Sim Desk, then trigger refetch
+  function pvsGetChain(){
+    // 1. Use our own cache if fresh (< 30s old)
+    if(pvsChainCache.data && (Date.now() - pvsChainCache.data.ts) < PVS_CHAIN_TTL_MS){
+      return pvsChainCache.data;
+    }
+    // 2. Use Sim Desk's chain if it has one
+    if(typeof window.simState !== 'undefined' && window.simState.chain && window.simState.chain.expiries){
+      const expiries = window.simState.chain.expiries;
+      const labels = window.simState.expiryLabels && window.simState.expiryLabels.length
+        ? window.simState.expiryLabels
+        : Object.keys(expiries).filter(l => pvsDTE(l) >= 0 && pvsDTE(l) <= 180).sort((a,b)=>pvsDTE(a)-pvsDTE(b));
+      return { expiries, labels, ts: window.simState.chain.ts || Date.now() };
+    }
+    // 3. Use stale cache as last resort
+    if(pvsChainCache.data) return pvsChainCache.data;
+    return null;
+  }
+
+  function pvsGetExpiryData(){
+    const chain = pvsGetChain();
+    if(!chain || !chain.expiries) return null;
+
+    // Prefer Sim Desk's selected expiry if it matches a label we have
+    let label = null;
+    if(typeof window.simState !== 'undefined' && window.simState.currentExpiry && chain.expiries[window.simState.currentExpiry]){
+      label = window.simState.currentExpiry;
+    }
+    if(!label && chain.labels && chain.labels.length){
+      label = chain.labels[0];
+    }
+    if(!label){
+      // Last resort: any expiry key
+      const keys = Object.keys(chain.expiries);
+      if(keys.length) label = keys[0];
+    }
+    if(!label || !chain.expiries[label]) return null;
+
+    const data = chain.expiries[label];
+    if(!data.calls || !data.puts) return null;
+    if(data.calls.length === 0 && data.puts.length === 0) return null;
+
+    return { label, data };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GEX & MAX PAIN ENGINE
+  // ═══════════════════════════════════════════════════════════════
+  /*
+    GEX (Dealer Gamma Exposure) intuition:
+      • Convention: dealers are short calls + short puts when retail buys options.
+      • Net dealer gamma per strike = -OI_call * γ_call + OI_put * γ_put (signed)
+        … but on a venue like Delta where flows are mixed, we use a common
+        convention used by SqueezeMetrics / SpotGamma:
+            GEX_strike = γ_call * OI_call * 100 - γ_put * OI_put * 100
+        Positive total → dealers long gamma → suppress moves (good for sellers).
+        Negative total → dealers short gamma → amplify moves (bad).
+      • Zero-Gamma: spot price where cumulative GEX flips sign (using ATM-shift simulation).
+      • Max Pain: strike that minimizes total option-buyer payout at expiry.
+      • Call/Put walls: largest |GEX| above/below spot.
+  */
+  function pvsComputeGEX(){
+    const exData = pvsGetExpiryData();
+    const spot = pvsGetSpot();
+    if(!exData || !spot) return null;
+
+    const { label, data } = exData;
+    const strikes = new Set();
+    data.calls.forEach(c => strikes.add(c.strike));
+    data.puts.forEach(p => strikes.add(p.strike));
+
+    const callMap = {}; data.calls.forEach(c => callMap[c.strike] = c);
+    const putMap  = {}; data.puts .forEach(p => putMap[p.strike]  = p);
+
+    // Per-strike GEX (USD per 1% spot move)
+    const perStrike = [];
+    let totalGex = 0;
+    [...strikes].sort((a,b)=>a-b).forEach(K => {
+      const c = callMap[K]; const p = putMap[K];
+      // gamma is per $1 (BS convention) — multiply by S and 0.01 for "per 1% move"
+      // Dollar gamma per strike = γ * OI * contract_size * S² * 0.01
+      const callGex = c && isFinite(c.gamma) ? c.gamma * c.oi * PVS_CONTRACT_SIZE * spot * spot * 0.01 : 0;
+      const putGex  = p && isFinite(p.gamma) ? p.gamma * p.oi * PVS_CONTRACT_SIZE * spot * spot * 0.01 : 0;
+      // SpotGamma convention: calls add, puts subtract from net dealer gamma
+      const netGex = callGex - putGex;
+      totalGex += netGex;
+      perStrike.push({
+        strike: K,
+        callGex, putGex, netGex,
+        callOi: c ? c.oi : 0,
+        putOi:  p ? p.oi : 0,
+      });
+    });
+
+    // ── Zero-Gamma: spot level where running cumulative GEX (re-priced
+    //    around shifted spot) flips. Approximation: search ±15% of spot.
+    let zeroGamma = null;
+    {
+      const search = [];
+      for(let pct = -0.15; pct <= 0.15; pct += 0.005){
+        const testSpot = spot * (1 + pct);
+        let g = 0;
+        perStrike.forEach(s => {
+          // Distance-weighted approximation: GEX peaks at ATM
+          const moneyness = Math.abs(Math.log(s.strike / testSpot));
+          const decay = Math.exp(-moneyness * moneyness * 8);  // peaks ATM, decays fast
+          g += (s.callGex - s.putGex) * decay;
+        });
+        search.push({ price: testSpot, gex: g });
+      }
+      // Find sign-change point
+      for(let i = 1; i < search.length; i++){
+        if(Math.sign(search[i].gex) !== Math.sign(search[i-1].gex) && search[i-1].gex !== 0){
+          // Linear interp
+          const x1 = search[i-1].price, x2 = search[i].price;
+          const y1 = search[i-1].gex,   y2 = search[i].gex;
+          zeroGamma = x1 - y1 * (x2 - x1) / (y2 - y1);
+          break;
+        }
+      }
+    }
+
+    // ── Max Pain: strike minimizing total ITM payout for option buyers
+    let minPain = Infinity, maxPainStrike = null;
+    [...strikes].forEach(testK => {
+      let pain = 0;
+      perStrike.forEach(s => {
+        // Call buyer payout = max(testK - K, 0) * OI
+        // Put buyer payout  = max(K - testK, 0) * OI
+        if(testK > s.strike) pain += (testK - s.strike) * s.callOi;
+        if(testK < s.strike) pain += (s.strike - testK) * s.putOi;
+      });
+      if(pain < minPain){ minPain = pain; maxPainStrike = testK; }
+    });
+
+    // ── Walls: largest |GEX| above/below spot
+    const above = perStrike.filter(s => s.strike > spot).sort((a,b) => Math.abs(b.netGex) - Math.abs(a.netGex));
+    const below = perStrike.filter(s => s.strike < spot).sort((a,b) => Math.abs(b.netGex) - Math.abs(a.netGex));
+    const callWall = above[0] ? above[0].strike : null;
+    const putWall  = below[0] ? below[0].strike : null;
+
+    // ── Pin strength: ratio of |GEX| at max-pain strike to total
+    let pinGex = 0;
+    perStrike.forEach(s => { if(s.strike === maxPainStrike) pinGex = Math.abs(s.netGex); });
+    const totalAbsGex = perStrike.reduce((a,s) => a + Math.abs(s.netGex), 0);
+    const pinStrength = totalAbsGex > 0 ? (pinGex / totalAbsGex) * 100 : 0;
+
+    return {
+      label, spot, perStrike,
+      totalGex, zeroGamma, maxPainStrike, callWall, putWall, pinStrength,
+    };
+  }
+
+  function pvsRenderGEX(){
+    const r = pvsComputeGEX();
+    pvsState.gex = r;
+    if(!r){
+      const chain = pvsGetChain();
+      const spot  = pvsGetSpot();
+      let title, sub;
+      if(!spot){
+        title = 'Waiting for spot price';
+        sub   = 'WebSocket spot feed not yet connected. Auto-retrying.';
+      } else if(!chain){
+        title = 'Fetching option chain…';
+        sub   = 'Loading from Delta Exchange India. Takes 5–10 seconds.';
+      } else if(!chain.labels || chain.labels.length === 0){
+        title = 'No valid expiries';
+        sub   = 'Chain returned but no expiries within 0–180 DTE range.';
+      } else {
+        title = 'Computing Greeks…';
+        sub   = 'Chain present but Greeks/IV missing. Will retry automatically.';
+      }
+      document.getElementById('pvsGexTitle').textContent = title;
+      document.getElementById('pvsGexSub').textContent   = sub;
+      return;
+    }
+
+    const { spot, totalGex, zeroGamma, maxPainStrike, callWall, putWall, pinStrength, perStrike, label } = r;
+
+    // Verdict
+    const v   = document.getElementById('pvsGexVerdict');
+    const vt  = document.getElementById('pvsGexTitle');
+    const vs  = document.getElementById('pvsGexSub');
+    const vi  = document.getElementById('pvsGexIcon');
+    let cls = 'pvs-v-neutral', icon = '🎯', title = '', sub = '';
+
+    const aboveZG = zeroGamma && spot > zeroGamma;
+    const painPct = maxPainStrike ? ((maxPainStrike - spot) / spot * 100) : 0;
+
+    if(totalGex > 0 && aboveZG && Math.abs(painPct) < 3){
+      cls = 'pvs-v-good'; icon = '✅';
+      title = 'POSITIVE GEX REGIME — Sellers Favoured';
+      sub = `Dealers long ${fmtUsd(totalGex)}/1% gamma, spot above zero-gamma (${fmtPrice(zeroGamma)}), max pain ${painPct>=0?'+':''}${painPct.toFixed(1)}% from spot. Range-bound bias confirmed — short strangles work.`;
+    } else if(totalGex < 0 || !aboveZG){
+      cls = 'pvs-v-danger'; icon = '🚫';
+      title = 'NEGATIVE GEX REGIME — Avoid Short Vol';
+      sub = `Dealers ${totalGex<0?'short':'near-flat'} gamma${zeroGamma ? `, spot ${aboveZG?'above':'below'} zero-gamma (${fmtPrice(zeroGamma)})`:''}. Moves get amplified — strangle killer. Wait for regime flip.`;
+    } else {
+      cls = 'pvs-v-caution'; icon = '⚠️';
+      title = 'MIXED GEX — Caution';
+      sub = `Total GEX ${fmtUsd(totalGex)}/1%${zeroGamma?`, zero-gamma at ${fmtPrice(zeroGamma)}`:''}. Reduce size 50% or use defined-risk iron condor.`;
+    }
+
+    v.className = 'pvs-verdict ' + cls;
+    vi.textContent = icon;
+    vt.textContent = title;
+    vs.textContent = sub + ` · Expiry: ${label}`;
+
+    // Metrics
+    const tg = document.getElementById('pvsTotalGex');
+    tg.textContent = (totalGex >= 0 ? '+$' : '-$') + fmtUsd(Math.abs(totalGex));
+    tg.className = 'pvs-mval ' + (totalGex >= 0 ? 'pos' : 'neg');
+    document.getElementById('pvsTotalGexSub').textContent = totalGex >= 0 ? 'long γ — pinning' : 'short γ — amplifying';
+
+    document.getElementById('pvsZeroGamma').textContent = zeroGamma ? fmtPrice(zeroGamma) : '—';
+    document.getElementById('pvsZeroGammaSub').textContent = zeroGamma
+      ? (spot > zeroGamma ? `${((spot-zeroGamma)/spot*100).toFixed(1)}% above` : `${((zeroGamma-spot)/spot*100).toFixed(1)}% below`)
+      : 'flip price';
+
+    const mp = document.getElementById('pvsMaxPain');
+    mp.textContent = maxPainStrike ? fmtPrice(maxPainStrike) : '—';
+    document.getElementById('pvsMaxPainSub').textContent = maxPainStrike ? `${painPct>=0?'+':''}${painPct.toFixed(1)}% vs spot` : 'vs spot';
+
+    document.getElementById('pvsCallWall').textContent = callWall ? fmtPrice(callWall) : '—';
+    document.getElementById('pvsCallWallSub').textContent = callWall ? `${((callWall-spot)/spot*100).toFixed(1)}% above` : 'resistance';
+    document.getElementById('pvsPutWall').textContent = putWall ? fmtPrice(putWall) : '—';
+    document.getElementById('pvsPutWallSub').textContent = putWall ? `${((spot-putWall)/spot*100).toFixed(1)}% below` : 'support';
+
+    const ps = document.getElementById('pvsPinStrength');
+    ps.textContent = pinStrength.toFixed(1) + '%';
+    ps.className = 'pvs-mval ' + (pinStrength > 15 ? 'pos' : pinStrength > 8 ? 'warn' : '');
+    document.getElementById('pvsPinStrengthSub').textContent = pinStrength > 15 ? 'strong magnet' : pinStrength > 8 ? 'moderate' : 'weak pin';
+
+    // Bar chart — top 9 strikes by |netGex|, sorted by strike
+    const top = [...perStrike].sort((a,b) => Math.abs(b.netGex) - Math.abs(a.netGex)).slice(0,9).sort((a,b) => a.strike - b.strike);
+    const maxAbs = Math.max(...top.map(s => Math.abs(s.netGex))) || 1;
+    let html = '';
+    top.forEach(s => {
+      const pct = Math.abs(s.netGex) / maxAbs * 100;
+      const cls = s.netGex >= 0 ? 'gex-pos' : 'gex-neg';
+      const isSpot = s.strike === maxPainStrike;
+      const strikeCls = isSpot ? 'pvs-bar-strike spot' : 'pvs-bar-strike';
+      const tag = isSpot ? ' 🎯' : '';
+      html += `<div class="pvs-bar-row">
+        <div class="${strikeCls}">${(s.strike/1000).toFixed(0)}k${tag}</div>
+        <div class="pvs-bar-track"><div class="pvs-bar-fill ${cls}" style="width:${pct.toFixed(0)}%"></div></div>
+        <div class="pvs-bar-val">${s.netGex >= 0 ? '+' : '-'}$${fmtUsd(Math.abs(s.netGex))}</div>
+      </div>`;
+    });
+    document.getElementById('pvsGexBars').innerHTML = html || '<div style="color:var(--color-text-secondary);font-size:10px;padding:8px;text-align:center">No GEX data</div>';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FUNDING & BASIS ENGINE
+  // ═══════════════════════════════════════════════════════════════
+  /*
+    Sources (all public, no auth):
+      • Binance funding rate:   /fapi/v1/fundingRate?symbol=BTCUSDT&limit=3
+      • Binance perp price:     /fapi/v1/premiumIndex?symbol=BTCUSDT
+      • Binance perp OI:        /fapi/v1/openInterest?symbol=BTCUSDT
+      • Binance long/short:     /futures/data/topLongShortAccountRatio
+      • Spot price:             from getLiveSpot() (already wired)
+  */
+  async function pvsFetchJson(url, ms){
+    const fetcher = (typeof window.safeFetch === 'function') ? window.safeFetch : fetch;
+    try {
+      const r = await fetcher(url, {}, ms || 6000);
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch(e){
+      console.warn('[PVS] fetch failed:', url, e.message);
+      return null;
+    }
+  }
+
+  async function pvsComputeFunding(){
+    const spot = pvsGetSpot();
+    const [funding, premIdx, oi, longShort] = await Promise.all([
+      pvsFetchJson('https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3'),
+      pvsFetchJson('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT'),
+      pvsFetchJson('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT'),
+      pvsFetchJson('https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=24'),
+    ]);
+
+    if(!funding && !premIdx) return null;
+
+    // Latest funding rate (per 8h)
+    const latestFund = funding && funding.length ? parseFloat(funding[funding.length-1].fundingRate) : null;
+    // 24h average (last 3 entries = 24h since funding settles every 8h)
+    const avg24h = funding && funding.length >= 3
+      ? funding.slice(-3).reduce((a,f) => a + parseFloat(f.fundingRate), 0) / 3
+      : latestFund;
+
+    // Annualized funding = rate × 3 settlements/day × 365
+    const annFund = latestFund != null ? latestFund * 3 * 365 * 100 : null;
+    const annAvg  = avg24h    != null ? avg24h    * 3 * 365 * 100 : null;
+
+    // Basis (perp - spot) / spot · 100
+    const perpPrice = premIdx ? parseFloat(premIdx.markPrice) : null;
+    const basisPct = (perpPrice && spot) ? ((perpPrice - spot) / spot * 100) : null;
+
+    // OI change: compare latest vs 24h ago — for now we just have current,
+    // so we cache and diff over time (this builds history across calls).
+    const currentOi = oi ? parseFloat(oi.openInterest) : null;
+    let oiChangePct = null;
+    if(currentOi){
+      const prev = parseFloat(localStorage.getItem('pvs.oi.24h') || '0');
+      const prevTs = parseInt(localStorage.getItem('pvs.oi.24h.ts') || '0', 10);
+      const ageH = (Date.now() - prevTs) / 3600000;
+      if(prev > 0 && ageH >= 1){
+        oiChangePct = (currentOi - prev) / prev * 100;
+      }
+      // Update the 24h-ago cache when stale
+      if(ageH >= 24 || prev === 0){
+        localStorage.setItem('pvs.oi.24h', String(currentOi));
+        localStorage.setItem('pvs.oi.24h.ts', String(Date.now()));
+      }
+    }
+
+    // Long/short ratio
+    let lsRatio = null, lsBias = null;
+    if(longShort && longShort.length){
+      const last = longShort[longShort.length-1];
+      lsRatio = parseFloat(last.longShortRatio);
+      if(lsRatio > 1.5) lsBias = 'long-crowded';
+      else if(lsRatio < 0.7) lsBias = 'short-crowded';
+      else lsBias = 'balanced';
+    }
+
+    // ── Squeeze score: 0–100, higher = more squeeze risk
+    let sqz = 0;
+    if(annFund != null){
+      // Funding contribution (0–50)
+      sqz += Math.min(50, Math.abs(annFund) / 100 * 50);
+    }
+    if(basisPct != null){
+      // Basis contribution (0–25)
+      sqz += Math.min(25, Math.abs(basisPct) * 5);
+    }
+    if(lsRatio != null){
+      // Crowding contribution (0–25)
+      const dev = Math.abs(lsRatio - 1.0);
+      sqz += Math.min(25, dev * 25);
+    }
+
+    return { latestFund, annFund, annAvg, basisPct, perpPrice, currentOi, oiChangePct, lsRatio, lsBias, sqz };
+  }
+
+  async function pvsRenderFunding(){
+    const r = await pvsComputeFunding();
+    pvsState.fund = r;
+
+    if(!r){
+      document.getElementById('pvsFundTitle').textContent = 'Funding fetch failed';
+      document.getElementById('pvsFundSub').textContent   = 'Binance API unavailable. Will retry on next refresh.';
+      return;
+    }
+
+    const { latestFund, annFund, annAvg, basisPct, currentOi, oiChangePct, lsRatio, lsBias, sqz } = r;
+
+    // Verdict
+    const v  = document.getElementById('pvsFundVerdict');
+    const vt = document.getElementById('pvsFundTitle');
+    const vs = document.getElementById('pvsFundSub');
+    const vi = document.getElementById('pvsFundIcon');
+    let cls = 'pvs-v-neutral', icon = '🎯', title = '', sub = '';
+
+    const fundExtreme = annFund != null && Math.abs(annFund) > 30;
+    const basisExtreme = basisPct != null && Math.abs(basisPct) > 0.2;
+
+    if(sqz < 25 && !fundExtreme && !basisExtreme){
+      cls = 'pvs-v-good'; icon = '✅';
+      title = 'BALANCED FUNDING — Strangle Window Open';
+      sub = `Funding ${annFund != null ? annFund.toFixed(0)+'% ann' : '—'}, basis ${basisPct != null ? basisPct.toFixed(2)+'%' : '—'}. Neither side paying premium — sideways range likely. Sellers favoured.`;
+    } else if(sqz > 60 || (fundExtreme && basisExtreme)){
+      cls = 'pvs-v-danger'; icon = '🚫';
+      title = `${annFund>0?'LONG':'SHORT'} CROWDING — Squeeze Risk`;
+      sub = `Funding ${annFund != null ? annFund.toFixed(0)+'% ann' : '?'}, basis ${basisPct != null ? basisPct.toFixed(2)+'%' : '?'}, ${lsBias || ''}. Squeeze score ${sqz.toFixed(0)}/100 — leveraged book vulnerable. Skip new strangles or buy protection.`;
+    } else {
+      cls = 'pvs-v-caution'; icon = '⚠️';
+      title = 'ELEVATED FUNDING — Reduce Size';
+      sub = `Funding ${annFund != null ? annFund.toFixed(0)+'% ann' : '—'}, basis ${basisPct != null ? basisPct.toFixed(2)+'%' : '—'}. Squeeze score ${sqz.toFixed(0)}/100. Consider 0.5x size or defined-risk condor.`;
+    }
+    v.className = 'pvs-verdict ' + cls;
+    vi.textContent = icon;
+    vt.textContent = title;
+    vs.textContent = sub;
+
+    // Metrics
+    const fb = document.getElementById('pvsFundBinance');
+    if(latestFund != null){
+      fb.textContent = (latestFund * 100).toFixed(4) + '%';
+      fb.className = 'pvs-mval ' + (Math.abs(annFund) > 30 ? 'warn' : '');
+      document.getElementById('pvsFundBinanceSub').textContent = `${annFund.toFixed(0)}% annualized`;
+    } else {
+      fb.textContent = '—';
+    }
+
+    const f24 = document.getElementById('pvsFund24h');
+    if(annAvg != null){
+      f24.textContent = annAvg.toFixed(0) + '%';
+      f24.className = 'pvs-mval ' + (Math.abs(annAvg) > 50 ? 'warn' : Math.abs(annAvg) > 30 ? '' : 'pos');
+      document.getElementById('pvsFund24hSub').textContent = annAvg > 0 ? 'longs paying' : 'shorts paying';
+    }
+
+    const bs = document.getElementById('pvsBasis');
+    if(basisPct != null){
+      bs.textContent = (basisPct >= 0 ? '+' : '') + basisPct.toFixed(2) + '%';
+      bs.className = 'pvs-mval ' + (Math.abs(basisPct) > 0.3 ? 'warn' : 'pos');
+      document.getElementById('pvsBasisSub').textContent = basisPct > 0 ? 'contango' : 'backwardation';
+    }
+
+    const oc = document.getElementById('pvsOiChange');
+    if(oiChangePct != null){
+      oc.textContent = (oiChangePct >= 0 ? '+' : '') + oiChangePct.toFixed(1) + '%';
+      oc.className = 'pvs-mval ' + (oiChangePct >= 0 ? 'pos' : 'neg');
+      document.getElementById('pvsOiChangeSub').textContent = oiChangePct >= 0 ? 'building' : 'unwinding';
+    } else if(currentOi){
+      oc.textContent = fmtUsd(currentOi);
+      document.getElementById('pvsOiChangeSub').textContent = 'building 24h cache…';
+    }
+
+    const sq = document.getElementById('pvsSqzScore');
+    sq.textContent = sqz.toFixed(0) + '/100';
+    sq.className = 'pvs-mval ' + (sqz > 60 ? 'neg' : sqz > 30 ? 'warn' : 'pos');
+    document.getElementById('pvsSqzScoreSub').textContent = sqz > 60 ? 'high risk' : sqz > 30 ? 'elevated' : 'low risk';
+
+    const pb = document.getElementById('pvsPosBias');
+    if(lsRatio != null){
+      pb.textContent = lsRatio.toFixed(2);
+      pb.className = 'pvs-mval ' + (Math.abs(lsRatio - 1.0) > 0.5 ? 'warn' : '');
+      document.getElementById('pvsPosBiasSub').textContent = lsBias || 'L/S ratio';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 25Δ SKEW ENGINE
+  // ═══════════════════════════════════════════════════════════════
+  /*
+    Method:
+      1. Find ATM (closest call/put to spot) → ATM IV = avg of two
+      2. Interpolate strike that gives 25Δ for puts (Δ ≈ -0.25)
+         and for calls (Δ ≈ +0.25), using linear interp on |Δ|
+      3. RR25 = IV(25P) - IV(25C)        (positive = put skew, BTC normal)
+         BF25 = (IV(25P) + IV(25C))/2 - IV(ATM)  (positive = wings rich)
+  */
+  function pvsInterpIv(legs, targetAbsDelta, type){
+    // legs: array sorted by strike, each has {strike, delta, iv}
+    // Find two adjacent legs that bracket targetAbsDelta, then linear-interp on delta
+    const filtered = legs.filter(l => isFinite(l.delta) && isFinite(l.iv) && l.iv > 0).map(l => ({...l, absD: Math.abs(l.delta)}));
+    if(filtered.length === 0) return null;
+    // Sort by absD
+    filtered.sort((a,b) => a.absD - b.absD);
+
+    // Edge: target outside range
+    if(targetAbsDelta <= filtered[0].absD)            return filtered[0];
+    if(targetAbsDelta >= filtered[filtered.length-1].absD) return filtered[filtered.length-1];
+
+    // Find bracket
+    for(let i = 0; i < filtered.length - 1; i++){
+      const a = filtered[i], b = filtered[i+1];
+      if(a.absD <= targetAbsDelta && b.absD >= targetAbsDelta){
+        const frac = (targetAbsDelta - a.absD) / (b.absD - a.absD);
+        return {
+          strike: a.strike + frac * (b.strike - a.strike),
+          iv:     a.iv     + frac * (b.iv     - a.iv),
+          delta:  a.delta  + frac * (b.delta  - a.delta),
+        };
+      }
+    }
+    return null;
+  }
+
+  function pvsComputeSkew(){
+    const exData = pvsGetExpiryData();
+    const spot = pvsGetSpot();
+    if(!exData || !spot) return null;
+
+    const { label, data } = exData;
+
+    // ATM IV — closest call & put to spot
+    let atmCall = null, atmPut = null, minCdiff = Infinity, minPdiff = Infinity;
+    data.calls.forEach(c => {
+      const d = Math.abs(c.strike - spot);
+      if(d < minCdiff && c.iv > 0){ minCdiff = d; atmCall = c; }
+    });
+    data.puts.forEach(p => {
+      const d = Math.abs(p.strike - spot);
+      if(d < minPdiff && p.iv > 0){ minPdiff = d; atmPut = p; }
+    });
+    if(!atmCall || !atmPut) return null;
+    const atmIv = (atmCall.iv + atmPut.iv) / 2;
+
+    // 25Δ interpolation
+    const c25 = pvsInterpIv(data.calls, 0.25, 'C');
+    const p25 = pvsInterpIv(data.puts,  0.25, 'P');
+
+    if(!c25 || !p25) return { label, spot, atmIv, atmCall, atmPut, c25:null, p25:null, rr25:null, bf25:null };
+
+    const rr25 = p25.iv - c25.iv;          // positive in BTC normal regime
+    const bf25 = (p25.iv + c25.iv) / 2 - atmIv;
+
+    return { label, spot, atmIv, atmCall, atmPut, c25, p25, rr25, bf25 };
+  }
+
+  function pvsRenderSkew(){
+    const r = pvsComputeSkew();
+    pvsState.skew = r;
+
+    if(!r){
+      const chain = pvsGetChain();
+      const spot  = pvsGetSpot();
+      let title, sub;
+      if(!spot){
+        title = 'Waiting for spot price';
+        sub   = 'WebSocket spot feed not yet connected.';
+      } else if(!chain){
+        title = 'Fetching option chain…';
+        sub   = 'Loading from Delta Exchange India.';
+      } else {
+        title = 'Computing IV surface…';
+        sub   = 'Chain present but IV data missing. Will retry automatically.';
+      }
+      document.getElementById('pvsSkewTitle').textContent = title;
+      document.getElementById('pvsSkewSub').textContent   = sub;
+      return;
+    }
+    const { label, atmIv, c25, p25, rr25, bf25 } = r;
+
+    // Verdict
+    const v  = document.getElementById('pvsSkewVerdict');
+    const vt = document.getElementById('pvsSkewTitle');
+    const vs = document.getElementById('pvsSkewSub');
+    const vi = document.getElementById('pvsSkewIcon');
+    let cls = 'pvs-v-neutral', icon = '🎯', title = '', sub = '';
+
+    if(rr25 == null || bf25 == null){
+      cls = 'pvs-v-caution'; icon = '⚠️';
+      title = 'Insufficient OTM Quotes';
+      sub = `Couldn't find 25Δ wings on ${label} — chain may be sparse. Try a longer-dated expiry.`;
+    } else if(rr25 > 10){
+      cls = 'pvs-v-caution'; icon = '⚠️';
+      title = `STEEP PUT SKEW — RR25 = ${rr25.toFixed(1)}%`;
+      sub = `Fear bid on puts (rich downside protection). Put credit ✅ but downside expected — size down 0.5x. Avoid pure short strangles, prefer put credit spread or skewed strangle (sell put further OTM).`;
+    } else if(rr25 < 0){
+      cls = 'pvs-v-danger'; icon = '🚫';
+      title = `INVERTED SKEW — RR25 = ${rr25.toFixed(1)}%`;
+      sub = `Calls richer than puts — euphoria/short-squeeze setup. Call leg vulnerable. Defer short strangle or use call-skewed iron condor.`;
+    } else if(bf25 < 1){
+      cls = 'pvs-v-caution'; icon = '⚠️';
+      title = `FLAT WINGS — BF25 = ${bf25.toFixed(1)}%`;
+      sub = `Tails are cheap (market complacent) — sellers underpaid for tail risk. Buy wings to convert to iron condor, or skip.`;
+    } else {
+      cls = 'pvs-v-good'; icon = '✅';
+      title = `HEALTHY SKEW — RR25 ${rr25.toFixed(1)}% · BF25 ${bf25.toFixed(1)}%`;
+      sub = `Normal BTC put-skew with paid wings. Symmetric short strangle ($${Math.round(p25.strike).toLocaleString()} put / $${Math.round(c25.strike).toLocaleString()} call) is well-priced.`;
+    }
+    v.className = 'pvs-verdict ' + cls;
+    vi.textContent = icon;
+    vt.textContent = title;
+    vs.textContent = sub;
+
+    // Metrics
+    const rrEl = document.getElementById('pvsRR25');
+    if(rr25 != null){
+      rrEl.textContent = (rr25 >= 0 ? '+' : '') + rr25.toFixed(2) + '%';
+      rrEl.className = 'pvs-mval ' + (rr25 > 10 ? 'warn' : rr25 < 0 ? 'neg' : 'pos');
+      document.getElementById('pvsRR25Sub').textContent = rr25 > 10 ? 'fear bid' : rr25 < 0 ? 'inverted' : 'normal BTC';
+    } else { rrEl.textContent = '—'; }
+
+    const bfEl = document.getElementById('pvsBF25');
+    if(bf25 != null){
+      bfEl.textContent = (bf25 >= 0 ? '+' : '') + bf25.toFixed(2) + '%';
+      bfEl.className = 'pvs-mval ' + (bf25 < 1 ? 'warn' : 'pos');
+      document.getElementById('pvsBF25Sub').textContent = bf25 < 1 ? 'tails cheap' : 'wings paid';
+    }
+
+    document.getElementById('pvsAtmIv').textContent  = atmIv.toFixed(1) + '%';
+    if(p25){
+      document.getElementById('pvsPut25Iv').textContent = p25.iv.toFixed(1) + '%';
+      document.getElementById('pvsPut25IvSub').textContent = `K = $${Math.round(p25.strike).toLocaleString()}`;
+    }
+    if(c25){
+      document.getElementById('pvsCall25Iv').textContent = c25.iv.toFixed(1) + '%';
+      document.getElementById('pvsCall25IvSub').textContent = `K = $${Math.round(c25.strike).toLocaleString()}`;
+    }
+
+    const we = document.getElementById('pvsWingEdge');
+    if(bf25 != null){
+      we.textContent = (bf25 * 1.5).toFixed(1) + '%';  // proxy: BF × 1.5 ≈ extra credit from wings
+      document.getElementById('pvsWingEdgeSub').textContent = 'wing premium boost';
+    }
+
+    // Snapshot table
+    const tbl = document.getElementById('pvsSkewTable').querySelector('tbody');
+    let html = '';
+    const rows = [
+      ['ATM IV', atmIv.toFixed(2)+'%', 'Reference vol level'],
+      p25 ? ['25Δ Put IV', p25.iv.toFixed(2)+'%', `K = $${Math.round(p25.strike).toLocaleString()}, Δ = ${p25.delta.toFixed(3)}`] : null,
+      c25 ? ['25Δ Call IV', c25.iv.toFixed(2)+'%', `K = $${Math.round(c25.strike).toLocaleString()}, Δ = ${c25.delta.toFixed(3)}`] : null,
+      rr25 != null ? ['Risk Reversal (RR25)', (rr25>=0?'+':'') + rr25.toFixed(2)+'%', rr25 > 10 ? 'Steep — put fear' : rr25 < 0 ? 'Inverted — call premium' : 'Normal'] : null,
+      bf25 != null ? ['Butterfly (BF25)',  (bf25>=0?'+':'') + bf25.toFixed(2)+'%', bf25 > 2 ? 'Wings rich' : bf25 < 1 ? 'Wings cheap' : 'Wings fair'] : null,
+      ['Expiry', label, ''],
+    ].filter(Boolean);
+    rows.forEach(r => {
+      html += `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td style="color:var(--color-text-secondary)">${r[2]}</td></tr>`;
+    });
+    tbl.innerHTML = html;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ORCHESTRATION
+  // ═══════════════════════════════════════════════════════════════
+  window.pvsRefreshAll = async function(forceChainRefetch){
+    const status = document.getElementById('pvsStatus');
+    if(status) status.textContent = 'refreshing…';
+    pvsState.lastRefresh = Date.now();
+    try {
+      // Manual refresh = force a fresh chain fetch (bypasses TTL)
+      if(forceChainRefetch){
+        pvsChainCache.data = null;
+        await pvsFetchChainDirect();
+      }
+      pvsRenderGEX();
+      await pvsRenderFunding();
+      pvsRenderSkew();
+      const t = new Date();
+      const hh = String(t.getHours()).padStart(2,'0');
+      const mm = String(t.getMinutes()).padStart(2,'0');
+      const ss = String(t.getSeconds()).padStart(2,'0');
+      if(status) status.textContent = `updated ${hh}:${mm}:${ss}`;
+    } catch(e){
+      console.error('[PVS] refresh error:', e);
+      if(status) status.textContent = 'error · check console';
+    }
+  };
+
+  // The boot tick (below) handles all auto-refresh on a 5s/15s cadence,
+  // so we no longer need separate render intervals. The boot tick:
+  //   • Self-fetches chain via REST (rate-limited by PVS_CHAIN_TTL_MS)
+  //   • Reads spot from window.state (kept fresh by Binance/Delta WS)
+  //   • Re-renders GEX/Skew/Funding using fresh data
+
+
+  // ── Boot: try immediately, then poll every 2s for up to 60s ──
+  // The Sim Desk's fetchLiveChain takes 5–15s on first load (two parallel
+  // ticker fetches from Delta India + greeks backfill). We poll until the
+  // chain is populated, then run a full refresh and stop the poller.
+  // After that, the long-interval refreshes above keep things fresh.
+  // ── Boot: self-fetch chain immediately, then poll every 30s ──
+  // This panel is now SELF-SUFFICIENT: it fetches its own chain via REST
+  // and gets spot from the global window.state (which the existing
+  // Binance/Delta/Deribit WebSocket connections keep updated in real-time).
+  // It does NOT depend on Sim Desk being open or its boot sequence.
+  let pvsBootAttempts = 0;
+  let pvsBootTimer = null;
+
+  async function pvsBootTick(){
+    pvsBootAttempts++;
+
+    // Diagnostic
+    const chain = pvsGetChain();
+    const spot  = pvsGetSpot();
+    const diag = {
+      ownChain:    !!pvsChainCache.data,
+      ownChainAge: pvsChainCache.data ? Math.round((Date.now() - pvsChainCache.data.ts)/1000) + 's' : 'none',
+      simChain:    typeof window.simState !== 'undefined' && !!window.simState.chain,
+      anyChain:    !!chain,
+      expiryCount: chain && chain.labels ? chain.labels.length : 0,
+      spot:        spot || 'none',
+      lastError:   pvsChainCache.lastError || 'none',
+    };
+
+    const status = document.getElementById('pvsStatus');
+    const ready = chain && chain.labels && chain.labels.length > 0 && spot;
+
+    if(ready){
+      // Render — but keep boot poller alive at slow cadence for self-refresh
+      pvsRefreshAll();
+      if(status){
+        const t = new Date();
+        const hh = String(t.getHours()).padStart(2,'0');
+        const mm = String(t.getMinutes()).padStart(2,'0');
+        status.textContent = `live · ${hh}:${mm}`;
+      }
+      if(pvsBootAttempts === 1 || pvsBootAttempts % 5 === 0){
+        console.log('[pvs] tick', pvsBootAttempts, 'ready:', diag);
+      }
+      return;
+    }
+
+    // Not ready — show diagnostic message
+    let msg;
+    if(!spot)                  msg = `(${pvsBootAttempts}) waiting for spot price…`;
+    else if(!diag.simChain && !diag.ownChain)
+                               msg = `(${pvsBootAttempts}) fetching chain…`;
+    else if(diag.expiryCount === 0)
+                               msg = `(${pvsBootAttempts}) chain empty`;
+    else                       msg = `(${pvsBootAttempts}) processing…`;
+    if(status) status.textContent = msg;
+
+    if(pvsBootAttempts === 1){
+      console.log('[pvs] boot attempt 1 — diagnostic:', diag);
+      // Render funding immediately on first attempt — no chain dependency
+      pvsRenderFunding().catch(e => console.warn('[pvs] funding fetch on boot:', e));
+    }
+
+    // ── Trigger our OWN chain fetch (independent of Sim Desk) ──
+    // First few attempts: aggressive. Later: every 5th attempt.
+    const cacheStale = !pvsChainCache.data || (Date.now() - pvsChainCache.data.ts) > PVS_CHAIN_TTL_MS;
+    if(cacheStale && (pvsBootAttempts <= 3 || pvsBootAttempts % 5 === 0)){
+      pvsFetchChainDirect().then(c => {
+        if(c) {
+          // Got chain — render now
+          if(pvsGetSpot()) pvsRefreshAll();
+        }
+      });
+    }
+
+    // Render whatever data we have (funding may have populated)
+    if(pvsBootAttempts <= 5 && diag.anyChain && spot){
+      pvsRenderGEX();
+      pvsRenderSkew();
+    }
+
+    // After 60 seconds with no luck, show clear error
+    if(pvsBootAttempts >= 30 && !ready){
+      const reason = !spot
+        ? 'No spot price. Network may be offline or Binance/Delta WebSockets blocked.'
+        : !diag.anyChain
+          ? `Delta India API failed: ${diag.lastError}. Check if your network can reach api.india.delta.exchange.`
+          : 'Chain returned 0 valid expiries.';
+      const gexT = document.getElementById('pvsGexTitle');
+      const gexS = document.getElementById('pvsGexSub');
+      if(gexT) gexT.textContent = '⚠ Chain unavailable';
+      if(gexS) gexS.textContent = reason;
+      const skT = document.getElementById('pvsSkewTitle');
+      const skS = document.getElementById('pvsSkewSub');
+      if(skT) skT.textContent = '⚠ Chain unavailable';
+      if(skS) skS.textContent = reason;
+      if(status) status.textContent = 'failed · click ↻ to retry';
+    }
+  }
+
+  // Run first tick immediately, then poll every 5s for the first minute,
+  // every 15s after that. The poll keeps doing background self-refresh
+  // (uses our OWN cache so it's cheap; rate-limited by PVS_CHAIN_TTL_MS).
+  pvsBootTick();
+  pvsBootTimer = setInterval(() => {
+    if(document.visibilityState !== 'visible') return;
+    pvsBootTick();
+  }, 5000);
+  // After 60s, slow the poll to 15s
+  setTimeout(() => {
+    if(pvsBootTimer) clearInterval(pvsBootTimer);
+    pvsBootTimer = setInterval(() => {
+      if(document.visibilityState !== 'visible') return;
+      pvsBootTick();
+    }, 15000);
+  }, 60000);
+
+  console.log('[pvs] Pro-Vol Suite initialized — GEX · Funding · 25Δ Skew');
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     🎯 VOL-SELL GAPS SUITE (VSG) — added 2026-04-26
+     ──────────────────────────────────────────────────────────────────────
+     Closes 4 high-impact decision blind-spots specifically for BTC short
+     strangle / straddle conviction:
+
+       1. JUMP RISK   — Realized kurtosis + count of >2σ daily jumps in
+                        last 30/90 days. The #1 strangle killer in BTC.
+       2. STRIKE LIQ  — Live bid-ask spread % and depth quality for the
+                        candidate .10Δ legs on the active expiry. Bad
+                        liquidity = bad slippage = bad fills regardless
+                        of how good the macro setup looks.
+       3. SKEW MOMENTUM — 24h / 72h delta in 25Δ Risk Reversal. Skew
+                          STEEPENING during a flat tape = early
+                          institutional hedge demand → reduce size.
+       4. FORWARD VOL — Implied forward variance between front 2 expiries.
+                        Tells you if your chosen expiry is rich/cheap
+                        relative to the next one (calendar relative-value).
+
+     Reads from: simState.chain (live Delta chain), Binance klines API,
+                 localStorage (for skew history persistence).
+     Style: matches Pro-Vol Suite design language. Prefix: vsg-
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── VSG container ── */
+.vsg-panel{
+  background:var(--color-background-primary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:14px;padding:14px 16px;margin-bottom:12px;
+  position:relative;overflow:hidden;
+  max-width:100%;box-sizing:border-box;
+}
+.vsg-panel *{box-sizing:border-box;min-width:0}
+.vsg-panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#f59e0b,#dc2626,#7c3aed);
+  border-radius:14px 14px 0 0;
+}
+.vsg-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-top:4px}
+.vsg-title{font-size:13px;font-weight:800;letter-spacing:.03em;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vsg-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(135deg,#f59e0b,#dc2626);color:#fff;letter-spacing:.04em;white-space:nowrap}
+.vsg-status{font-size:9px;color:var(--color-text-secondary);font-weight:600}
+.vsg-refresh{font-size:9px;padding:3px 8px;border-radius:5px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer;font-weight:700}
+.vsg-refresh:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+
+/* Tab nav */
+.vsg-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;border-bottom:1px solid var(--color-border-tertiary);padding-bottom:8px}
+.vsg-tab{font-size:10px;padding:5px 11px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-secondary);cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.04em;transition:all .2s}
+.vsg-tab:hover{color:var(--color-text-primary);border-color:#dc2626}
+.vsg-tab.active{background:#dc2626;color:#fff;border-color:#dc2626}
+.vsg-tabbody{display:none}
+.vsg-tabbody.active{display:block}
+
+/* Verdict card */
+.vsg-verdict{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;border:1.5px solid transparent;margin-bottom:11px;transition:all .3s ease}
+.vsg-v-good   {background:rgba(16,185,129,.10);border-color:#10b981}
+.vsg-v-caution{background:rgba(245,158,11,.10);border-color:#f59e0b}
+.vsg-v-danger {background:rgba(220,38,38,.10); border-color:#dc2626}
+.vsg-v-neutral{background:rgba(107,114,128,.08);border-color:#6b7280}
+.vsg-v-icon{font-size:26px;line-height:1;flex-shrink:0}
+.vsg-v-body{flex:1;min-width:0}
+.vsg-v-title{font-size:13px;font-weight:900;letter-spacing:.02em;line-height:1.15;margin-bottom:2px}
+.vsg-v-good    .vsg-v-title{color:#059669}
+.vsg-v-caution .vsg-v-title{color:#d97706}
+.vsg-v-danger  .vsg-v-title{color:#b91c1c}
+.vsg-v-neutral .vsg-v-title{color:var(--color-text-primary)}
+.vsg-v-sub{font-size:10px;color:var(--color-text-secondary);line-height:1.45;margin-top:1px}
+
+/* Metric grid */
+.vsg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;margin-bottom:11px;width:100%}
+@media(max-width:480px){
+  .vsg-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+}
+.vsg-mcell{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:8px;padding:8px 10px;overflow:hidden}
+.vsg-mlbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:3px;display:flex;align-items:center;gap:4px;line-height:1.25;word-break:break-word}
+.vsg-mval{font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;line-height:1.1;word-break:break-word}
+.vsg-msub{font-size:9px;color:var(--color-text-secondary);margin-top:2px;font-variant-numeric:tabular-nums;word-break:break-word}
+.vsg-mval.pos{color:#10b981}
+.vsg-mval.neg{color:#dc2626}
+.vsg-mval.warn{color:#f59e0b}
+
+/* Jump bar visualization */
+.vsg-bars{margin-top:11px;padding-top:11px;border-top:1px solid var(--color-border-tertiary)}
+.vsg-bars-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:9px}
+.vsg-jrow{display:grid;grid-template-columns:80px 1fr 50px;gap:7px;align-items:center;margin-bottom:4px;font-size:10px}
+.vsg-jdate{font-weight:600;color:var(--color-text-secondary);font-variant-numeric:tabular-nums}
+.vsg-jbar-track{background:var(--color-background-secondary);border-radius:3px;height:14px;position:relative;overflow:hidden}
+.vsg-jbar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.vsg-jbar-up  {background:linear-gradient(90deg,#10b981,#059669)}
+.vsg-jbar-dn  {background:linear-gradient(90deg,#dc2626,#b91c1c)}
+.vsg-jval{font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:700;text-align:right}
+
+/* Liquidity table */
+.vsg-liq-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px}
+.vsg-liq-table th{text-align:left;padding:5px 7px;background:var(--color-background-secondary);color:var(--color-text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9px;border-bottom:1px solid var(--color-border-tertiary)}
+.vsg-liq-table td{padding:6px 7px;border-bottom:1px solid var(--color-border-tertiary);font-variant-numeric:tabular-nums;color:var(--color-text-primary)}
+.vsg-liq-table tr:last-child td{border-bottom:none}
+.vsg-liq-good   {color:#10b981;font-weight:700}
+.vsg-liq-warn   {color:#f59e0b;font-weight:700}
+.vsg-liq-bad    {color:#dc2626;font-weight:700}
+
+/* Methodology box */
+.vsg-method{margin-top:10px;font-size:9.5px;color:var(--color-text-secondary);line-height:1.5;background:var(--color-background-secondary);border-radius:7px;padding:8px 10px;border-left:2px solid #dc2626}
+.vsg-method b{color:var(--color-text-primary)}
+
+/* Skew momentum sparkline */
+.vsg-spark{display:block;width:100%;height:36px;margin-top:6px}
+
+@media(max-width:600px){
+  .vsg-jrow{grid-template-columns:65px 1fr 45px;font-size:9px}
+  .vsg-mval{font-size:13px}
+}
+</style>
+
+<div class="vsg-panel" id="vsgPanel">
+  <div class="vsg-header">
+    <div class="vsg-title">
+      🎯 Vol-Sell Gaps Suite
+      <span class="vsg-badge">JUMPS · LIQUIDITY · SKEW MOMENTUM · FWD VOL</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <span class="vsg-status" id="vsgStatus">initializing…</span>
+      <button class="vsg-refresh" onclick="vsgRefreshAll(true)">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Tab nav -->
+  <div class="vsg-tabs">
+    <button class="vsg-tab active" data-tab="jump"  onclick="vsgSwitchTab('jump')">⚡ Jump Risk</button>
+    <button class="vsg-tab"        data-tab="liq"   onclick="vsgSwitchTab('liq')">💧 Strike Liquidity</button>
+    <button class="vsg-tab"        data-tab="skew"  onclick="vsgSwitchTab('skew')">📈 Skew Momentum</button>
+    <button class="vsg-tab"        data-tab="fwd"   onclick="vsgSwitchTab('fwd')">🔭 Forward Vol</button>
+  </div>
+
+  <!-- ─── TAB 1: JUMP RISK ─── -->
+  <div class="vsg-tabbody active" id="vsgTabJump">
+    <div class="vsg-verdict vsg-v-neutral" id="vsgJumpVerdict">
+      <div class="vsg-v-icon" id="vsgJumpIcon">⏳</div>
+      <div class="vsg-v-body">
+        <div class="vsg-v-title" id="vsgJumpTitle">Loading jump-risk profile…</div>
+        <div class="vsg-v-sub" id="vsgJumpSub">Computing realized kurtosis & jump count from 90 daily candles</div>
+      </div>
+    </div>
+    <div class="vsg-grid">
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">⚡ Jumps (30D)</div>
+        <div class="vsg-mval" id="vsgJump30">—</div>
+        <div class="vsg-msub" id="vsgJump30Sub">days with |return| > 2σ</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">⚡ Jumps (90D)</div>
+        <div class="vsg-mval" id="vsgJump90">—</div>
+        <div class="vsg-msub" id="vsgJump90Sub">baseline reference</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📊 Kurtosis (30D)</div>
+        <div class="vsg-mval" id="vsgKurt">—</div>
+        <div class="vsg-msub" id="vsgKurtSub">3 = normal · &gt;5 = fat tails</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📏 Max Jump (30D)</div>
+        <div class="vsg-mval" id="vsgMaxJump">—</div>
+        <div class="vsg-msub" id="vsgMaxJumpSub">largest 1D move (σ-units)</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">↔ Skewness (30D)</div>
+        <div class="vsg-mval" id="vsgSkewness">—</div>
+        <div class="vsg-msub" id="vsgSkewnessSub">return distribution tilt</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">🎯 Strangle Penalty</div>
+        <div class="vsg-mval" id="vsgPenalty">—</div>
+        <div class="vsg-msub" id="vsgPenaltySub">size adjustment</div>
+      </div>
+    </div>
+
+    <div class="vsg-bars">
+      <div class="vsg-bars-title">📅 Last 30 days — daily moves (σ-units)</div>
+      <div id="vsgJumpBars"><div style="font-size:10px;color:var(--color-text-secondary);text-align:center;padding:14px">Loading…</div></div>
+    </div>
+
+    <div class="vsg-method">
+      <b>Why this matters for short strangle:</b> BTC's biggest losses for premium sellers come from <b>jumps</b>, not drift. A normal-distribution model under-prices tail risk when realized kurtosis is high. <b>Reading:</b> kurtosis &lt;4 + 0–1 jumps = clean tape, full size OK · kurtosis 4–6 OR 2–3 jumps = jumpy, halve size · kurtosis &gt;6 OR ≥4 jumps = unstable, skip naked strangles, use iron condors. The 30D vs 90D ratio shows whether jump risk is rising into your trade.
+    </div>
+  </div>
+
+  <!-- ─── TAB 2: STRIKE LIQUIDITY ─── -->
+  <div class="vsg-tabbody" id="vsgTabLiq">
+    <div class="vsg-verdict vsg-v-neutral" id="vsgLiqVerdict">
+      <div class="vsg-v-icon" id="vsgLiqIcon">⏳</div>
+      <div class="vsg-v-body">
+        <div class="vsg-v-title" id="vsgLiqTitle">Scanning candidate strikes…</div>
+        <div class="vsg-v-sub" id="vsgLiqSub">Measuring bid-ask spread % and OI depth at .10Δ legs</div>
+      </div>
+    </div>
+    <div class="vsg-grid">
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📞 Call .10Δ Spread</div>
+        <div class="vsg-mval" id="vsgCallSpread">—</div>
+        <div class="vsg-msub" id="vsgCallSpreadSub">% of mid</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📞 Call OI</div>
+        <div class="vsg-mval" id="vsgCallOI">—</div>
+        <div class="vsg-msub" id="vsgCallOISub">contracts at strike</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📞 Call Putable Vol</div>
+        <div class="vsg-mval" id="vsgCallVol">—</div>
+        <div class="vsg-msub" id="vsgCallVolSub">24h contracts</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📥 Put .10Δ Spread</div>
+        <div class="vsg-mval" id="vsgPutSpread">—</div>
+        <div class="vsg-msub" id="vsgPutSpreadSub">% of mid</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📥 Put OI</div>
+        <div class="vsg-mval" id="vsgPutOI">—</div>
+        <div class="vsg-msub" id="vsgPutOISub">contracts at strike</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📥 Put Vol</div>
+        <div class="vsg-mval" id="vsgPutVol">—</div>
+        <div class="vsg-msub" id="vsgPutVolSub">24h contracts</div>
+      </div>
+    </div>
+
+    <div class="vsg-bars">
+      <div class="vsg-bars-title">🔍 ±5 strikes around candidates — spread distribution</div>
+      <div id="vsgLiqTable"><div style="font-size:10px;color:var(--color-text-secondary);text-align:center;padding:14px">Loading…</div></div>
+    </div>
+
+    <div class="vsg-method">
+      <b>Why this matters:</b> Even a perfect macro setup loses edge if you eat 5–8% of premium on entry slippage. <b>Reading:</b> spread &lt;2% = institutional liquidity, full size OK · 2–4% = retail-grade, fine for small size · 4–7% = thin, expect slippage · &gt;7% = avoid this strike, walk one strike closer to ATM where quotes tighten. Combined OI &lt;500 contracts = high adjustment cost on rolls.
+    </div>
+  </div>
+
+  <!-- ─── TAB 3: SKEW MOMENTUM ─── -->
+  <div class="vsg-tabbody" id="vsgTabSkew">
+    <div class="vsg-verdict vsg-v-neutral" id="vsgSkewVerdict">
+      <div class="vsg-v-icon" id="vsgSkewIcon">⏳</div>
+      <div class="vsg-v-body">
+        <div class="vsg-v-title" id="vsgSkewTitle">Tracking 25Δ RR over time…</div>
+        <div class="vsg-v-sub" id="vsgSkewSub">Watching for skew steepening (institutional hedge demand)</div>
+      </div>
+    </div>
+    <div class="vsg-grid">
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📐 25Δ RR Now</div>
+        <div class="vsg-mval" id="vsgRRNow">—</div>
+        <div class="vsg-msub" id="vsgRRNowSub">IV(P) − IV(C) at 25Δ</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">⏰ Δ24h</div>
+        <div class="vsg-mval" id="vsgRR24">—</div>
+        <div class="vsg-msub" id="vsgRR24Sub">vs 24h ago</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📅 Δ72h</div>
+        <div class="vsg-mval" id="vsgRR72">—</div>
+        <div class="vsg-msub" id="vsgRR72Sub">vs 3 days ago</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📊 Samples</div>
+        <div class="vsg-mval" id="vsgRRSamples">—</div>
+        <div class="vsg-msub">stored snapshots</div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <div class="vsg-bars-title" style="margin-bottom:4px">📈 25Δ RR — last 7 days (auto-tracked)</div>
+      <canvas id="vsgRRSpark" class="vsg-spark"></canvas>
+    </div>
+
+    <div class="vsg-method">
+      <b>Why this matters:</b> Skew level alone is misleading — what matters is <b>direction</b>. RR steepening +2pp in 24h with flat spot = institutions buying downside hedges before something happens. <b>Reading:</b> RR steepening &gt;+2pp/24h = halve size on the put side or skip · steepening on flat tape = strongest signal · RR flattening = complacency, normal sell · RR inverting (negative) = call-side squeeze risk, dangerous to short calls. History persists in localStorage.
+    </div>
+  </div>
+
+  <!-- ─── TAB 4: FORWARD VOL ─── -->
+  <div class="vsg-tabbody" id="vsgTabFwd">
+    <div class="vsg-verdict vsg-v-neutral" id="vsgFwdVerdict">
+      <div class="vsg-v-icon" id="vsgFwdIcon">⏳</div>
+      <div class="vsg-v-body">
+        <div class="vsg-v-title" id="vsgFwdTitle">Computing forward variance…</div>
+        <div class="vsg-v-sub" id="vsgFwdSub">Comparing your expiry vs the next one for relative-value</div>
+      </div>
+    </div>
+    <div class="vsg-grid">
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">🎯 Front IV (T1)</div>
+        <div class="vsg-mval" id="vsgT1IV">—</div>
+        <div class="vsg-msub" id="vsgT1IVSub">your expiry</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📅 Far IV (T2)</div>
+        <div class="vsg-mval" id="vsgT2IV">—</div>
+        <div class="vsg-msub" id="vsgT2IVSub">next expiry</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">🔭 Forward IV</div>
+        <div class="vsg-mval" id="vsgFwdIV">—</div>
+        <div class="vsg-msub" id="vsgFwdIVSub">implied T1→T2 vol</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">⚖ Front vs Fwd</div>
+        <div class="vsg-mval" id="vsgFrontFwd">—</div>
+        <div class="vsg-msub" id="vsgFrontFwdSub">premium/discount</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">📐 Slope</div>
+        <div class="vsg-mval" id="vsgSlope">—</div>
+        <div class="vsg-msub" id="vsgSlopeSub">vol pts / day</div>
+      </div>
+      <div class="vsg-mcell">
+        <div class="vsg-mlbl">🎯 Verdict</div>
+        <div class="vsg-mval" id="vsgFwdVerd">—</div>
+        <div class="vsg-msub" id="vsgFwdVerdSub">expiry choice</div>
+      </div>
+    </div>
+
+    <div class="vsg-method">
+      <b>Forward variance = √[(σ²_T2 × T2 − σ²_T1 × T1) / (T2 − T1)]</b> — the implied vol the market is pricing for the period <i>between</i> your expiry and the next one. <b>If front IV &gt;&gt; forward IV:</b> your expiry is trading rich, sell it (favorable). <b>If front IV ≈ forward:</b> calendar is flat, no edge in choosing one over the other. <b>If front IV &lt;&lt; forward:</b> next expiry has the richer premium, consider rolling out instead. Event-driven IV usually concentrates in one expiry — this catches that.
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   VOL-SELL GAPS ENGINE — computes Jumps · Strike Liq · Skew Mom · Fwd Vol
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const VSG_LS_KEY = 'brm.vsg.skewHistory';   // [{t, rr25}]
+  const VSG_MAX_HISTORY = 200;                // ~1 sample/hr × 7 days
+
+  // ── Utility helpers ──
+  const $ = id => document.getElementById(id);
+  const fmt2 = n => (n==null||!isFinite(n)) ? '—' : n.toFixed(2);
+  const fmt1 = n => (n==null||!isFinite(n)) ? '—' : n.toFixed(1);
+  const fmt0 = n => (n==null||!isFinite(n)) ? '—' : Math.round(n).toLocaleString();
+  const sgn  = n => n>0 ? '+' : '';
+
+  function vsgGetSpot(){
+    if(typeof window.simState !== 'undefined' && window.simState?.chain?.spot) return window.simState.chain.spot;
+    if(typeof window.state !== 'undefined' && window.state?.btcBase) return window.state.btcBase;
+    return null;
+  }
+
+  function vsgSetVerdict(prefix, kind, icon, title, sub){
+    const v = $(prefix+'Verdict'); if(!v) return;
+    v.classList.remove('vsg-v-good','vsg-v-caution','vsg-v-danger','vsg-v-neutral');
+    v.classList.add('vsg-v-'+kind);
+    if($(prefix+'Icon')) $(prefix+'Icon').textContent = icon;
+    if($(prefix+'Title')) $(prefix+'Title').textContent = title;
+    if($(prefix+'Sub')) $(prefix+'Sub').textContent = sub;
+  }
+
+  // ── Tab switching ──
+  window.vsgSwitchTab = function(tab){
+    document.querySelectorAll('#vsgPanel .vsg-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    document.querySelectorAll('#vsgPanel .vsg-tabbody').forEach(b => b.classList.remove('active'));
+    const body = $('vsgTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if(body) body.classList.add('active');
+    // Re-paint sparkline if switching to skew tab (canvas needs visible parent)
+    if(tab === 'skew') setTimeout(vsgPaintSparkline, 50);
+  };
+
+  // ════════════════════════════════════════════════════════════════════
+  // 1. JUMP RISK — realized kurtosis + jump count from Binance daily klines
+  // ════════════════════════════════════════════════════════════════════
+  let vsgDailyCache = { ts: 0, candles: [] };
+
+  async function vsgFetchDailyCandles(){
+    // Cache for 30 minutes (daily data doesn't change intraday)
+    if(vsgDailyCache.candles.length >= 90 && Date.now() - vsgDailyCache.ts < 30*60*1000){
+      return vsgDailyCache.candles;
+    }
+    try {
+      const url = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=100';
+      const res = await safeFetch(url, {}, 5000);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const raw = await res.json();
+      const candles = raw.map(k => ({
+        t: k[0],
+        o: parseFloat(k[1]),
+        h: parseFloat(k[2]),
+        l: parseFloat(k[3]),
+        c: parseFloat(k[4]),
+      }));
+      vsgDailyCache = { ts: Date.now(), candles };
+      return candles;
+    } catch(e){
+      console.warn('[vsg] daily klines fetch failed:', e.message);
+      return null;
+    }
+  }
+
+  function vsgComputeJumpStats(candles){
+    if(!candles || candles.length < 31) return null;
+
+    // Build daily log returns
+    const allRets = [];
+    for(let i=1;i<candles.length;i++){
+      const r = Math.log(candles[i].c / candles[i-1].c);
+      if(isFinite(r)) allRets.push({ t: candles[i].t, r });
+    }
+    if(allRets.length < 31) return null;
+
+    const last30 = allRets.slice(-30);
+    const last90 = allRets.slice(-90);
+
+    function stats(arr){
+      const rs = arr.map(x => x.r);
+      const n = rs.length;
+      const mean = rs.reduce((a,b)=>a+b,0) / n;
+      const dev = rs.map(r => r - mean);
+      const m2 = dev.reduce((a,b)=>a+b*b, 0) / n;
+      const m3 = dev.reduce((a,b)=>a+b*b*b, 0) / n;
+      const m4 = dev.reduce((a,b)=>a+b*b*b*b, 0) / n;
+      const std = Math.sqrt(m2);
+      const skewness = m2 > 0 ? m3 / Math.pow(m2, 1.5) : 0;
+      const kurtosis = m2 > 0 ? m4 / (m2 * m2) : 3;
+      return { n, mean, std, skewness, kurtosis };
+    }
+
+    const s30 = stats(last30);
+    const s90 = stats(last90);
+
+    // Count jumps: |return| > 2σ where σ uses the LONGER window (more stable)
+    const sigma = s90.std;
+    const jumps30 = last30.filter(x => Math.abs(x.r - s90.mean) > 2 * sigma).length;
+    const jumps90 = last90.filter(x => Math.abs(x.r - s90.mean) > 2 * sigma).length;
+
+    // Largest move in last 30 days, in σ-units
+    let maxAbs = 0, maxBar = null;
+    last30.forEach(x => {
+      const z = Math.abs((x.r - s90.mean) / sigma);
+      if(z > maxAbs){ maxAbs = z; maxBar = x; }
+    });
+
+    // Per-day σ-units for the bar chart
+    const bars = last30.map(x => ({
+      t: x.t,
+      r: x.r,
+      z: (x.r - s90.mean) / sigma,
+    }));
+
+    return {
+      jumps30, jumps90,
+      kurt30: s30.kurtosis,
+      kurt90: s90.kurtosis,
+      skewness30: s30.skewness,
+      maxAbsZ: maxAbs,
+      maxBarRet: maxBar ? maxBar.r : 0,
+      sigma90Daily: sigma,
+      bars,
+    };
+  }
+
+  function vsgRenderJump(stats){
+    if(!stats){
+      vsgSetVerdict('vsgJump', 'neutral', '⚠️',
+        'Jump-risk data unavailable',
+        'Could not fetch daily klines from Binance. Will retry on next refresh.');
+      return;
+    }
+
+    const { jumps30, jumps90, kurt30, skewness30, maxAbsZ, bars } = stats;
+
+    // Set values
+    $('vsgJump30').textContent = jumps30;
+    $('vsgJump30').className = 'vsg-mval ' + (jumps30 >= 4 ? 'neg' : jumps30 >= 2 ? 'warn' : 'pos');
+    $('vsgJump30Sub').textContent = `${jumps30}/30 days · expected: ~1.4`;
+
+    $('vsgJump90').textContent = jumps90;
+    $('vsgJump90Sub').textContent = `${jumps90}/90 days · expected: ~4.1`;
+
+    $('vsgKurt').textContent = fmt2(kurt30);
+    $('vsgKurt').className = 'vsg-mval ' + (kurt30 > 6 ? 'neg' : kurt30 > 4 ? 'warn' : 'pos');
+    $('vsgKurtSub').textContent = kurt30 > 6 ? 'severe fat tails' : kurt30 > 4 ? 'mild fat tails' : 'near-normal';
+
+    $('vsgMaxJump').textContent = fmt2(maxAbsZ) + 'σ';
+    $('vsgMaxJump').className = 'vsg-mval ' + (maxAbsZ > 4 ? 'neg' : maxAbsZ > 3 ? 'warn' : 'pos');
+    $('vsgMaxJumpSub').textContent = `largest 1D move`;
+
+    $('vsgSkewness').textContent = (skewness30>=0?'+':'') + fmt2(skewness30);
+    $('vsgSkewnessSub').textContent = skewness30 < -0.5 ? 'left-skewed (crash bias)'
+                                    : skewness30 >  0.5 ? 'right-skewed (rally bias)'
+                                    : 'symmetric';
+
+    // Strangle penalty (heuristic combining jumps + kurtosis)
+    let penalty, penaltyKind;
+    if(jumps30 >= 4 || kurt30 > 6 || maxAbsZ > 4){
+      penalty = 'SKIP / 25%'; penaltyKind = 'neg';
+    } else if(jumps30 >= 2 || kurt30 > 4 || maxAbsZ > 3){
+      penalty = 'HALF SIZE'; penaltyKind = 'warn';
+    } else {
+      penalty = 'FULL SIZE'; penaltyKind = 'pos';
+    }
+    $('vsgPenalty').textContent = penalty;
+    $('vsgPenalty').className = 'vsg-mval ' + penaltyKind;
+    $('vsgPenaltySub').textContent = penaltyKind === 'pos' ? 'jump risk benign'
+                                    : penaltyKind === 'warn' ? 'reduce notional'
+                                    : 'too unstable for naked';
+
+    // Verdict
+    if(penaltyKind === 'pos'){
+      vsgSetVerdict('vsgJump','good','✅',
+        `Clean tape — ${jumps30} jumps · kurt ${fmt2(kurt30)}`,
+        `Daily returns near-normal. Last 30D distribution is friendly to short premium. Largest move was ${fmt2(maxAbsZ)}σ. Full size acceptable.`);
+    } else if(penaltyKind === 'warn'){
+      vsgSetVerdict('vsgJump','caution','⚠️',
+        `Jumpy tape — ${jumps30} >2σ days · kurt ${fmt2(kurt30)}`,
+        `Realized distribution has fat tails. ${maxAbsZ > 3 ? `One ${fmt2(maxAbsZ)}σ move in last 30D — gamma blow-up risk elevated. ` : ''}Halve normal sizing or replace strangle with iron condor (.05Δ wings).`);
+    } else {
+      vsgSetVerdict('vsgJump','danger','🚨',
+        `Unstable — ${jumps30} jumps · kurt ${fmt2(kurt30)} · max ${fmt2(maxAbsZ)}σ`,
+        `Tape is hostile to naked short premium. Skip this expiry, or use defined-risk only (iron condor with tight wings). Wait for kurtosis to fall below 4 and jump frequency to drop.`);
+    }
+
+    // Render bar chart
+    const container = $('vsgJumpBars');
+    if(container){
+      const maxAbsBar = Math.max(...bars.map(b => Math.abs(b.z)), 2.5);
+      let html = '';
+      // Show last 30 days, most recent on top
+      bars.slice().reverse().forEach(b => {
+        const pct = Math.min(100, (Math.abs(b.z) / maxAbsBar) * 100);
+        const cls = b.z >= 0 ? 'vsg-jbar-up' : 'vsg-jbar-dn';
+        const date = new Date(b.t);
+        const dateStr = `${String(date.getUTCMonth()+1).padStart(2,'0')}/${String(date.getUTCDate()).padStart(2,'0')}`;
+        const sign = b.z >= 0 ? '+' : '';
+        html += `<div class="vsg-jrow">
+          <span class="vsg-jdate">${dateStr}</span>
+          <div class="vsg-jbar-track"><div class="vsg-jbar-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>
+          <span class="vsg-jval">${sign}${fmt2(b.z)}σ</span>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // 2. STRIKE LIQUIDITY — bid-ask % and OI/vol at candidate .10Δ legs
+  // ════════════════════════════════════════════════════════════════════
+  function vsgFindLegByDelta(legs, targetDelta, isCall){
+    if(!legs || !legs.length) return null;
+    // Filter to legs with non-zero delta within sensible range
+    const valid = legs.filter(l => {
+      const d = Math.abs(l.delta || 0);
+      return d > 0.01 && d < 0.95 && l.mark > 0;
+    });
+    if(!valid.length) return null;
+    // Find closest to target delta
+    let best = null, bestDiff = Infinity;
+    valid.forEach(l => {
+      const d = Math.abs(l.delta || 0);
+      const diff = Math.abs(d - targetDelta);
+      if(diff < bestDiff){ bestDiff = diff; best = l; }
+    });
+    return best;
+  }
+
+  function vsgClassifySpread(spreadPct){
+    if(spreadPct == null || !isFinite(spreadPct)) return { cls: '', label: 'n/a', kind: 'neutral' };
+    if(spreadPct < 2)  return { cls: 'vsg-liq-good', label: 'tight',     kind: 'good' };
+    if(spreadPct < 4)  return { cls: 'vsg-liq-good', label: 'good',      kind: 'good' };
+    if(spreadPct < 7)  return { cls: 'vsg-liq-warn', label: 'wide',      kind: 'warn' };
+    return                    { cls: 'vsg-liq-bad',  label: 'very wide', kind: 'bad'  };
+  }
+
+  function vsgComputeLiquidity(){
+    const chain = (typeof window.simState !== 'undefined') ? window.simState.chain : null;
+    const expiry = (typeof window.simState !== 'undefined') ? window.simState.currentExpiry : null;
+    if(!chain || !expiry || !chain.expiries[expiry]) return null;
+    const ex = chain.expiries[expiry];
+
+    // Target delta from simState (default 0.10)
+    let targetDelta = 0.10;
+    if(window.simState && typeof window.simState.targetDelta === 'number'){
+      targetDelta = window.simState.targetDelta;
+    }
+
+    const callLeg = vsgFindLegByDelta(ex.calls, targetDelta, true);
+    const putLeg  = vsgFindLegByDelta(ex.puts,  targetDelta, false);
+    if(!callLeg && !putLeg) return null;
+
+    function legStats(leg){
+      if(!leg) return null;
+      const mid = (leg.bid + leg.ask) / 2;
+      const spreadAbs = leg.ask - leg.bid;
+      const spreadPct = (mid > 0) ? (spreadAbs / mid) * 100 : null;
+      return {
+        leg, strike: leg.strike, delta: leg.delta,
+        mid, bid: leg.bid, ask: leg.ask,
+        spreadAbs, spreadPct,
+        oi: leg.oi || 0, vol: leg.vol || 0,
+        iv: leg.iv,
+      };
+    }
+
+    const c = legStats(callLeg);
+    const p = legStats(putLeg);
+
+    // Build ±5 strikes around each candidate for the table
+    function neighbors(allLegs, centerStrike){
+      const sorted = allLegs.slice().sort((a,b)=>a.strike - b.strike);
+      const idx = sorted.findIndex(l => l.strike === centerStrike);
+      if(idx < 0) return [];
+      return sorted.slice(Math.max(0, idx-3), Math.min(sorted.length, idx+4)).map(l => legStats(l));
+    }
+    const callNeighbors = c ? neighbors(ex.calls, c.strike) : [];
+    const putNeighbors  = p ? neighbors(ex.puts,  p.strike) : [];
+
+    return { call: c, put: p, callNeighbors, putNeighbors, expiry };
+  }
+
+  function vsgRenderLiquidity(data){
+    if(!data){
+      vsgSetVerdict('vsgLiq','neutral','⏳',
+        'No chain loaded yet',
+        'Open the Sim Desk and load an expiry, then refresh this panel.');
+      return;
+    }
+    const { call: c, put: p, callNeighbors, putNeighbors, expiry } = data;
+
+    function paint(prefix, leg){
+      if(!leg){
+        $(prefix+'Spread').textContent = '—';
+        $(prefix+'Spread').className = 'vsg-mval';
+        $(prefix+'SpreadSub').textContent = 'no leg found';
+        $(prefix+'OI').textContent = '—';
+        $(prefix+'OISub').textContent = '—';
+        $(prefix+'Vol').textContent = '—';
+        $(prefix+'VolSub').textContent = '—';
+        return;
+      }
+      const cls = vsgClassifySpread(leg.spreadPct);
+      $(prefix+'Spread').textContent = leg.spreadPct != null ? leg.spreadPct.toFixed(1)+'%' : '—';
+      $(prefix+'Spread').className = 'vsg-mval ' + (cls.kind === 'good' ? 'pos' : cls.kind === 'warn' ? 'warn' : cls.kind === 'bad' ? 'neg' : '');
+      $(prefix+'SpreadSub').textContent = `K ${fmt0(leg.strike)} · Δ${fmt2(leg.delta)} · ${cls.label}`;
+      $(prefix+'OI').textContent = fmt0(leg.oi);
+      $(prefix+'OISub').textContent = leg.oi >= 1000 ? 'deep' : leg.oi >= 300 ? 'moderate' : 'thin';
+      $(prefix+'Vol').textContent = fmt0(leg.vol);
+      $(prefix+'VolSub').textContent = leg.vol >= 100 ? 'active' : leg.vol >= 30 ? 'modest' : 'quiet';
+    }
+
+    paint('vsgCall', c);
+    paint('vsgPut', p);
+
+    // Verdict logic
+    const cWorst = c ? c.spreadPct : 99;
+    const pWorst = p ? p.spreadPct : 99;
+    const worst = Math.max(cWorst || 0, pWorst || 0);
+    const minOI = Math.min(c?.oi || 0, p?.oi || 0);
+
+    if(worst < 3 && minOI >= 500){
+      vsgSetVerdict('vsgLiq','good','✅',
+        `Tight liquidity — ${cWorst.toFixed(1)}% / ${pWorst.toFixed(1)}% spreads`,
+        `Both candidate legs trade with institutional-grade quotes. OI ≥ ${fmt0(minOI)} contracts on each side. Full size OK with normal market orders.`);
+    } else if(worst < 6 && minOI >= 100){
+      vsgSetVerdict('vsgLiq','caution','⚠️',
+        `Acceptable but watch fills — ${cWorst.toFixed(1)}% / ${pWorst.toFixed(1)}%`,
+        `Spreads are wider than ideal. Use limit orders at mid or mid±1 tick. Avoid market orders. ${minOI < 300 ? 'OI is moderate — adjustments may move the market.' : ''}`);
+    } else {
+      vsgSetVerdict('vsgLiq','danger','🚨',
+        `Poor liquidity — ${cWorst.toFixed(1)}% / ${pWorst.toFixed(1)}% spreads · OI ${fmt0(minOI)}`,
+        `One or both legs have unacceptable spreads or thin OI. Step strikes 1–2 closer to ATM where market makers actively quote, or pick a different expiry.`);
+    }
+
+    // Neighbors table
+    const tableEl = $('vsgLiqTable');
+    if(tableEl){
+      let html = '<table class="vsg-liq-table"><thead><tr>'
+        + '<th>Side</th><th>Strike</th><th>Δ</th><th>Bid</th><th>Ask</th><th>Spread%</th><th>OI</th><th>Vol</th>'
+        + '</tr></thead><tbody>';
+      function row(side, n, isCenter){
+        if(!n) return '';
+        const cls = vsgClassifySpread(n.spreadPct);
+        const bg = isCenter ? 'background:rgba(220,38,38,0.08)' : '';
+        return `<tr style="${bg}">
+          <td>${isCenter ? '<b>'+side+'★</b>' : side}</td>
+          <td>${fmt0(n.strike)}</td>
+          <td>${fmt2(n.delta)}</td>
+          <td>$${fmt0(n.bid)}</td>
+          <td>$${fmt0(n.ask)}</td>
+          <td class="${cls.cls}">${n.spreadPct != null ? n.spreadPct.toFixed(1)+'%' : '—'}</td>
+          <td>${fmt0(n.oi)}</td>
+          <td>${fmt0(n.vol)}</td>
+        </tr>`;
+      }
+      callNeighbors.forEach(n => { if(n) html += row('C', n, c && n.strike === c.strike); });
+      putNeighbors.forEach(n  => { if(n) html += row('P', n, p && n.strike === p.strike); });
+      html += '</tbody></table>';
+      tableEl.innerHTML = html;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // 3. SKEW MOMENTUM — track 25Δ RR over time via localStorage
+  // ════════════════════════════════════════════════════════════════════
+  function vsgComputeRR25(){
+    const chain = (typeof window.simState !== 'undefined') ? window.simState.chain : null;
+    const expiry = (typeof window.simState !== 'undefined') ? window.simState.currentExpiry : null;
+    if(!chain || !expiry || !chain.expiries[expiry]) return null;
+    const ex = chain.expiries[expiry];
+    const callLeg = vsgFindLegByDelta(ex.calls, 0.25, true);
+    const putLeg  = vsgFindLegByDelta(ex.puts,  0.25, false);
+    if(!callLeg || !putLeg) return null;
+    if(!isFinite(callLeg.iv) || !isFinite(putLeg.iv) || callLeg.iv <= 0 || putLeg.iv <= 0) return null;
+    // RR25 = IV(25Δ Put) − IV(25Δ Call), both as %
+    return putLeg.iv - callLeg.iv;
+  }
+
+  function vsgLoadSkewHistory(){
+    try {
+      const raw = localStorage.getItem(VSG_LS_KEY);
+      if(!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch(e){ return []; }
+  }
+
+  function vsgSaveSkewHistory(history){
+    try {
+      // Keep only most recent N samples
+      const trimmed = history.slice(-VSG_MAX_HISTORY);
+      localStorage.setItem(VSG_LS_KEY, JSON.stringify(trimmed));
+    } catch(e){ /* quota — ignore */ }
+  }
+
+  function vsgRecordSkewSample(){
+    const rr = vsgComputeRR25();
+    if(rr == null) return null;
+    const history = vsgLoadSkewHistory();
+    const now = Date.now();
+    // Don't double-record within 10 minutes
+    const last = history[history.length - 1];
+    if(last && now - last.t < 10 * 60 * 1000){
+      // Update the most recent sample instead
+      history[history.length - 1] = { t: now, rr25: rr };
+    } else {
+      history.push({ t: now, rr25: rr });
+    }
+    vsgSaveSkewHistory(history);
+    return rr;
+  }
+
+  function vsgDelta(history, hoursAgo){
+    if(!history.length) return null;
+    const now = Date.now();
+    const targetT = now - hoursAgo * 3600 * 1000;
+    // Find sample closest to targetT
+    let best = null, bestDiff = Infinity;
+    history.forEach(s => {
+      const diff = Math.abs(s.t - targetT);
+      if(diff < bestDiff){ bestDiff = diff; best = s; }
+    });
+    // Only valid if the historical sample is within ±25% of the target window
+    const tolerance = hoursAgo * 3600 * 1000 * 0.25;
+    if(!best || bestDiff > tolerance) return null;
+    const current = history[history.length - 1];
+    return current.rr25 - best.rr25;
+  }
+
+  function vsgRenderSkew(){
+    const rrNow = vsgRecordSkewSample();
+    const history = vsgLoadSkewHistory();
+
+    if(rrNow == null){
+      vsgSetVerdict('vsgSkew','neutral','⏳',
+        '25Δ RR not computable',
+        'Need both 25Δ call and 25Δ put with valid IV from current expiry. Open chain and pick an expiry.');
+      ['vsgRRNow','vsgRR24','vsgRR72','vsgRRSamples'].forEach(id => {
+        const el = $(id); if(el) el.textContent = '—';
+      });
+      return;
+    }
+
+    const d24 = vsgDelta(history, 24);
+    const d72 = vsgDelta(history, 72);
+
+    $('vsgRRNow').textContent = (rrNow >= 0 ? '+' : '') + fmt2(rrNow) + '%';
+    $('vsgRRNow').className = 'vsg-mval ' + (rrNow > 8 ? 'warn' : rrNow < 0 ? 'neg' : '');
+    $('vsgRRNowSub').textContent = rrNow > 8 ? 'steep — fear bid'
+                                  : rrNow < 0 ? 'inverted — call premium'
+                                  : 'normal range';
+
+    function paintDelta(elValId, elSubId, delta, hours){
+      const elVal = $(elValId), elSub = $(elSubId);
+      if(delta == null){
+        elVal.textContent = '—';
+        elVal.className = 'vsg-mval';
+        elSub.textContent = `need ${hours}h history`;
+        return;
+      }
+      elVal.textContent = (delta >= 0 ? '+' : '') + fmt2(delta) + 'pp';
+      elVal.className = 'vsg-mval ' + (delta > 2 ? 'neg' : delta > 0.5 ? 'warn' : 'pos');
+      elSub.textContent = delta > 2 ? 'steepening (hedge bid)'
+                        : delta > 0.5 ? 'mild steepening'
+                        : delta < -1 ? 'flattening (complacent)'
+                        : 'flat';
+    }
+    paintDelta('vsgRR24','vsgRR24Sub', d24, 24);
+    paintDelta('vsgRR72','vsgRR72Sub', d72, 72);
+
+    $('vsgRRSamples').textContent = history.length;
+
+    // Verdict
+    const worstDelta = Math.max(d24 || -99, d72 || -99);
+    if(d24 != null && d24 > 2){
+      vsgSetVerdict('vsgSkew','danger','🚨',
+        `Skew steepening fast — RR24 +${fmt2(d24)}pp`,
+        `25Δ RR rose ${fmt2(d24)}pp in 24h. Institutions buying downside hedges. This often precedes a directional move. Halve put-side size or skip the put leg.`);
+    } else if(worstDelta > 0.5){
+      vsgSetVerdict('vsgSkew','caution','⚠️',
+        `Mild skew steepening — RR24 ${sgn(d24)}${fmt2(d24)}pp · RR72 ${sgn(d72)}${fmt2(d72)}pp`,
+        `Skew tilting wider but not alarming. Watch for acceleration. Standard sizing acceptable but monitor for further steepening.`);
+    } else if(d24 != null && d24 < -1){
+      vsgSetVerdict('vsgSkew','good','✅',
+        `Skew flattening — RR24 ${fmt2(d24)}pp`,
+        `Put hedges being unwound, market complacent. Favorable for short premium. Combined with stable spot, this is the cleanest sell environment.`);
+    } else if(history.length < 5){
+      vsgSetVerdict('vsgSkew','neutral','📊',
+        `Building history — ${history.length} sample${history.length===1?'':'s'}`,
+        `Need ~24h of samples for meaningful momentum readings. Current RR: ${(rrNow>=0?'+':'')+fmt2(rrNow)}%. Refresh periodically to build the series.`);
+    } else {
+      vsgSetVerdict('vsgSkew','good','✅',
+        `Skew stable — RR ${(rrNow>=0?'+':'')+fmt2(rrNow)}%`,
+        `No directional pressure on skew. Premium structure is calm. Standard risk for a short strangle.`);
+    }
+
+    vsgPaintSparkline();
+  }
+
+  function vsgPaintSparkline(){
+    const canvas = $('vsgRRSpark');
+    if(!canvas) return;
+    const history = vsgLoadSkewHistory();
+    const ctx = canvas.getContext('2d');
+    const W = canvas.clientWidth || canvas.offsetWidth || 280;
+    const H = 36;
+    canvas.width = W * (window.devicePixelRatio || 1);
+    canvas.height = H * (window.devicePixelRatio || 1);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, W, H);
+
+    if(history.length < 2){
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary').trim() || '#888';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('insufficient samples', 6, 22);
+      return;
+    }
+
+    // Scope: last 7 days
+    const now = Date.now();
+    const cutoff = now - 7 * 24 * 3600 * 1000;
+    const data = history.filter(s => s.t >= cutoff);
+    if(data.length < 2){
+      ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
+      ctx.fillText('< 7 days history', 6, 22);
+      return;
+    }
+
+    const ts = data.map(s => s.t);
+    const vs = data.map(s => s.rr25);
+    const tMin = ts[0], tMax = ts[ts.length-1];
+    const vMin = Math.min(...vs), vMax = Math.max(...vs);
+    const vRange = (vMax - vMin) || 1;
+    const tRange = (tMax - tMin) || 1;
+
+    const pad = 4;
+
+    // Zero line
+    if(vMin <= 0 && vMax >= 0){
+      const zeroY = pad + (1 - (0 - vMin) / vRange) * (H - pad * 2);
+      ctx.strokeStyle = 'rgba(128,128,128,0.3)';
+      ctx.setLineDash([2,2]);
+      ctx.beginPath();
+      ctx.moveTo(0, zeroY);
+      ctx.lineTo(W, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Line
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    data.forEach((s, i) => {
+      const x = ((s.t - tMin) / tRange) * W;
+      const y = pad + (1 - (s.rr25 - vMin) / vRange) * (H - pad * 2);
+      if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // End-point dot
+    const lastX = W;
+    const lastY = pad + (1 - (vs[vs.length-1] - vMin) / vRange) * (H - pad * 2);
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(lastX - 2, lastY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // 4. FORWARD VOL — implied variance between front 2 expiries
+  // ════════════════════════════════════════════════════════════════════
+  function vsgComputeForwardVol(){
+    const chain = (typeof window.simState !== 'undefined') ? window.simState.chain : null;
+    const labels = (typeof window.simState !== 'undefined') ? window.simState.expiryLabels : null;
+    const currentExp = (typeof window.simState !== 'undefined') ? window.simState.currentExpiry : null;
+    if(!chain || !labels || !labels.length) return null;
+
+    function atmIV(expLabel){
+      const ex = chain.expiries[expLabel];
+      if(!ex) return null;
+      const spot = chain.spot;
+      if(!spot || spot <= 0) return null;
+      // Find ATM call & put (closest to spot, valid IV)
+      function closest(legs){
+        const valid = legs.filter(l => l.iv > 0 && l.strike > 0);
+        if(!valid.length) return null;
+        let best = null, bestDiff = Infinity;
+        valid.forEach(l => {
+          const diff = Math.abs(l.strike - spot);
+          if(diff < bestDiff){ bestDiff = diff; best = l; }
+        });
+        return best;
+      }
+      const c = closest(ex.calls);
+      const p = closest(ex.puts);
+      if(!c && !p) return null;
+      if(c && p) return (c.iv + p.iv) / 2;
+      return c ? c.iv : p.iv;
+    }
+
+    function dteOf(label){
+      // Use the existing global if available
+      if(typeof window.computeDTEFromLabel === 'function'){
+        return window.computeDTEFromLabel(label);
+      }
+      // Fallback: parse "DD-MMM-YY" → date
+      const m = label.match(/(\d+)-([A-Za-z]{3})-(\d+)/);
+      if(!m) return null;
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      const yr = 2000 + parseInt(m[3], 10);
+      const mo = months[m[2]];
+      const dy = parseInt(m[1], 10);
+      const settle = Date.UTC(yr, mo, dy, 12, 0, 0); // Delta settles 12:00 UTC
+      return (settle - Date.now()) / (24 * 3600 * 1000);
+    }
+
+    // Pick T1 = currentExpiry (or first valid), T2 = next one with IV
+    let t1Label = currentExp && labels.includes(currentExp) ? currentExp : labels[0];
+    let t1IV = atmIV(t1Label);
+    let t1DTE = dteOf(t1Label);
+
+    if(t1IV == null || t1DTE == null || t1DTE <= 0) return null;
+
+    let t2Label = null, t2IV = null, t2DTE = null;
+    const t1Idx = labels.indexOf(t1Label);
+    for(let i = t1Idx + 1; i < labels.length; i++){
+      const iv = atmIV(labels[i]);
+      const d = dteOf(labels[i]);
+      if(iv != null && d != null && d > t1DTE + 0.5){
+        t2Label = labels[i]; t2IV = iv; t2DTE = d; break;
+      }
+    }
+
+    if(t2IV == null) return { t1Label, t1IV, t1DTE, t2Label: null };
+
+    // Forward variance: σ_fwd² = (σ_T2² × T2 − σ_T1² × T1) / (T2 − T1)
+    const T1 = t1DTE / 365;
+    const T2 = t2DTE / 365;
+    const v1 = t1IV * t1IV;
+    const v2 = t2IV * t2IV;
+    const fwdVar = (v2 * T2 - v1 * T1) / (T2 - T1);
+    const fwdIV = fwdVar > 0 ? Math.sqrt(fwdVar) : null;
+    const slope = (t2IV - t1IV) / (t2DTE - t1DTE); // vol pts per day
+
+    return {
+      t1Label, t1IV, t1DTE,
+      t2Label, t2IV, t2DTE,
+      fwdIV, slope,
+      gap: fwdIV != null ? (t1IV - fwdIV) : null,
+    };
+  }
+
+  function vsgRenderForwardVol(data){
+    if(!data){
+      vsgSetVerdict('vsgFwd','neutral','⏳',
+        'Forward vol unavailable',
+        'Need at least 2 valid expiries with ATM IV in the chain. Load the option chain first.');
+      ['vsgT1IV','vsgT2IV','vsgFwdIV','vsgFrontFwd','vsgSlope','vsgFwdVerd'].forEach(id => {
+        const el = $(id); if(el) el.textContent = '—';
+      });
+      return;
+    }
+
+    $('vsgT1IV').textContent = data.t1IV != null ? fmt1(data.t1IV) + '%' : '—';
+    $('vsgT1IVSub').textContent = data.t1Label + ' · ' + fmt1(data.t1DTE) + 'D';
+
+    if(!data.t2Label){
+      $('vsgT2IV').textContent = '—';
+      $('vsgT2IVSub').textContent = 'no second expiry';
+      $('vsgFwdIV').textContent = '—';
+      $('vsgFrontFwd').textContent = '—';
+      $('vsgSlope').textContent = '—';
+      $('vsgFwdVerd').textContent = '—';
+      vsgSetVerdict('vsgFwd','neutral','📅',
+        'Single expiry only — no forward vol',
+        'Front IV is ' + fmt1(data.t1IV) + '%. Need a second expiry to compute calendar relative-value.');
+      return;
+    }
+
+    $('vsgT2IV').textContent = fmt1(data.t2IV) + '%';
+    $('vsgT2IVSub').textContent = data.t2Label + ' · ' + fmt1(data.t2DTE) + 'D';
+
+    if(data.fwdIV != null){
+      $('vsgFwdIV').textContent = fmt1(data.fwdIV) + '%';
+      $('vsgFwdIVSub').textContent = `T1 → T2 implied`;
+    } else {
+      $('vsgFwdIV').textContent = 'arb';
+      $('vsgFwdIVSub').textContent = 'T1 vol > T2 (mispricing)';
+    }
+
+    if(data.gap != null){
+      const gap = data.gap;
+      $('vsgFrontFwd').textContent = (gap >= 0 ? '+' : '') + fmt1(gap) + 'pp';
+      $('vsgFrontFwd').className = 'vsg-mval ' + (gap > 2 ? 'pos' : gap < -2 ? 'neg' : 'warn');
+      $('vsgFrontFwdSub').textContent = gap > 2 ? 'front rich vs fwd'
+                                       : gap < -2 ? 'front cheap vs fwd'
+                                       : 'flat';
+    }
+
+    $('vsgSlope').textContent = (data.slope >= 0 ? '+' : '') + (data.slope * 100).toFixed(2) + 'bp/D';
+    $('vsgSlopeSub').textContent = data.slope < 0 ? 'inverted (stress)' : 'normal contango';
+
+    // Verdict
+    const gap = data.gap;
+    if(gap == null){
+      $('vsgFwdVerd').textContent = 'arb';
+      $('vsgFwdVerd').className = 'vsg-mval warn';
+      $('vsgFwdVerdSub').textContent = 'rare mispricing';
+      vsgSetVerdict('vsgFwd','caution','⚠️',
+        'Forward vol arbitrage / inverted curve',
+        `T1 IV ${fmt1(data.t1IV)}% > T2 IV ${fmt1(data.t2IV)}% by enough that forward variance is negative. Either an event is priced into T1 only (sell T1 if you can absorb the event) or chain data is stale.`);
+    } else if(gap > 3){
+      $('vsgFwdVerd').textContent = 'SELL T1';
+      $('vsgFwdVerd').className = 'vsg-mval pos';
+      $('vsgFwdVerdSub').textContent = 'front expensive';
+      vsgSetVerdict('vsgFwd','good','✅',
+        `Front expiry rich — sell ${data.t1Label}`,
+        `Your expiry is pricing ${fmt1(gap)}pp above the implied forward. Premium is concentrated here. This is exactly the calendar relative-value setup short sellers want.`);
+    } else if(gap < -3){
+      $('vsgFwdVerd').textContent = 'CONSIDER T2';
+      $('vsgFwdVerd').className = 'vsg-mval neg';
+      $('vsgFwdVerdSub').textContent = 'far is richer';
+      vsgSetVerdict('vsgFwd','caution','⚠️',
+        `Far expiry richer — consider ${data.t2Label}`,
+        `Forward vol is ${fmt1(-gap)}pp above front. The next expiry has more juice per unit time. If you can hold longer, T2 offers better edge.`);
+    } else {
+      $('vsgFwdVerd').textContent = 'NEUTRAL';
+      $('vsgFwdVerd').className = 'vsg-mval warn';
+      $('vsgFwdVerdSub').textContent = 'flat curve';
+      vsgSetVerdict('vsgFwd','neutral','〰',
+        'Calendar flat — no expiry edge',
+        `T1 vs forward gap is only ${(gap>=0?'+':'')+fmt1(gap)}pp. No relative-value reason to prefer one expiry over the other. Pick based on DTE (gamma) and your liquidity preference.`);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ORCHESTRATOR
+  // ════════════════════════════════════════════════════════════════════
+  let vsgRefreshing = false;
+
+  window.vsgRefreshAll = async function(forceFresh){
+    if(vsgRefreshing) return;
+    vsgRefreshing = true;
+    const status = $('vsgStatus');
+    if(status) status.textContent = 'updating…';
+
+    try {
+      // Run sections that don't need network in parallel with klines fetch
+      if(forceFresh) vsgDailyCache.ts = 0;
+      const candlesPromise = vsgFetchDailyCandles();
+
+      // Liquidity & forward vol & skew use simState — no network
+      vsgRenderLiquidity(vsgComputeLiquidity());
+      vsgRenderForwardVol(vsgComputeForwardVol());
+      vsgRenderSkew();
+
+      const candles = await candlesPromise;
+      vsgRenderJump(vsgComputeJumpStats(candles));
+
+      if(status){
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        status.textContent = `updated ${t}`;
+      }
+    } catch(e){
+      console.warn('[vsg] refresh error:', e.message);
+      if(status) status.textContent = 'error — see console';
+    } finally {
+      vsgRefreshing = false;
+    }
+  };
+
+  // Auto-refresh every 90s when visible
+  let vsgAutoTimer = null;
+  function vsgStartAuto(){
+    if(vsgAutoTimer) clearInterval(vsgAutoTimer);
+    vsgAutoTimer = setInterval(() => {
+      if(document.visibilityState === 'visible') vsgRefreshAll(false);
+    }, 90 * 1000);
+  }
+
+  // Initial run after main app boots
+  function vsgBootCheck(){
+    const ready = (typeof window.simState !== 'undefined') ||
+                  (typeof window.state !== 'undefined');
+    if(ready){
+      vsgRefreshAll(true);
+      vsgStartAuto();
+      // Repaint sparkline on resize
+      window.addEventListener('resize', () => {
+        const tab = document.querySelector('#vsgPanel .vsg-tab.active');
+        if(tab && tab.dataset.tab === 'skew') vsgPaintSparkline();
+      });
+    } else {
+      setTimeout(vsgBootCheck, 1500);
+    }
+  }
+  setTimeout(vsgBootCheck, 2500);
+
+  console.log('[vsg] Vol-Sell Gaps Suite initialized — Jumps · Liquidity · Skew Momentum · Forward Vol');
+})();
+</script>
+
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      BRAHMASTRA ENHANCEMENT PACK — patches added 2026-04-25
      ──────────────────────────────────────────────────────────────────────
@@ -28377,5 +31359,69 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 </script>
 
 <script src="brahmastra-hardening.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     🎯 PANEL REORDER — Importance: MPO → ... → VSG (added 2026-04-26)
+     Reorders the main analysis panels inside .desk by priority.
+     SDP is hidden via CSS; this just re-sequences what's left.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function panelReorder(){
+  'use strict';
+
+  // High → low importance order
+  // 1. MPO (AI pattern brain — primary signal)
+  // 2. AMD (regime / market behaviour)
+  // 3. BTC Big Move Radar (timing for strangles)
+  // 4. Vol Analytics (IV environment)
+  // 5. RV vs IV (vol fairness)
+  // 6. DVOL Live + DVOL MPO (vol of vol regime)
+  // 7. Relationship Engine (DVOL × pattern)
+  // 8. Strangle Decision Edge (final seller verdict)
+  // 9. Pro-Vol Suite (dealer GEX · max pain · skew)
+  // 10. Vol-Sell Gaps Suite (lowest priority — confirmation layer)
+  const ORDER = [
+    'mpoPanel',        // 🔮 Market Pattern Observer (AI-POWERED)
+    'amdPanel',        // 🏗️ AMD + Market Behaviour
+    'btcMovePanel',    // 🎯 BTC Big Move Radar
+    'vapPanel',        // 🔬 IV·RV·HV Vol Analytics
+    'rvivPanel',       // 📈 RV vs IV Live Graph
+    'vov2Panel',       // 🌊 VoV Stability Map (companion to RV/IV)
+    'dvolLiveBlock',   // 📊 DVOL Live Chart + DVOL MPO
+    'relPanel',        // 🔗 DVOL × AI Pattern Relationship
+    'sdePanel',        // 🎯 Strangle Decision Edge
+    'pvsPanel',        // 🏛️ Pro-Vol Suite (GEX · Max Pain · Skew)
+    'vsgPanel'         // 🎯 Vol-Sell Gaps Suite (lowest)
+  ];
+
+  function reorder(){
+    const desk = document.querySelector('.desk');
+    if(!desk){ console.warn('[panel-reorder] .desk not found'); return; }
+
+    // Find an anchor: append our reordered panels at the end of .desk so
+    // they appear after planner/TV but in our chosen importance sequence.
+    // We move each found panel to the end of .desk in ORDER sequence.
+    let moved = 0, missing = [];
+    ORDER.forEach(id => {
+      const el = document.getElementById(id);
+      if(!el){ missing.push(id); return; }
+      // Only move if it's actually inside .desk (don't yank random nodes)
+      if(desk.contains(el)){
+        desk.appendChild(el);  // moves to end (in iteration order)
+        moved++;
+      }
+    });
+    console.log(`[panel-reorder] Moved ${moved}/${ORDER.length} panels by importance.${missing.length?' Missing: '+missing.join(', '):''}`);
+  }
+
+  // Run after everything else has had a chance to mount.
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => setTimeout(reorder, 100));
+  } else {
+    setTimeout(reorder, 100);
+  }
+})();
+</script>
+
 </body>
 </html>
