@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>BRAHMASTRA v22.0 — ATM IV Trading Desk · IV/RV/HV · Live WS</title>
+<title>BRAHMASTRA v22.1 — Fully Live · WS-Driven Only</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 /* ── Safe fetch wrapper: avoids AbortSignal.timeout postMessage cloning bug ──
@@ -290,89 +290,6 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 
 /* ══ SYNTHESIS DECISION PANEL — HIDDEN (do not take trades from it) ══ */
 #sdpWrap, .sdp-wrap { display: none !important; }
-
-/* ══ TELEGRAM INTEGRATION PANEL ══ */
-/* ── Decision Panel ── */
-.decision-panel{border-radius:12px;padding:14px 16px;margin-bottom:12px;border:1px solid transparent;transition:all .4s ease}
-.decision-panel.dp-alert  {background:#fff1f2;border-color:#fca5a5}
-.decision-panel.dp-wait   {background:#fefce8;border-color:#fde68a}
-.decision-panel.dp-avoid  {background:#f0fdf4;border-color:#bbf7d0}
-.decision-panel.dp-normal {background:var(--color-background-primary);border-color:var(--color-border-tertiary)}
-.dp-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.dp-icon{font-size:22px;line-height:1}
-.dp-title{font-size:15px;font-weight:600}
-.dp-title.alert-text {color:#b91c1c}
-.dp-title.wait-text  {color:#92400e}
-.dp-title.avoid-text {color:#15803d}
-.dp-title.normal-text{color:var(--color-text-primary)}
-.dp-subtitle{font-size:11px;margin-top:1px}
-.dp-subtitle.alert-text {color:#dc2626}
-.dp-subtitle.wait-text  {color:#a16207}
-.dp-subtitle.avoid-text {color:#16a34a}
-.dp-subtitle.normal-text{color:var(--color-text-secondary)}
-.dp-rows{display:flex;gap:8px;flex-wrap:wrap}
-.dp-row{display:flex;align-items:center;gap:7px;font-size:11px;background:rgba(255,255,255,.55);padding:5px 10px;border-radius:7px;flex:1;min-width:160px}
-.dp-row b{font-weight:600}
-.dp-row.row-alert{color:#b91c1c}
-.dp-row.row-wait {color:#92400e}
-.dp-row.row-avoid{color:#15803d}
-.dp-row.row-normal{color:var(--color-text-secondary)}
-.dp-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;margin-left:auto}
-.badge-alert {background:#fee2e2;color:#b91c1c}
-.badge-wait  {background:#fef9c3;color:#92400e}
-.badge-avoid {background:#dcfce7;color:#15803d}
-.badge-normal{background:var(--color-background-secondary);color:var(--color-text-secondary)}
-
-/* ══ Android-style Floating Notification ══ */
-#ivToastContainer{
-  position:fixed;top:14px;left:50%;transform:translateX(-50%);
-  z-index:9999;display:flex;flex-direction:column;gap:8px;
-  pointer-events:none;width:92%;max-width:420px;
-}
-.iv-toast{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 14px;border-radius:16px;
-  background:rgba(30,30,34,0.97);
-  border:1px solid rgba(255,255,255,0.08);
-  box-shadow:0 8px 32px rgba(0,0,0,0.55),0 2px 8px rgba(0,0,0,0.3);
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  pointer-events:all;cursor:pointer;
-  animation:notifSlideDown .32s cubic-bezier(.22,1,.36,1);
-  font-family:inherit;
-}
-@keyframes notifSlideDown{
-  from{opacity:0;transform:translateY(-22px) scale(.96)}
-  to  {opacity:1;transform:translateY(0)     scale(1)}
-}
-@keyframes notifSlideUp{
-  from{opacity:1;transform:translateY(0)     scale(1)}
-  to  {opacity:0;transform:translateY(-18px) scale(.95)}
-}
-.iv-toast.removing{animation:notifSlideUp .28s ease forwards}
-
-/* left icon circle */
-.toast-icon-wrap{
-  width:42px;height:42px;border-radius:12px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:20px;flex-shrink:0;
-}
-.toast-alert .toast-icon-wrap{background:rgba(239,68,68,0.18)}
-.toast-avoid .toast-icon-wrap{background:rgba(34,197,94,0.15)}
-
-/* text block */
-.toast-body{flex:1;min-width:0}
-.toast-app-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
-.toast-app-name{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,0.45)}
-.toast-timestamp{font-size:10px;color:rgba(255,255,255,0.35)}
-.toast-title{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
-.toast-msg{font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.toast-alert .toast-title{color:#fca5a5}
-.toast-avoid .toast-title{color:#86efac}
-
-/* expand button */
-.toast-chevron{font-size:12px;color:rgba(255,255,255,0.3);flex-shrink:0;padding-left:4px}
-
-.dgt-panel, details#dynGreekThresholds { display: none !important; }
 
 /* ══ TELEGRAM INTEGRATION PANEL ══ */
 #tgPanel {
@@ -1119,78 +1036,10 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 .tv-signal-val{font-size:12px;font-weight:700;color:var(--color-text-primary)}
 
 /* ── Trade Simulator ── */
-/* Modal overlay */
-#simOverlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:10000;display:none;align-items:center;justify-content:center;padding:12px}
-#simOverlay.open{display:flex}
-/* Modal card */
-#simCard{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.7);animation:simIn .25s cubic-bezier(.22,1,.36,1)}
-@keyframes simIn{from{opacity:0;transform:scale(.94) translateY(12px)}to{opacity:1;transform:none}}
 .sim-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:0.5px solid var(--color-border-tertiary)}
 .sim-title{font-size:13px;font-weight:700;color:var(--color-text-primary);display:flex;align-items:center;gap:8px}
-.sim-close{background:none;border:none;color:var(--color-text-secondary);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
-.sim-close:hover{color:var(--color-text-primary)}
-/* Status badge */
-.sim-status{font-size:10px;font-weight:700;padding:2px 9px;border-radius:5px;border:0.5px solid}
-.sim-status-idle{background:rgba(139,148,158,.12);color:#8b949e;border-color:rgba(139,148,158,.3)}
-.sim-status-active{background:rgba(63,185,80,.12);color:#3fb950;border-color:rgba(63,185,80,.3);animation:simPulse 2s infinite}
-.sim-status-closed{background:rgba(248,81,73,.12);color:#f85149;border-color:rgba(248,81,73,.3)}
-@keyframes simPulse{0%,100%{opacity:1}50%{opacity:.65}}
-/* Body */
-.sim-body{padding:14px 16px}
-/* Entry row */
-.sim-entry-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.sim-entry-field{flex:1;min-width:110px;background:var(--color-background-secondary);border-radius:8px;padding:8px 10px;border:0.5px solid var(--color-border-tertiary)}
-.sim-entry-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:3px}
-.sim-entry-val{font-size:14px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
-.sim-entry-val.preview{color:#58a6ff;font-style:italic;font-size:12px}
-.sim-entry-sub{font-size:9px;color:var(--color-text-secondary);margin-top:1px}
-/* Live sim badge on trade row button */
-/* P&L display */
-.sim-pnl-box{border-radius:10px;padding:12px 14px;margin-bottom:12px;border:1px solid transparent;text-align:center;transition:all .4s}
-.sim-pnl-profit{background:rgba(63,185,80,.08);border-color:rgba(63,185,80,.3)}
-.sim-pnl-loss{background:rgba(248,81,73,.08);border-color:rgba(248,81,73,.3)}
-.sim-pnl-neutral{background:var(--color-background-secondary);border-color:var(--color-border-tertiary)}
-.sim-pnl-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:4px}
-.sim-pnl-val{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.sim-pnl-profit .sim-pnl-val{color:#3fb950}
-.sim-pnl-loss   .sim-pnl-val{color:#f85149}
-.sim-pnl-neutral .sim-pnl-val{color:var(--color-text-secondary)}
-.sim-pnl-pct{font-size:13px;font-weight:600;margin-top:2px;color:var(--color-text-primary)}
-.sim-pnl-sub{font-size:10px;color:var(--color-text-secondary);margin-top:4px}
-/* Metric grid */
-.sim-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
-.sim-metric{background:var(--color-background-secondary);border-radius:8px;padding:8px 10px;border:0.5px solid var(--color-border-tertiary);text-align:center}
-.sim-metric-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);margin-bottom:3px}
-.sim-metric-val{font-size:13px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
-/* Target/SL bar */
-.sim-levels{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-.sim-level-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
-.sim-level-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;min-width:80px}
-.sim-level-val{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;flex:1;color:var(--color-text-primary)}
-.sim-level-bar-wrap{flex:2;height:5px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden;min-width:60px}
-.sim-level-bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
-.sim-level-target{color:#3fb950}.sim-level-sl{color:#f85149}.sim-level-he{color:#d29922}
-/* Action buttons */
-.sim-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.sim-btn{flex:1;min-width:100px;font-size:11px;font-weight:700;padding:9px 14px;border-radius:8px;border:none;cursor:pointer;letter-spacing:.03em;transition:all .2s}
-.sim-btn-enter{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;box-shadow:0 4px 16px rgba(22,163,74,.4)}
-.sim-btn-enter:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(22,163,74,.5)}
 .sim-btn-close{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 4px 16px rgba(220,38,38,.3)}
 .sim-btn-close:hover{transform:translateY(-1px)}
-.sim-btn-reset{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
-.sim-btn-reset:hover{background:var(--color-border-tertiary);color:var(--color-text-primary)}
-/* Progress bar */
-.sim-progress-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.sim-progress-lbl{font-size:9px;color:var(--color-text-secondary);min-width:85px}
-.sim-progress-track{flex:1;height:6px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden}
-.sim-progress-fill{height:100%;border-radius:3px;transition:width .5s ease}
-/* Log */
-.sim-log{background:var(--color-background-secondary);border-radius:8px;padding:8px 10px;font-size:10px;font-family:monospace;color:var(--color-text-secondary);max-height:110px;overflow-y:auto;border:0.5px solid var(--color-border-tertiary)}
-.sim-log-entry{padding:1px 0;line-height:1.5}
-.sim-log-entry.log-profit{color:#3fb950}
-.sim-log-entry.log-loss{color:#f85149}
-.sim-log-entry.log-info{color:#58a6ff}
-.sim-ts{font-size:9px;color:var(--color-text-secondary);text-align:right;margin-top:6px}
 
 /* Background mode indicator */
 .bg-mode-pill{
@@ -1534,123 +1383,6 @@ window._brahmastraADX = _ciComputeADX;
 })();
 </script>
 
-<!-- ════════════════════════════════════════════
-     SHORT STRADDLE TRADE SIMULATOR MODAL
-     ════════════════════════════════════════════ -->
-<div id="simOverlay" onclick="simOverlayClick(event)">
-  <div id="simCard">
-    <div class="sim-header">
-      <div class="sim-title">
-        📊 <span id="simTradeName">Trade Simulator</span>
-        <span class="sim-status sim-status-idle" id="simStatusBadge">IDLE</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <select id="simExpirySelect" onchange="simOnExpiryChange()" style="font-size:10px;padding:3px 7px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer;max-width:140px" title="Select expiry for this simulation"></select>
-        <button class="sim-close" onclick="closeSimulator()">✕</button>
-      </div>
-    </div>
-    <div class="sim-body">
-      <!-- Entry snapshot -->
-      <div class="sim-entry-row" id="simEntryRow">
-        <div class="sim-entry-field">
-          <div class="sim-entry-lbl">Entry Spot</div>
-          <div class="sim-entry-val preview" id="simEntrySpot">—</div>
-          <div class="sim-entry-sub" id="simEntrySpotSub">~ live preview</div>
-        </div>
-        <div class="sim-entry-field">
-          <div class="sim-entry-lbl">Entry Premium</div>
-          <div class="sim-entry-val preview" id="simEntryPrem">—</div>
-          <div class="sim-entry-sub" id="simEntryPremSub">~ straddle preview</div>
-        </div>
-        <div class="sim-entry-field">
-          <div class="sim-entry-lbl">Entry IV</div>
-          <div class="sim-entry-val" id="simEntryIV">—</div>
-          <div class="sim-entry-sub">ATM IV at entry</div>
-        </div>
-        <div class="sim-entry-field">
-          <div class="sim-entry-lbl">Expiry / DTE</div>
-          <div class="sim-entry-val" id="simEntryDTE">—</div>
-          <div class="sim-entry-sub" id="simEntryExpiry">—</div>
-        </div>
-      </div>
-
-      <!-- Live P&L -->
-      <div class="sim-pnl-box sim-pnl-neutral" id="simPnLBox">
-        <div class="sim-pnl-label">Unrealised P&amp;L</div>
-        <div class="sim-pnl-val" id="simPnLVal">—</div>
-        <div class="sim-pnl-pct" id="simPnLPct">—</div>
-        <div class="sim-pnl-sub" id="simPnLSub">Enter a trade to begin simulation</div>
-      </div>
-
-      <!-- Live metrics grid -->
-      <div class="sim-metrics">
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Current Straddle</div>
-          <div class="sim-metric-val" id="simCurrPrem">—</div>
-        </div>
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Current IV</div>
-          <div class="sim-metric-val" id="simCurrIV">—</div>
-        </div>
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Spot Move</div>
-          <div class="sim-metric-val" id="simSpotMove">—</div>
-        </div>
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Theta Earned</div>
-          <div class="sim-metric-val" id="simTheta">—</div>
-        </div>
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Vega P&amp;L</div>
-          <div class="sim-metric-val" id="simVegaPnL">—</div>
-        </div>
-        <div class="sim-metric">
-          <div class="sim-metric-lbl">Hold Time</div>
-          <div class="sim-metric-val" id="simHoldTime">—</div>
-        </div>
-      </div>
-
-      <!-- Target / SL levels -->
-      <div class="sim-levels" id="simLevels">
-        <div class="sim-level-row">
-          <div class="sim-level-lbl sim-level-target">🎯 Target (50%)</div>
-          <div class="sim-level-val" id="simTargetVal">—</div>
-          <div class="sim-level-bar-wrap"><div class="sim-level-bar-fill" id="simTargetBar" style="background:#3fb950;width:0%"></div></div>
-        </div>
-        <div class="sim-level-row">
-          <div class="sim-level-lbl sim-level-he">⚡ Half-Exit (25%)</div>
-          <div class="sim-level-val" id="simHalfVal">—</div>
-          <div class="sim-level-bar-wrap"><div class="sim-level-bar-fill" id="simHalfBar" style="background:#d29922;width:0%"></div></div>
-        </div>
-        <div class="sim-level-row">
-          <div class="sim-level-lbl sim-level-sl">🛑 Stop Loss (2×)</div>
-          <div class="sim-level-val" id="simSLVal">—</div>
-          <div class="sim-level-bar-wrap"><div class="sim-level-bar-fill" id="simSLBar" style="background:#f85149;width:0%"></div></div>
-        </div>
-      </div>
-
-      <!-- Progress to target -->
-      <div class="sim-progress-row">
-        <span class="sim-progress-lbl">Progress to target</span>
-        <div class="sim-progress-track"><div class="sim-progress-fill" id="simProgressFill" style="background:#3fb950;width:0%"></div></div>
-        <span style="font-size:10px;color:var(--color-text-secondary);min-width:32px;text-align:right" id="simProgressPct">0%</span>
-      </div>
-
-      <!-- Buttons -->
-      <div class="sim-actions">
-        <button class="sim-btn sim-btn-enter" id="simEnterBtn" onclick="simEnterTrade()">⚡ Enter Short Straddle</button>
-        <button class="sim-btn sim-btn-close" id="simCloseBtn" onclick="simCloseTrade()" style="display:none">🔒 Close Trade</button>
-        <button class="sim-btn sim-btn-reset" onclick="simReset()">↺ Reset</button>
-      </div>
-
-      <!-- Activity log -->
-      <div class="sim-log" id="simLog">
-        <div class="sim-log-entry log-info">📊 Simulator ready — press Enter to begin</div>
-      </div>
-      <div class="sim-ts" id="simTs">—</div>
-    </div>
-  </div>
-</div>
 
 <div class="desk">
 
@@ -1730,6 +1462,606 @@ window._brahmastraADX = _ciComputeADX;
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     🎯 MARKET DECISION PANEL — UNIFIED STRATEGY RECOMMENDER
+     Aggregates ALL panels (MPO · TradingView · AMD · Market Behaviour ·
+     RV/IV/VRP · VoV · BTC Move · ATM IV per expiry · USP Gates · DVOL)
+     and produces ONE best option strategy with full reasoning.
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+  .mdp-panel{
+    background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(37,99,235,0.08),rgba(6,182,212,0.06));
+    border:1.5px solid rgba(124,58,237,0.35);
+    border-radius:14px;padding:14px 16px;margin-bottom:12px;
+    position:relative;overflow:hidden;
+    box-shadow:0 4px 18px rgba(124,58,237,0.10);
+  }
+  .mdp-panel::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,#7c3aed,#2563eb,#06b6d4,#10b981);
+    border-radius:14px 14px 0 0;
+  }
+  .mdp-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .mdp-title{font-size:13px;font-weight:700;color:var(--color-text-primary);display:flex;align-items:center;gap:7px;flex:1;min-width:180px}
+  .mdp-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(90deg,#7c3aed,#2563eb);color:#fff;letter-spacing:.05em}
+  .mdp-score-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:18px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);font-size:11px;font-weight:700}
+  .mdp-score-num{font-size:14px;color:#7c3aed}
+  .mdp-verdict{padding:5px 12px;border-radius:18px;font-size:11px;font-weight:800;letter-spacing:.04em;display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .mdp-v-enter{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+  .mdp-v-cautious{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+  .mdp-v-avoid{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+  .mdp-v-loading{background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db}
+
+  .mdp-strategy-card{
+    background:var(--color-background-primary);
+    border:1px solid var(--color-border-tertiary);
+    border-radius:10px;padding:12px 14px;margin-bottom:10px;
+    border-left:4px solid #7c3aed;
+  }
+  .mdp-strategy-card.is-enter{border-left-color:#10b981}
+  .mdp-strategy-card.is-cautious{border-left-color:#f59e0b}
+  .mdp-strategy-card.is-avoid{border-left-color:#ef4444}
+  .mdp-strategy-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .mdp-strategy-icon{font-size:20px}
+  .mdp-strategy-name{font-size:15px;font-weight:700;color:var(--color-text-primary);flex:1;min-width:140px}
+  .mdp-strategy-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:#7c3aed;color:#fff;letter-spacing:.04em}
+  .mdp-strategy-desc{font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:6px}
+  .mdp-strategy-config{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .mdp-cfg-chip{font-size:10px;padding:3px 8px;border-radius:6px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);color:var(--color-text-primary);font-weight:600}
+  .mdp-cfg-chip b{color:#7c3aed;font-weight:700}
+
+  .mdp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;margin-bottom:10px}
+  .mdp-tile{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:9px;padding:8px 10px}
+  .mdp-tile-lbl{font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;font-weight:600}
+  .mdp-tile-val{font-size:13px;font-weight:700;color:var(--color-text-primary);line-height:1.2}
+  .mdp-tile-sub{font-size:9.5px;color:var(--color-text-secondary);margin-top:2px}
+
+  .mdp-signals{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .mdp-sig{font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;display:inline-flex;align-items:center;gap:4px;border:1px solid transparent}
+  .mdp-sig-bull{background:#dcfce7;color:#15803d;border-color:#bbf7d0}
+  .mdp-sig-bear{background:#fee2e2;color:#b91c1c;border-color:#fca5a5}
+  .mdp-sig-neut{background:#f3f4f6;color:#6b7280;border-color:#d1d5db}
+  .mdp-sig-warn{background:#fef3c7;color:#92400e;border-color:#fde68a}
+
+  .mdp-reasons{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:9px;padding:10px 12px}
+  .mdp-reason-head{font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .mdp-reason-list{list-style:none;padding:0;margin:0}
+  .mdp-reason-list li{font-size:11px;color:var(--color-text-primary);line-height:1.55;padding:3px 0 3px 18px;position:relative}
+  .mdp-reason-list li::before{content:'▸';position:absolute;left:4px;color:#7c3aed;font-weight:700}
+  .mdp-reason-list li.bull::before{color:#10b981;content:'✓'}
+  .mdp-reason-list li.bear::before{color:#ef4444;content:'✗'}
+  .mdp-reason-list li.warn::before{color:#f59e0b;content:'!'}
+
+  .mdp-action-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px;padding:8px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:10.5px;color:var(--color-text-secondary)}
+  .mdp-action-bar b{color:var(--color-text-primary)}
+
+  @media (max-width:600px){
+    .mdp-strategy-name{font-size:13px}
+    .mdp-tile-val{font-size:12px}
+    .mdp-grid{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
+  }
+</style>
+
+<div class="mdp-panel" id="mdpPanel">
+  <div class="mdp-header">
+    <div class="mdp-title">
+      🎯 MARKET DECISION
+      <span class="mdp-badge">ALL-PANEL AI</span>
+    </div>
+    <div class="mdp-score-pill" title="Confidence score 0–100 from all panel signals">
+      <span>Confidence:</span>
+      <span class="mdp-score-num" id="mdpScoreNum">—</span>
+      <span style="font-size:10px;color:var(--color-text-secondary)">/100</span>
+    </div>
+    <div class="mdp-verdict mdp-v-loading" id="mdpVerdict">
+      <span id="mdpVerdictIcon">⏳</span>
+      <span id="mdpVerdictText">SYNTHESISING…</span>
+    </div>
+  </div>
+
+  <!-- Best Strategy Card -->
+  <div class="mdp-strategy-card" id="mdpStrategyCard">
+    <div class="mdp-strategy-head">
+      <span class="mdp-strategy-icon" id="mdpStratIcon">⏳</span>
+      <span class="mdp-strategy-name" id="mdpStratName">Reading all panels…</span>
+      <span class="mdp-strategy-tag" id="mdpStratTag">BEST FIT</span>
+    </div>
+    <div class="mdp-strategy-desc" id="mdpStratDesc">
+      Aggregating Market Pattern Observer · TradingView ADX/SMC · AMD phase · Market Behaviour regime · RV/IV/VRP · VoV trend · BTC Move forecast · ATM IV across expiries · 16-gate USP framework…
+    </div>
+    <div class="mdp-strategy-config" id="mdpStratConfig"></div>
+  </div>
+
+  <!-- Snapshot tiles -->
+  <div class="mdp-grid">
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">🗓 Best Expiry</div>
+      <div class="mdp-tile-val" id="mdpExpiry">—</div>
+      <div class="mdp-tile-sub" id="mdpExpirySub">selecting…</div>
+    </div>
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">📊 IV vs HV Edge</div>
+      <div class="mdp-tile-val" id="mdpEdge">—</div>
+      <div class="mdp-tile-sub" id="mdpEdgeSub">VRP signal</div>
+    </div>
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">📈 Regime</div>
+      <div class="mdp-tile-val" id="mdpRegime">—</div>
+      <div class="mdp-tile-sub" id="mdpRegimeSub">market behaviour</div>
+    </div>
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">🎯 Direction</div>
+      <div class="mdp-tile-val" id="mdpBias">—</div>
+      <div class="mdp-tile-sub" id="mdpBiasSub">SMC + AMD</div>
+    </div>
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">⚡ Vol Trend</div>
+      <div class="mdp-tile-val" id="mdpVolTrend">—</div>
+      <div class="mdp-tile-sub" id="mdpVolTrendSub">VoV + IV slope</div>
+    </div>
+    <div class="mdp-tile">
+      <div class="mdp-tile-lbl">📐 Expected Move</div>
+      <div class="mdp-tile-val" id="mdpMove">—</div>
+      <div class="mdp-tile-sub" id="mdpMoveSub">24h · 7d</div>
+    </div>
+  </div>
+
+  <!-- Signal chips from each panel -->
+  <div class="mdp-signals" id="mdpSignals"></div>
+
+  <!-- Reasoning -->
+  <div class="mdp-reasons">
+    <div class="mdp-reason-head">🧠 Why this strategy — full reasoning</div>
+    <ul class="mdp-reason-list" id="mdpReasonList">
+      <li>Waiting for live signals from all panels…</li>
+    </ul>
+  </div>
+
+  <!-- Action / footer -->
+  <div class="mdp-action-bar">
+    <span id="mdpActionText">⏱ Re-evaluates every 10s · Cross-checks 10 panels</span>
+    <span id="mdpFooter" style="font-size:10px">Last sync: —</span>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   MARKET DECISION PANEL (MDP) — Unified Strategy Synthesizer
+   Reads from every major panel and produces ONE recommendation.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // ── Tiny helpers ───────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const txt = id => ($(id)?.textContent || '').trim();
+  const num = s => { const m = String(s).match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; };
+  const setText = (id, t) => { const el = $(id); if (el) el.textContent = t; };
+  const setHTML = (id, h) => { const el = $(id); if (el) el.innerHTML = h; };
+
+  // ── Read every panel into a unified signal snapshot ───────────
+  function snapshot(){
+    const S = {};
+
+    // 1. Market Pattern Observer
+    S.mpoVerdict      = txt('mpoWarnVerdict').toUpperCase();
+    S.mpoTitle        = txt('mpoWarnTitle');
+    S.mpoMove24h      = num(txt('mpoMove24h'));
+    S.mpoMove7d       = num(txt('mpoMove7d'));
+    S.mpoBias         = txt('mpoBias');
+    S.mpoConfidence   = num(txt('mpoConfidence'));
+    S.mpoStrangleRisk = txt('mpoStrangleRisk').toUpperCase();
+
+    // 2. TradingView signals
+    S.tvBB    = txt('tvSigBB');
+    S.tvVol   = txt('tvSigVol');
+    S.tvTrend = txt('tvSigTrend');
+    S.tvADX   = num(txt('tvSigADX'));
+    S.tvSMC   = txt('tvSigSMC');
+    S.tvIVP   = num(txt('tvSigIVP'));
+    S.tvKZ    = txt('tvSigKZ');
+
+    // 3. AMD + Market Behaviour
+    try { if (typeof getAMDPhase === 'function') S.amd = getAMDPhase(); } catch(e){}
+    try { if (typeof detectMktBehaviour === 'function') S.beh = detectMktBehaviour(); } catch(e){}
+    S.amdTitle = txt('amdVerdictTitle');
+
+    // 4. RV / IV / VRP panel
+    S.rvivVerdict = txt('rvivVerdict').toUpperCase();
+    S.iv          = num(txt('rvivIV'));
+    S.rv          = num(txt('rvivRV'));
+    S.vrp         = num(txt('rvivVRP'));
+    S.ivRvRatio   = num(txt('rvivRatio'));
+
+    // 5. VoV panel
+    S.vovVerdict = txt('vov2Verdict').toUpperCase();
+    S.vovNow     = num(txt('vov2Now'));
+    S.vovZone    = txt('vov2Zone');
+    S.vovSlope   = txt('vov2Slope');
+    S.vovStrangle= txt('vov2Strangle');
+
+    // 6. USP gates (16-gate framework, if rendered)
+    S.uspVerdict = txt('uspVerdictText').toUpperCase();
+    S.uspScore   = num(txt('uspScoreNum'));
+    S.uspIVHV    = num(txt('uspMEdge'));
+
+    // 7. ATM IV per expiry from global state
+    if (typeof EXPIRIES !== 'undefined' && typeof state !== 'undefined') {
+      S.expiries = EXPIRIES.map((ex, i) => {
+        const hist = (state.ivHistory && state.ivHistory[i]) || [];
+        const iv   = hist.length ? hist[hist.length - 1] : (ex.base || 43);
+        const open = (state.ivOpen && state.ivOpen[i]) ?? iv;
+        const chg  = iv - open;
+        const trend = chg > 0.4 ? 'rising' : chg < -0.4 ? 'falling' : 'flat';
+        const prem = iv - (state.hv30 || 35);
+        return { idx:i, label:ex.label, dte:ex.dte, expired:!!ex.expired, iv, open, chg, trend, prem };
+      }).filter(e => !e.expired && e.dte > 0);
+      S.hv30 = state.hv30;
+      S.dvol = state.dvolBase;
+    } else {
+      S.expiries = [];
+    }
+
+    // 8. SDP best expiry hint (if it has already computed)
+    S.sdpBestExpiry = txt('sdpBestExpiry');
+
+    return S;
+  }
+
+  // ── Score the regime → which strategy family fits best ────────
+  // Returns { strategy, family, score, expiryPick, deltaTarget, holdPlan, config }
+  function pickStrategy(S){
+    // ── Compute weighted directional bias (-100 bear ↔ +100 bull) ──
+    let dirBias = 0, dirVotes = 0;
+    if (/BULL|UP|LONG/.test(S.mpoBias))   { dirBias += 1; dirVotes++; }
+    if (/BEAR|DOWN|SHORT/.test(S.mpoBias)) { dirBias -= 1; dirVotes++; }
+    if (/BULL/i.test(S.tvSMC))   { dirBias += 1; dirVotes++; }
+    if (/BEAR/i.test(S.tvSMC))   { dirBias -= 1; dirVotes++; }
+    if (/UP|RISE/i.test(S.tvTrend)) { dirBias += 0.7; dirVotes++; }
+    if (/DOWN|FALL/i.test(S.tvTrend)) { dirBias -= 0.7; dirVotes++; }
+    if (S.amd && /MARK[- ]?UP|ACCUMULATION/i.test(S.amd.name||'')) { dirBias += 0.6; dirVotes++; }
+    if (S.amd && /MARK[- ]?DOWN|DISTRIBUTION/i.test(S.amd.name||'')) { dirBias -= 0.6; dirVotes++; }
+    const dirScore = dirVotes ? (dirBias/dirVotes) * 100 : 0; // -100 bear, +100 bull
+
+    // ── Compute volatility edge: + means IV expensive (sell vol), - means cheap (buy vol) ──
+    let volEdge = 0;
+    if (isFinite(S.vrp))   volEdge += S.vrp;                 // direct VRP %
+    if (isFinite(S.uspIVHV)) volEdge += S.uspIVHV * 0.5;     // USP edge confirms
+    if (isFinite(S.tvIVP)) {
+      if (S.tvIVP > 70) volEdge += 5;
+      else if (S.tvIVP < 30) volEdge -= 5;
+    }
+
+    // ── Vol-of-vol & regime ────────────────────────────────────
+    const regime = (S.beh && S.beh.active) || 'unknown';
+    const vovRising = /RISING|EXPAND|EXPLOD/i.test(S.vovVerdict + ' ' + S.vovSlope);
+    const vovFalling = /FALL|CONTRACT|CALM/i.test(S.vovVerdict + ' ' + S.vovSlope);
+    const trending = S.tvADX >= 25 || /TREND/i.test(S.tvTrend);
+    const ranging  = S.tvADX < 20 && /SIDE|RANGE/i.test(S.tvTrend);
+    const dangerMpo = /DANGER|AVOID|HIGH RISK/i.test(S.mpoVerdict + ' ' + S.mpoStrangleRisk);
+    const friendlyMpo = /FRIENDLY|SAFE|LOW/i.test(S.mpoVerdict + ' ' + S.mpoStrangleRisk);
+
+    // ── Expected absolute move ──
+    const move24 = isFinite(S.mpoMove24h) ? Math.abs(S.mpoMove24h) : null;
+
+    // ── Pick best expiry from S.expiries given strategy family ──
+    function pickExpiry(family){
+      if (!S.expiries.length) return null;
+      let lo, hi, preferTrend;
+      if (family === 'short_premium') {
+        lo = (regime === 'iv') ? 7 : (regime === 'gamma') ? 14 : 5;
+        hi = (regime === 'iv') ? 21 : (regime === 'gamma') ? 30 : 14;
+        preferTrend = 'falling';
+      } else if (family === 'credit_spread') {
+        lo = 14; hi = 45; preferTrend = 'falling';
+      } else if (family === 'long_premium') {
+        lo = 30; hi = 60; preferTrend = 'flat';
+      } else if (family === 'debit_spread') {
+        lo = 30; hi = 60; preferTrend = 'flat';
+      } else if (family === 'calendar') {
+        lo = 5; hi = 14; preferTrend = 'flat';
+      } else { // stand_aside / unknown
+        lo = 5; hi = 14; preferTrend = 'any';
+      }
+      // Score each expiry
+      const scored = S.expiries.map(e => {
+        let s = 0;
+        if (e.dte >= lo && e.dte <= hi) s += 30;
+        else { const mid = (lo+hi)/2; s -= Math.min(30, Math.abs(e.dte-mid)*1.5); }
+        if (preferTrend === 'falling' && e.trend === 'falling') s += 20;
+        if (preferTrend === 'falling' && e.trend === 'rising')  s -= 15;
+        if (preferTrend === 'flat'    && e.trend !== 'rising')  s += 10;
+        if (family === 'short_premium' || family === 'credit_spread') {
+          if (e.prem > 5) s += 15; else if (e.prem < 0) s -= 10;
+        }
+        if (family === 'long_premium' || family === 'debit_spread') {
+          if (e.prem < 2) s += 15; else if (e.prem > 8) s -= 10;
+        }
+        return { e, s };
+      }).sort((a,b)=>b.s-a.s);
+      return scored[0]?.e || S.expiries[0];
+    }
+
+    // ── DECISION TREE ──────────────────────────────────────────
+    let result = { strategy:'WAIT', family:'stand_aside', verdictClass:'cautious', icon:'⏳' };
+
+    // Hard veto: MPO danger
+    if (dangerMpo && Math.abs(dirScore) < 60) {
+      result = {
+        strategy: 'STAND ASIDE',
+        family: 'stand_aside',
+        verdictClass: 'avoid',
+        icon: '🛑',
+        reason: 'Pattern Observer flags high strangle risk and direction is unclear.'
+      };
+    }
+    // Strong directional bias + trending market → directional play
+    else if (Math.abs(dirScore) >= 50 && trending) {
+      const bullish = dirScore > 0;
+      // Prefer debit spread if vol expensive, long single option if vol cheap
+      if (volEdge > 3) {
+        result = {
+          strategy: bullish ? 'BULL CALL DEBIT SPREAD' : 'BEAR PUT DEBIT SPREAD',
+          family: 'debit_spread',
+          verdictClass: 'enter',
+          icon: bullish ? '📈' : '📉',
+          reason: `Strong ${bullish?'bullish':'bearish'} bias (ADX ${S.tvADX||'—'}) with IV expensive — buy spread to cap cost.`
+        };
+      } else {
+        result = {
+          strategy: bullish ? 'LONG CALL (or Bull Call Spread)' : 'LONG PUT (or Bear Put Spread)',
+          family: 'long_premium',
+          verdictClass: 'enter',
+          icon: bullish ? '📈' : '📉',
+          reason: `Strong ${bullish?'bullish':'bearish'} trend with IV ${volEdge<-3?'cheap':'fair'} — buy premium to capture move.`
+        };
+      }
+    }
+    // Vol cheap + range expected → long strangle / straddle
+    else if (volEdge < -4 && Math.abs(dirScore) < 40 && !trending) {
+      result = {
+        strategy: 'LONG STRANGLE',
+        family: 'long_premium',
+        verdictClass: 'enter',
+        icon: '🎯',
+        reason: 'IV is cheap vs realized vol and direction is unclear — buy a strangle for an expansion play.'
+      };
+    }
+    // Vol rich + range/choppy + low MPO risk → short strangle (the holy grail)
+    else if (volEdge > 3 && !trending && friendlyMpo && S.uspScore >= 9 && !vovRising) {
+      result = {
+        strategy: 'SHORT STRANGLE (.10Δ)',
+        family: 'short_premium',
+        verdictClass: 'enter',
+        icon: '💰',
+        reason: `IV rich (VRP +${(S.vrp||0).toFixed(1)}%) · range-bound (ADX ${S.tvADX||'—'}) · MPO friendly · ${S.uspScore||'?'}/16 gates green.`
+      };
+    }
+    // Vol rich + ranging but caution flags → defined-risk credit
+    else if (volEdge > 2 && !trending && (S.uspScore||0) >= 7) {
+      result = {
+        strategy: 'IRON CONDOR (defined risk)',
+        family: 'credit_spread',
+        verdictClass: 'cautious',
+        icon: '🦅',
+        reason: 'IV rich but USP gates not all green — use a defined-risk condor instead of naked strangle.'
+      };
+    }
+    // Vol rising + uncertain → calendar
+    else if (vovRising && Math.abs(dirScore) < 40) {
+      result = {
+        strategy: 'CALENDAR SPREAD (front-month short, back-month long)',
+        family: 'calendar',
+        verdictClass: 'cautious',
+        icon: '📅',
+        reason: 'VoV rising suggests near-term turbulence, but no clear direction — calendar profits from term-structure.'
+      };
+    }
+    // Default: wait
+    else {
+      const why = [];
+      if (Math.abs(dirScore) < 40 && trending) why.push('weak directional confluence');
+      if (Math.abs(volEdge) < 2) why.push('no significant vol edge');
+      if (vovRising) why.push('VoV rising — wait for it to settle');
+      if (S.uspScore && S.uspScore < 9) why.push(`USP only ${S.uspScore}/16 gates`);
+      result = {
+        strategy: 'WAIT & MONITOR',
+        family: 'stand_aside',
+        verdictClass: 'cautious',
+        icon: '⏳',
+        reason: why.length ? why.join(' · ') : 'Mixed signals — re-evaluate next cycle.'
+      };
+    }
+
+    // Confidence: blend signal strength + USP score + clarity
+    let conf = 50;
+    conf += Math.min(20, Math.abs(dirScore) * 0.2);
+    conf += Math.min(15, Math.abs(volEdge) * 1.5);
+    if (S.uspScore) conf += (S.uspScore - 8) * 2;
+    if (dangerMpo) conf -= 15;
+    if (vovRising && result.family !== 'calendar') conf -= 8;
+    conf = Math.max(15, Math.min(95, Math.round(conf)));
+
+    // Pick expiry for the chosen family
+    const exp = pickExpiry(result.family);
+    result.expiryPick = exp;
+    result.dirScore = dirScore;
+    result.volEdge = volEdge;
+    result.regime = regime;
+    result.confidence = conf;
+    result.trending = trending;
+    result.ranging = ranging;
+    result.vovRising = vovRising;
+
+    // Strategy config (deltas, hold)
+    if (result.family === 'short_premium') {
+      result.config = { delta:'.10Δ–.15Δ', stop:'2× credit', target:'50% of credit', hold:exp ? `${Math.round(exp.dte*0.5)}D or 50% PT` : '—' };
+    } else if (result.family === 'credit_spread') {
+      result.config = { delta:'.20Δ short / .05Δ long', stop:'150% loss', target:'50% of credit', hold:exp ? `Up to ${exp.dte}D` : '—' };
+    } else if (result.family === 'long_premium') {
+      result.config = { delta:'ATM or .25Δ–.40Δ', stop:'50% premium loss', target:'100% gain or expected move', hold:exp ? `Cut at ${Math.round(exp.dte*0.3)}D from expiry` : '—' };
+    } else if (result.family === 'debit_spread') {
+      result.config = { delta:'ATM long / .25Δ short', stop:'50% debit loss', target:'70% of max profit', hold:exp ? `Up to ${Math.round(exp.dte*0.7)}D` : '—' };
+    } else if (result.family === 'calendar') {
+      result.config = { delta:'ATM both legs', stop:'50% debit loss', target:'25% of debit', hold:'Through front-month expiry' };
+    } else {
+      result.config = { delta:'—', stop:'—', target:'—', hold:'—' };
+    }
+
+    return result;
+  }
+
+  // ── Build reasoning bullets explaining every signal contribution ──
+  function buildReasons(S, R){
+    const out = [];
+
+    // Volatility edge
+    if (isFinite(S.vrp)) {
+      if (S.vrp > 5) out.push({ type:'bull', t:`VRP is +${S.vrp.toFixed(1)}% — IV is meaningfully expensive vs realized vol → premium-selling has a statistical edge.` });
+      else if (S.vrp < -3) out.push({ type:'bull', t:`VRP is ${S.vrp.toFixed(1)}% — IV underprices realized vol → premium-buying has an edge.` });
+      else out.push({ type:'warn', t:`VRP is small (${S.vrp.toFixed(1)}%) — neither side has a strong volatility edge.` });
+    }
+    // Regime
+    if (R.regime && R.regime !== 'unknown') {
+      const txtR = { iv:'High-IV regime — premium sellers favored', gamma:'Gamma regime — sharp moves possible, hedge carefully', choppy:'Choppy regime — range strategies favored', trendy:'Trending regime — directional plays favored', manip:'Manipulation regime — wait for resolution' }[R.regime] || R.regime;
+      out.push({ type:'bull', t:`Market behaviour: ${txtR}.` });
+    }
+    // Direction
+    if (Math.abs(R.dirScore) >= 50) out.push({ type:'bull', t:`Strong ${R.dirScore>0?'bullish':'bearish'} bias (score ${R.dirScore.toFixed(0)}) from MPO + SMC + AMD + ADX.` });
+    else if (Math.abs(R.dirScore) >= 25) out.push({ type:'warn', t:`Mild ${R.dirScore>0?'bullish':'bearish'} bias (score ${R.dirScore.toFixed(0)}) — not strong enough alone.` });
+    else out.push({ type:'warn', t:`Direction is mixed (score ${R.dirScore.toFixed(0)}) — directional plays risky.` });
+
+    // ADX / trend
+    if (isFinite(S.tvADX)) {
+      if (S.tvADX >= 25) out.push({ type:'bull', t:`ADX ${S.tvADX.toFixed(0)} confirms a trending market.` });
+      else if (S.tvADX < 20) out.push({ type:'bull', t:`ADX ${S.tvADX.toFixed(0)} confirms range/chop — favors theta strategies.` });
+    }
+    // VoV
+    if (R.vovRising) out.push({ type:'warn', t:'VoV is rising — short-vol strategies face squeeze risk.' });
+    else if (S.vovZone) out.push({ type:'bull', t:`VoV ${S.vovZone}.` });
+
+    // MPO
+    if (S.mpoVerdict) {
+      if (/DANGER|AVOID/.test(S.mpoVerdict)) out.push({ type:'bear', t:`MPO: ${S.mpoVerdict} (${S.mpoTitle||''}) — strangle risk elevated.` });
+      else if (/FRIENDLY/.test(S.mpoVerdict)) out.push({ type:'bull', t:`MPO: ${S.mpoVerdict} — pattern structure supports range-bound action.` });
+    }
+    // USP gates
+    if (S.uspScore) {
+      const tone = S.uspScore >= 11 ? 'bull' : S.uspScore >= 7 ? 'warn' : 'bear';
+      out.push({ type:tone, t:`USP framework: ${S.uspScore}/16 gates passing.` });
+    }
+    // Expiry choice
+    if (R.expiryPick) {
+      out.push({ type:'bull', t:`Best expiry: ${R.expiryPick.label} (${R.expiryPick.dte}DTE) · IV ${R.expiryPick.iv.toFixed(1)}% · ${R.expiryPick.trend} · prem ${R.expiryPick.prem>=0?'+':''}${R.expiryPick.prem.toFixed(1)}% over HV.` });
+    }
+    // IV percentile
+    if (isFinite(S.tvIVP)) {
+      if (S.tvIVP > 70) out.push({ type:'bull', t:`IV percentile ${S.tvIVP.toFixed(0)}% — IV in upper range, sellers favored.` });
+      else if (S.tvIVP < 30) out.push({ type:'bull', t:`IV percentile ${S.tvIVP.toFixed(0)}% — IV in lower range, buyers favored.` });
+    }
+    // 24h move
+    if (isFinite(S.mpoMove24h)) {
+      out.push({ type:'bull', t:`MPO expects ~${Math.abs(S.mpoMove24h).toFixed(1)}% move in 24h, ${Math.abs(S.mpoMove7d||0).toFixed(1)}% in 7d.` });
+    }
+
+    return out;
+  }
+
+  // ── Render ─────────────────────────────────────────────────────
+  function render(){
+    const S = snapshot();
+    const R = pickStrategy(S);
+
+    // Verdict pill
+    const vMap = { enter:['mdp-v-enter','✅','ENTER'], cautious:['mdp-v-cautious','⚠','CAUTION'], avoid:['mdp-v-avoid','🛑','AVOID'] };
+    const v = vMap[R.verdictClass] || ['mdp-v-loading','⏳','—'];
+    const vEl = $('mdpVerdict'); if (vEl) vEl.className = 'mdp-verdict ' + v[0];
+    setText('mdpVerdictIcon', v[1]);
+    setText('mdpVerdictText', v[2]);
+    setText('mdpScoreNum', R.confidence);
+
+    // Strategy card
+    const sCard = $('mdpStrategyCard');
+    if (sCard) sCard.className = 'mdp-strategy-card is-' + R.verdictClass;
+    setText('mdpStratIcon', R.icon || '🎯');
+    setText('mdpStratName', R.strategy);
+    setText('mdpStratTag', R.verdictClass === 'enter' ? 'BEST FIT' : R.verdictClass === 'avoid' ? 'AVOID' : 'CONDITIONAL');
+    setText('mdpStratDesc', R.reason || '—');
+
+    // Strategy config chips
+    const cfg = R.config || {};
+    const cfgHtml = [
+      cfg.delta  ? `<span class="mdp-cfg-chip">Δ&nbsp;<b>${cfg.delta}</b></span>` : '',
+      cfg.stop   ? `<span class="mdp-cfg-chip">Stop&nbsp;<b>${cfg.stop}</b></span>` : '',
+      cfg.target ? `<span class="mdp-cfg-chip">Target&nbsp;<b>${cfg.target}</b></span>` : '',
+      cfg.hold   ? `<span class="mdp-cfg-chip">Hold&nbsp;<b>${cfg.hold}</b></span>` : ''
+    ].join('');
+    setHTML('mdpStratConfig', cfgHtml);
+
+    // Tiles
+    if (R.expiryPick) {
+      setText('mdpExpiry', R.expiryPick.label);
+      setText('mdpExpirySub', `${R.expiryPick.dte}DTE · IV ${R.expiryPick.iv.toFixed(1)}% · ${R.expiryPick.trend}`);
+    } else {
+      setText('mdpExpiry', '—');
+      setText('mdpExpirySub', 'no live expiries yet');
+    }
+    if (isFinite(R.volEdge)) {
+      setText('mdpEdge', (R.volEdge>=0?'+':'')+R.volEdge.toFixed(1)+'%');
+      setText('mdpEdgeSub', R.volEdge > 3 ? 'IV rich · sell vol' : R.volEdge < -3 ? 'IV cheap · buy vol' : 'edge minimal');
+    }
+    setText('mdpRegime', (R.regime||'—').toUpperCase());
+    setText('mdpRegimeSub', R.trending ? 'trending' : R.ranging ? 'ranging' : 'mixed');
+    const dirLbl = R.dirScore > 50 ? 'BULLISH' : R.dirScore < -50 ? 'BEARISH' : R.dirScore > 20 ? 'mild bull' : R.dirScore < -20 ? 'mild bear' : 'NEUTRAL';
+    setText('mdpBias', dirLbl);
+    setText('mdpBiasSub', `score ${R.dirScore.toFixed(0)}`);
+    const volTrendTxt = R.vovRising ? 'EXPANDING' : /FALL|CONTRACT|CALM/i.test(S.vovVerdict||S.vovSlope||'') ? 'CONTRACTING' : 'STEADY';
+    setText('mdpVolTrend', volTrendTxt);
+    setText('mdpVolTrendSub', S.vovZone || S.vovSlope || '—');
+    if (isFinite(S.mpoMove24h)) {
+      setText('mdpMove', `±${Math.abs(S.mpoMove24h).toFixed(1)}%`);
+      setText('mdpMoveSub', isFinite(S.mpoMove7d) ? `7d ±${Math.abs(S.mpoMove7d).toFixed(1)}%` : '24h forecast');
+    }
+
+    // Signal chips — quick read-out from each panel
+    const chips = [];
+    if (S.mpoVerdict) chips.push({ cls: /FRIENDLY/.test(S.mpoVerdict)?'mdp-sig-bull':/DANGER/.test(S.mpoVerdict)?'mdp-sig-bear':'mdp-sig-neut', t:`MPO · ${S.mpoVerdict}` });
+    if (S.tvSMC)      chips.push({ cls: /BULL/i.test(S.tvSMC)?'mdp-sig-bull':/BEAR/i.test(S.tvSMC)?'mdp-sig-bear':'mdp-sig-neut', t:`SMC · ${S.tvSMC}` });
+    if (isFinite(S.tvADX)) chips.push({ cls: S.tvADX>=25?'mdp-sig-warn':'mdp-sig-neut', t:`ADX · ${S.tvADX.toFixed(0)}` });
+    if (S.amd && S.amd.short) chips.push({ cls:'mdp-sig-neut', t:`AMD · ${S.amd.short}` });
+    if (S.beh && S.beh.active) chips.push({ cls:'mdp-sig-neut', t:`Regime · ${S.beh.active}` });
+    if (isFinite(S.vrp)) chips.push({ cls: S.vrp>3?'mdp-sig-bull':S.vrp<-3?'mdp-sig-warn':'mdp-sig-neut', t:`VRP · ${(S.vrp>=0?'+':'')+S.vrp.toFixed(1)}%` });
+    if (S.vovZone)    chips.push({ cls: /HIGH|RIS/i.test(S.vovZone)?'mdp-sig-warn':'mdp-sig-neut', t:`VoV · ${S.vovZone}` });
+    if (S.uspScore)   chips.push({ cls: S.uspScore>=11?'mdp-sig-bull':S.uspScore>=7?'mdp-sig-warn':'mdp-sig-bear', t:`USP · ${S.uspScore}/16` });
+    if (isFinite(S.tvIVP)) chips.push({ cls: S.tvIVP>70?'mdp-sig-warn':S.tvIVP<30?'mdp-sig-bull':'mdp-sig-neut', t:`IVP · ${S.tvIVP.toFixed(0)}%` });
+    setHTML('mdpSignals', chips.map(c=>`<span class="mdp-sig ${c.cls}">${c.t}</span>`).join(''));
+
+    // Reasoning list
+    const reasons = buildReasons(S, R);
+    setHTML('mdpReasonList', reasons.length
+      ? reasons.map(r=>`<li class="${r.type}">${r.t}</li>`).join('')
+      : '<li>Waiting for signals…</li>');
+
+    // Footer
+    const t = new Date();
+    const hh = String(t.getHours()).padStart(2,'0');
+    const mm = String(t.getMinutes()).padStart(2,'0');
+    const ss = String(t.getSeconds()).padStart(2,'0');
+    setText('mdpFooter', `Last sync: ${hh}:${mm}:${ss} · ${reasons.length} signals from 10 panels`);
+  }
+
+  // ── Schedule ────────────────────────────────────────────────────
+  // First render after 3s (give other panels time to populate),
+  // then re-render every 10s.
+  setTimeout(render, 3000);
+  setInterval(render, 10000);
+
+  // Expose for debug
+  window.__mdpRender = render;
+  window.__mdpSnapshot = snapshot;
+})();
+</script>
 
 <!-- ═══ MARKET ENVIRONMENT ═══ -->
 
@@ -1843,7 +2175,6 @@ window._brahmastraADX = _ciComputeADX;
     <button class="tv-tab" id="tvTab4" onclick="switchTVTab(4)">⚡ BTC Dominance</button>
     <button class="tv-tab" id="tvTab5" onclick="switchTVTab(5)">📊 ADX + SMC</button>
     <button class="tv-tab" id="tvTab6" onclick="switchTVTab(6)">🕐 ICT Kill Zones</button>
-    <button class="tv-tab" id="tvTab7" onclick="switchTVTab(7)">⚡ Strangle Effect</button>
   </div>
 
   <!-- TradingView Chart containers -->
@@ -1856,195 +2187,77 @@ window._brahmastraADX = _ciComputeADX;
     <div id="tvChart5" class="tv-chart-frame" style="height:460px;display:none"></div>
     <div id="tvChart6" class="tv-chart-frame" style="height:420px;display:none"></div>
 
-    <!-- Tab 7: Short Strangle Effect Panel -->
-    <div id="tvChart7" style="display:none;padding:4px 0">
-
-      <style>
-      /* ── Short Strangle Effect Panel ── */
-      .sse-wrap{background:var(--color-background-secondary);border-radius:12px;padding:12px 14px;margin-bottom:10px}
-      .sse-section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-      /* P&L Visualizer */
-      .sse-pnl-wrap{position:relative;width:100%;height:160px;margin-bottom:6px}
-      .sse-pnl-wrap canvas{width:100%!important;height:160px!important}
-      /* Strike inputs */
-      .sse-input-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end}
-      .sse-input-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px}
-      .sse-input-group label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary)}
-      .sse-input-group input{font-size:12px;font-weight:700;padding:6px 10px;border-radius:7px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:inherit;font-variant-numeric:tabular-nums}
-      .sse-calc-btn{font-size:11px;font-weight:800;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;cursor:pointer;white-space:nowrap;transition:opacity .2s;align-self:flex-end}
-      .sse-calc-btn:hover{opacity:.85}
-      /* Metrics grid */
-      .sse-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px;margin-bottom:10px}
-      .sse-metric{border-radius:9px;padding:9px 11px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
-      .sse-metric-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
-      .sse-metric-val{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-      .sse-metric-sub{font-size:8px;color:var(--color-text-secondary);margin-top:2px}
-      /* Scenario table */
-      .sse-table{width:100%;border-collapse:collapse;font-size:10px}
-      .sse-table th{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);padding:4px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right}
-      .sse-table th:first-child{text-align:left}
-      .sse-table td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);text-align:right;font-variant-numeric:tabular-nums}
-      .sse-table td:first-child{text-align:left;font-weight:600}
-      .sse-table tr:last-child td{border-bottom:none}
-      .sse-profit{color:#22c55e;font-weight:700}
-      .sse-loss{color:#ef4444;font-weight:700}
-      .sse-breakeven{color:#f59e0b;font-weight:700}
-      /* Adjustment signal */
-      .sse-adj-banner{border-radius:10px;padding:10px 13px;display:flex;align-items:flex-start;gap:10px;border:1.5px solid transparent;margin-bottom:8px;transition:all .3s}
-      .sse-adj-safe{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25)}
-      .sse-adj-warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25)}
-      .sse-adj-danger{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.25)}
-      .sse-adj-icon{font-size:22px;flex-shrink:0;line-height:1}
-      .sse-adj-body{flex:1}
-      .sse-adj-title{font-size:12px;font-weight:800;margin-bottom:2px}
-      .sse-adj-safe .sse-adj-title{color:#059669}
-      .sse-adj-warn .sse-adj-title{color:#d97706}
-      .sse-adj-danger .sse-adj-title{color:#dc2626}
-      .sse-adj-desc{font-size:10px;color:var(--color-text-secondary);line-height:1.5}
-      .sse-adj-steps{margin-top:5px;display:flex;flex-direction:column;gap:3px}
-      .sse-adj-step{font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;display:flex;align-items:center;gap:5px}
-      .sse-adj-safe .sse-adj-step{background:rgba(34,197,94,.1);color:#059669}
-      .sse-adj-warn .sse-adj-step{background:rgba(245,158,11,.1);color:#d97706}
-      .sse-adj-danger .sse-adj-step{background:rgba(239,68,68,.1);color:#dc2626}
-      /* Greeks impact */
-      .sse-greeks-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-      .sse-greek-tile{flex:1;min-width:80px;border-radius:8px;padding:7px 10px;text-align:center;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)}
-      .sse-greek-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
-      .sse-greek-val{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
-      .sse-greek-impact{font-size:8px;margin-top:2px}
-      </style>
-
-      <!-- Input Row -->
-      <div class="sse-wrap">
-        <div class="sse-section-title">⚙️ Position Setup — Auto-filled from Live Data</div>
-        <div class="sse-input-row">
-          <div class="sse-input-group">
-            <label>Spot Price ($)</label>
-            <input type="number" id="sseSpot" placeholder="85000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Call Strike ($)</label>
-            <input type="number" id="sseCallStrike" placeholder="93000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Put Strike ($)</label>
-            <input type="number" id="ssePutStrike" placeholder="77000" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>Premium Collected ($)</label>
-            <input type="number" id="ssePremium" placeholder="400" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>DTE Remaining</label>
-            <input type="number" id="sseDTE" placeholder="18" oninput="sseCompute()">
-          </div>
-          <div class="sse-input-group">
-            <label>IV% (ATM)</label>
-            <input type="number" id="sseIV" placeholder="55" oninput="sseCompute()">
-          </div>
-          <button class="sse-calc-btn" onclick="sseAutoFill()">⚡ Auto-Fill Live</button>
+    <!-- Real ADX(14) sub-pane chart with dotted 20-line threshold -->
+    <div id="tvAdxPane" style="margin-top:8px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;font-variant-numeric:tabular-nums">
+          <b style="color:var(--color-text-primary);letter-spacing:.02em">ADX(14)</b>
+          <span id="tvAdxTfBadge" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(59,130,246,0.12);color:#2563eb;border:0.5px solid rgba(59,130,246,0.3)">—</span>
+          <span id="tvAdxVal" style="color:#ef4444;font-weight:700">—</span>
+          <span style="display:inline-flex;align-items:center;gap:4px"><span style="color:var(--color-text-secondary);font-weight:500">+DI</span><span id="tvAdxPlusDI" style="color:#22c55e;font-weight:700">—</span></span>
+          <span style="display:inline-flex;align-items:center;gap:4px"><span style="color:var(--color-text-secondary);font-weight:500">−DI</span><span id="tvAdxMinusDI" style="color:#3b82f6;font-weight:700">—</span></span>
+          <span id="tvAdxRegime" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em">—</span>
         </div>
-
-        <!-- Adjustment Signal Banner -->
-        <div class="sse-adj-banner sse-adj-safe" id="sseAdjBanner">
-          <span class="sse-adj-icon" id="sseAdjIcon">✅</span>
-          <div class="sse-adj-body">
-            <div class="sse-adj-title" id="sseAdjTitle">POSITION SAFE — No Adjustment Needed</div>
-            <div class="sse-adj-desc" id="sseAdjDesc">Enter position details above or click Auto-Fill to analyse your current strangle in real time.</div>
-            <div class="sse-adj-steps" id="sseAdjSteps"></div>
-          </div>
-        </div>
-
-        <!-- Greeks Impact Row -->
-        <div class="sse-section-title">🔢 Live Greeks Impact on Your Strangle</div>
-        <div class="sse-greeks-row">
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Δ Delta</div>
-            <div class="sse-greek-val" id="sseGDelta" style="color:#3b82f6">—</div>
-            <div class="sse-greek-impact" id="sseGDeltaImp" style="color:var(--color-text-secondary)">Net position delta</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Γ Gamma</div>
-            <div class="sse-greek-val" id="sseGGamma" style="color:#f97316">—</div>
-            <div class="sse-greek-impact" id="sseGGammaImp" style="color:var(--color-text-secondary)">Risk per $1 move</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Θ Theta</div>
-            <div class="sse-greek-val" id="sseGTheta" style="color:#22c55e">—</div>
-            <div class="sse-greek-impact" id="sseGThetaImp" style="color:var(--color-text-secondary)">Daily profit</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">V Vega</div>
-            <div class="sse-greek-val" id="sseGVega" style="color:#a855f7">—</div>
-            <div class="sse-greek-impact" id="sseGVegaImp" style="color:var(--color-text-secondary)">Per 1% IV change</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">P&L Today</div>
-            <div class="sse-greek-val" id="sseGPnL" style="color:#22c55e">—</div>
-            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">Theta − Vega drag</div>
-          </div>
-          <div class="sse-greek-tile">
-            <div class="sse-greek-lbl">Days to 50%</div>
-            <div class="sse-greek-val" id="sseGDays" style="color:#f59e0b">—</div>
-            <div class="sse-greek-impact" style="color:var(--color-text-secondary)">At current theta</div>
-          </div>
-        </div>
-
-        <!-- P&L Chart -->
-        <div class="sse-section-title">📈 P&L At Expiry — Short Strangle Payoff Diagram</div>
-        <div class="sse-pnl-wrap"><canvas id="ssePnLChart"></canvas></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:9px;color:var(--color-text-secondary);margin-bottom:8px">
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#22c55e;border-radius:2px;display:inline-block"></span>Profit Zone</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#ef4444;border-radius:2px;display:inline-block"></span>Loss Zone</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#f59e0b;border-radius:2px;display:inline-block"></span>Breakeven</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:#3b82f6;border-radius:2px;display:inline-block"></span>Current Spot</span>
-        </div>
-
-        <!-- Scenario Table -->
-        <div class="sse-section-title">📊 Scenario Analysis — What Happens If BTC Moves?</div>
-        <div style="overflow-x:auto">
-          <table class="sse-table">
-            <thead>
-              <tr>
-                <th>BTC Price</th><th>Move%</th><th>Call P&L</th><th>Put P&L</th><th>Net P&L</th><th>% of Premium</th><th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="sseScenarioBody">
-              <tr><td colspan="7" style="text-align:center;padding:16px;color:var(--color-text-secondary);font-size:10px">Enter position details above and click Auto-Fill</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Key Levels -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px" id="sseLevelsRow">
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📈 Upper Breakeven</div>
-            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseUBE">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Call Strike + Premium</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(34,197,94,.08);border:0.5px solid rgba(34,197,94,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#059669;margin-bottom:3px">💰 Max Profit Zone</div>
-            <div style="font-size:13px;font-weight:900;color:#059669;font-variant-numeric:tabular-nums" id="sseMaxProfit">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Between strikes</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(239,68,68,.08);border:0.5px solid rgba(239,68,68,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#dc2626;margin-bottom:3px">📉 Lower Breakeven</div>
-            <div style="font-size:16px;font-weight:900;color:#dc2626;font-variant-numeric:tabular-nums" id="sseLBE">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Put Strike − Premium</div>
-          </div>
-          <div style="flex:1;min-width:120px;border-radius:8px;padding:8px 11px;background:rgba(245,158,11,.08);border:0.5px solid rgba(245,158,11,.25);text-align:center">
-            <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#d97706;margin-bottom:3px">🛑 Stop Loss (2×)</div>
-            <div style="font-size:16px;font-weight:900;color:#d97706;font-variant-numeric:tabular-nums" id="sseSL">—</div>
-            <div style="font-size:8px;color:var(--color-text-secondary);margin-top:2px">Close at this loss</div>
-          </div>
-        </div>
+        <div style="font-size:9px;color:var(--color-text-secondary);white-space:nowrap" id="tvAdxSourceLbl">Wilder · Threshold 20</div>
       </div>
+      <!-- TF Selector for BTC ADX -->
+      <div id="tvAdxTfRow" style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">TF:</span>
+        <button class="adx-tf-btn" data-tf="15"  onclick="window._brmSetAdxTf('btc','15')">15m</button>
+        <button class="adx-tf-btn" data-tf="30"  onclick="window._brmSetAdxTf('btc','30')">30m</button>
+        <button class="adx-tf-btn" data-tf="60"  onclick="window._brmSetAdxTf('btc','60')">1H</button>
+        <button class="adx-tf-btn" data-tf="240" onclick="window._brmSetAdxTf('btc','240')">4H</button>
+        <button class="adx-tf-btn" data-tf="D"   onclick="window._brmSetAdxTf('btc','D')">1D</button>
+        <button class="adx-tf-btn adx-tf-sync active" data-tf="auto" onclick="window._brmSetAdxTf('btc','auto')" title="Auto-follow active TradingView tab">🔗 Auto</button>
+      </div>
+      <div style="position:relative;height:110px"><canvas id="tvAdxCanvas"></canvas></div>
+    </div>
 
-    </div><!-- end tvChart7 -->
+    <!-- IV Percentile sub-pane (HV-based percentile, 252-bar lookback) -->
+    <div id="tvIvpPane" style="margin-top:8px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;font-variant-numeric:tabular-nums">
+          <b style="color:var(--color-text-primary);letter-spacing:.02em">IV PERCENTILE</b>
+          <span id="tvIvpTfBadge" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(59,130,246,0.12);color:#2563eb;border:0.5px solid rgba(59,130,246,0.3)">—</span>
+          <span id="tvIvpVal" style="color:#2563eb;font-weight:700">—</span>
+          <span style="display:inline-flex;align-items:center;gap:4px"><span style="color:var(--color-text-secondary);font-weight:500">HV(<span id="tvIvpHvLen">30</span>)</span><span id="tvIvpHvVal" style="color:var(--color-text-primary);font-weight:700">—</span><span style="color:var(--color-text-secondary);font-size:9px">%</span></span>
+          <span id="tvIvpSignal" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em">—</span>
+        </div>
+        <div style="font-size:9px;color:var(--color-text-secondary);white-space:nowrap" id="tvIvpSourceLbl">HV(30) percentile · 252-bar window</div>
+      </div>
+      <!-- TF + Lookback controls -->
+      <div id="tvIvpCtrlRow" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">TF:</span>
+        <select id="tvIvpTfSelect" class="adx-select" onchange="window._brmSetIvpTf(this.value)">
+          <option value="auto" selected>🔗 Auto</option>
+          <option value="15">15m</option>
+          <option value="30">30m</option>
+          <option value="60">1H</option>
+          <option value="240">4H</option>
+          <option value="D">1D</option>
+        </select>
+        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;margin-right:2px">Lookback:</span>
+        <select id="tvIvpLookbackSelect" class="adx-select" onchange="window._brmSetIvpLookback(parseInt(this.value,10))">
+          <option value="60">60</option>
+          <option value="100">100</option>
+          <option value="252" selected>252</option>
+          <option value="365">365</option>
+        </select>
+        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;margin-right:2px">HV Len:</span>
+        <select id="tvIvpHvLenSelect" class="adx-select" onchange="window._brmSetIvpHvLen(parseInt(this.value,10))">
+          <option value="14">14</option>
+          <option value="20">20</option>
+          <option value="30" selected>30</option>
+          <option value="60">60</option>
+        </select>
+      </div>
+      <div style="position:relative;height:110px"><canvas id="tvIvpCanvas"></canvas></div>
+    </div>
+
   </div><!-- end tvChartWrap -->
 
-  <!-- Short Straddle Signal Row -->
-  <div class="tv-signal-row" id="tvSignalRow">
+  <!-- Short Straddle Signal Row (hidden — removed by user request) -->
+  <div class="tv-signal-row" id="tvSignalRow" style="display:none">
     <div class="tv-signal-card"><div class="tv-signal-lbl">BB Width</div><div class="tv-signal-val" id="tvSigBB">—</div></div>
     <div class="tv-signal-card"><div class="tv-signal-lbl">Volume</div><div class="tv-signal-val" id="tvSigVol">—</div></div>
     <div class="tv-signal-card"><div class="tv-signal-lbl">Trend</div><div class="tv-signal-val" id="tvSigTrend">—</div></div>
@@ -2054,8 +2267,8 @@ window._brahmastraADX = _ciComputeADX;
     <div class="tv-signal-card" style="border-left:2px solid #3b82f6"><div class="tv-signal-lbl">Kill Zone</div><div class="tv-signal-val" id="tvSigKZ">—</div></div>
   </div>
 
-  <!-- Straddle interpretation overlay -->
-  <div class="tv-straddle-overlay" id="tvStraddleOverlay">
+  <!-- Straddle interpretation overlay (hidden — verdict block removed by user request) -->
+  <div class="tv-straddle-overlay" id="tvStraddleOverlay" style="display:none">
     <b>📐 Short Straddle Interpretation:</b> Loading TradingView signals…
     <div class="tv-indicator-pills" id="tvIndPills"></div>
   </div>
@@ -11558,37 +11771,6 @@ setTimeout(()=>{
   </div>
 </div>
 
-<div class="controls">
-  <label>Overlay:</label>
-  <button class="toggle-btn" id="btnHV" onclick="toggleView('hv')">+ HV (30D)</button>
-  <button class="toggle-btn" id="btnDVOL" onclick="toggleView('dvol')">+ DVOL</button>
-  <label>Show:</label>
-  <button class="toggle-btn" id="btnOC" onclick="toggleView('oc')">+ Open/Close</button>
-  <label style="margin-left:8px">Refresh:</label>
-  <select id="refreshRate" onchange="setRefresh(this.value)">
-    <option value="5000">5s</option>
-    <option value="10000" selected>10s</option>
-    <option value="30000">30s</option>
-  </select>
-</div>
-
-<!-- ═══════════════════════════════════════════
-     ATM LIVE — Premium · IV · Spread · OI
-     ═══════════════════════════════════════════ -->
-
-
-<div class="section-title">ATM IV by Expiry — Full Session Recording (open → current → close)</div>
-<div class="legend-row">
-  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Rising IV</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#eab308"></div>Flat IV</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Falling IV</div>
-  <div class="legend-item"><div style="width:18px;height:2px;background:#3b82f6;border-top:2px dashed #3b82f6"></div>&nbsp;HV (30D)</div>
-  <div class="legend-item"><div style="width:18px;height:2px;background:#a855f7;border-top:2px dashed #a855f7"></div>&nbsp;DVOL</div>
-  <div class="legend-item"><div style="width:8px;height:8px;border-radius:50%;background:#0ea5e9;border:2px solid #fff;outline:1px solid #0ea5e9"></div>&nbsp;Open price</div>
-  <div class="legend-item"><div style="width:8px;height:8px;border-radius:50%;background:#f97316;border:2px solid #fff;outline:1px solid #f97316"></div>&nbsp;Close / Current</div>
-</div>
-<div class="iv-grid" id="ivGrid"></div>
-
 </div>
 
 
@@ -11646,6 +11828,51 @@ setTimeout(()=>{
   color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
 .dtv-tf.active{background:#7c3aed;color:#fff;border-color:#7c3aed}
 .dtv-chart-wrap{width:100%;height:420px;border-radius:0 0 14px 14px;overflow:hidden;display:block;position:relative}
+
+/* ── ADX TF selector buttons (BTC + DVOL ADX panes) ── */
+.adx-tf-btn{
+  font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  color:var(--color-text-secondary);cursor:pointer;transition:all .15s;
+  font-family:inherit;font-variant-numeric:tabular-nums;line-height:1;
+}
+.adx-tf-btn:hover{
+  background:var(--color-background-secondary);
+  color:var(--color-text-primary);
+  border-color:var(--color-text-secondary);
+}
+.adx-tf-btn.active{
+  background:#2563eb;color:#fff;border-color:#2563eb;
+  box-shadow:0 1px 3px rgba(37,99,235,0.3);
+}
+.adx-tf-btn.adx-tf-sync.active{
+  background:#16a34a;border-color:#16a34a;
+  box-shadow:0 1px 3px rgba(22,163,74,0.3);
+}
+/* DVOL pane uses purple accent for active */
+#dvolAdxTfRow .adx-tf-btn.active{
+  background:#a855f7;border-color:#a855f7;
+  box-shadow:0 1px 3px rgba(168,85,247,0.3);
+}
+#dvolAdxTfRow .adx-tf-btn.adx-tf-sync.active{
+  background:#16a34a;border-color:#16a34a;
+}
+
+/* ── ADX/IVP dropdown selects ── */
+.adx-select{
+  font-size:9px;font-weight:700;padding:3px 22px 3px 8px;border-radius:5px;
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);cursor:pointer;
+  font-family:inherit;font-variant-numeric:tabular-nums;line-height:1.2;
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path fill='%2364748b' d='M5 7L1.5 3h7z'/></svg>");
+  background-repeat:no-repeat;background-position:right 6px center;background-size:8px;
+  transition:all .15s;
+}
+.adx-select:hover{border-color:var(--color-text-secondary)}
+.adx-select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.15)}
 
 /* ── DVOL MPO panel ── */
 #dvolMPOPanel{
@@ -11737,6 +11964,29 @@ setTimeout(()=>{
       <div id="dtvTVContainer" style="width:100%;height:100%"></div>
       <div id="dtvLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary)">⏳ Loading DVOL chart…</div>
     </div>
+    <!-- Real ADX(14) sub-pane chart for DVOL with dotted 20-line threshold -->
+    <div id="dvolAdxPane" style="margin-top:8px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;font-variant-numeric:tabular-nums">
+          <b style="color:var(--color-text-primary);letter-spacing:.02em">DVOL ADX(14)</b>
+          <span id="dvolAdxTfBadge" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(168,85,247,0.12);color:#a855f7;border:0.5px solid rgba(168,85,247,0.3)">—</span>
+          <span id="dvolAdxVal" style="color:#a855f7;font-weight:700">—</span>
+          <span id="dvolAdxRegime" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em">—</span>
+        </div>
+        <div style="font-size:9px;color:var(--color-text-secondary);white-space:nowrap" id="dvolAdxSourceLbl">Wilder · Threshold 20</div>
+      </div>
+      <!-- TF Selector for DVOL ADX -->
+      <div id="dvolAdxTfRow" style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">TF:</span>
+        <button class="adx-tf-btn" data-tf="15"  onclick="window._brmSetAdxTf('dvol','15')">15m</button>
+        <button class="adx-tf-btn" data-tf="30"  onclick="window._brmSetAdxTf('dvol','30')">30m</button>
+        <button class="adx-tf-btn" data-tf="60"  onclick="window._brmSetAdxTf('dvol','60')">1H</button>
+        <button class="adx-tf-btn" data-tf="240" onclick="window._brmSetAdxTf('dvol','240')">4H</button>
+        <button class="adx-tf-btn" data-tf="D"   onclick="window._brmSetAdxTf('dvol','D')">1D</button>
+        <button class="adx-tf-btn adx-tf-sync active" data-tf="auto" onclick="window._brmSetAdxTf('dvol','auto')" title="Auto-follow DVOL chart TF">🔗 Auto</button>
+      </div>
+      <div style="position:relative;height:100px"><canvas id="dvolAdxCanvas"></canvas></div>
+    </div>
   </div>
 
 <script>
@@ -11747,6 +11997,7 @@ setTimeout(()=>{
 (function(){
   'use strict';
   let _curInterval = '60';
+  window._dtvCurInterval = '60';
   let _widgetInst  = null;
 
   const IMAP = { '60':'1H', '240':'4H', 'D':'1D' };
@@ -11783,8 +12034,14 @@ setTimeout(()=>{
           save_image:         false,
           withdateranges:     true,
           hide_volume:        true,
-          studies:            ['HV@tv-basicstudies-139','BB@tv-basicstudies-139'],
-          studies_overrides:  { 'HV.length':30,'HV.plot.color':'rgba(168,85,247,0.8)' },
+          studies:            ['ADX@tv-basicstudies-139','HV@tv-basicstudies-139','BB@tv-basicstudies-139'],
+          studies_overrides:  {
+            'HV.length':30,
+            'HV.plot.color':'rgba(168,85,247,0.8)',
+            'ADX.adx smoothing':14,
+            'ADX.di length':14,
+            'ADX.plot.color':'rgb(239,68,68)',
+          },
           overrides:{
             'mainSeriesProperties.candleStyle.upColor':         '#22c55e',
             'mainSeriesProperties.candleStyle.downColor':       '#ef4444',
@@ -11820,6 +12077,7 @@ setTimeout(()=>{
 
   window.dtvSetTF = function(tvInterval, label){
     _curInterval = tvInterval;
+    window._dtvCurInterval = tvInterval;
     ['1h','4h','1d'].forEach(k=>{
       const b=document.getElementById('dtvTf'+k);
       if(b) b.classList.remove('active');
@@ -11831,6 +12089,8 @@ setTimeout(()=>{
     const hMap={'60':1,'240':4,'D':24};
     if(window._dmpoSetTF) window._dmpoSetTF(hMap[tvInterval]||1, label||IMAP[tvInterval]||'1H');
     buildWidget(tvInterval);
+    // Re-render DVOL ADX pane to match new TF
+    setTimeout(() => { try{ if(typeof window._brmRefreshAdx === 'function') window._brmRefreshAdx(); }catch(e){} }, 200);
   };
 
   // Boot: wait for tv.js (already loaded by existing TV charts on page)
@@ -13083,8 +13343,6 @@ setTimeout(()=>{
     <div id="stradleInfo" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
   </div>
 
-  <!-- Verdict panel removed -->
-
 </div><!-- /greeks-panel -->
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -13351,7 +13609,6 @@ setTimeout(()=>{
 
 /* ── CHART AREAS ────────────────────────────────────────────── */
 .sim-chart-wrap{position:relative;height:260px;margin-bottom:10px;background:var(--color-background-primary);border-radius:9px;padding:8px}
-.sim-chart-wrap-sm{position:relative;height:180px;margin-bottom:10px;background:var(--color-background-primary);border-radius:9px;padding:8px}
 .sim-chart-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
 
 /* ── ADJUSTMENT ENGINE ──────────────────────────────────────── */
@@ -18355,15 +18612,12 @@ setTimeout(()=>{
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    SAFE NO-OP STUBS for legacy onclick handlers
-   Older modals/panels left over in the DOM reference these functions.
-   The panels are never opened by the current code, but if a user somehow
-   reaches them the buttons should not throw ReferenceError.
+   Some buttons in the live UI reference these helpers. Keeping them as
+   no-ops prevents ReferenceError if the underlying feature isn't wired.
    ═══════════════════════════════════════════════════════════════════════ */
 (function(){
   const noop = () => {};
-  const stubs = ['simOverlayClick','closeSimulator','simEnterTrade',
-                 'simCloseTrade','simReset',
-                 'fetchBTCMoveHistory','forceRefresh'];
+  const stubs = ['fetchBTCMoveHistory','forceRefresh'];
   stubs.forEach(name => {
     if(typeof window[name] !== 'function') window[name] = noop;
   });
@@ -19270,6 +19524,7 @@ function ivTrend(history, expired){
 
 function buildIVGrid(){
   const grid = document.getElementById('ivGrid');
+  if(!grid) return; // panel removed
   grid.innerHTML = '';
 
   EXPIRIES.forEach((ex,i) => {
@@ -23901,9 +24156,14 @@ function switchTVTab(idx){
     if(el)  el.style.display  = i === idx ? 'block' : 'none';
     if(tab) tab.classList.toggle('active', i === idx);
   });
+  // Hide IVP pane on DVOL and BTC.D tabs (no spot BTC data there)
+  const ivpPane = document.getElementById('tvIvpPane');
+  if(ivpPane) ivpPane.style.display = (idx === 2 || idx === 4) ? 'none' : 'block';
   // Lazy-load the selected tab's chart
   buildTVChart(idx);
   tvRefreshSignals();
+  // Re-render ADX pane to match the new tab's TF (debounced 200ms so canvas is ready)
+  setTimeout(() => { try{ if(typeof window._brmRefreshAdx === 'function') window._brmRefreshAdx(); }catch(e){} }, 200);
   // Tab 5: ADX+SMC+IVP overlay panel (after chart loads)
   if(idx === 5) setTimeout(()=>{ try{ _tvRenderADXSMCPanel(); }catch(e){} }, 900);
   // Tab 6: ICT Kill Zone timeline panel (after chart loads)
@@ -31362,12 +31622,14 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 
 <!-- ═══════════════════════════════════════════════════════════════════
      🎯 PANEL REORDER — Importance: MPO → ... → VSG (added 2026-04-26)
-     Reorders the main analysis panels inside .desk by priority.
-     SDP is hidden via CSS; this just re-sequences what's left.
+     [SUPERSEDED 2026-04-26 by GROUPED REORDER — kept for reference but
+      execution disabled by early-return so the new grouped reorder
+      below in the file owns the panel sequence.]
      ═══════════════════════════════════════════════════════════════════ -->
 <script>
 (function panelReorder(){
   'use strict';
+  return; // ← superseded by GROUPED REORDER appended at end of body
 
   // High → low importance order
   // 1. MPO (AI pattern brain — primary signal)
@@ -31412,6 +31674,16 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
       }
     });
     console.log(`[panel-reorder] Moved ${moved}/${ORDER.length} panels by importance.${missing.length?' Missing: '+missing.join(', '):''}`);
+
+    // ── Special placement: DVOL Live Chart sits directly below IVP (which lives inside TV panel) ──
+    // The IV Percentile pane is the last child of #tvPanel, so placing DVOL right after #tvPanel
+    // visually puts it immediately below the IVP chart.
+    const dvolBlock = document.getElementById('dvolLiveBlock');
+    const tvPanel   = document.getElementById('tvPanel');
+    if(dvolBlock && tvPanel && tvPanel.parentNode){
+      tvPanel.parentNode.insertBefore(dvolBlock, tvPanel.nextSibling);
+      console.log('[panel-reorder] DVOL Live Chart placed directly below IVP (inside TV panel).');
+    }
   }
 
   // Run after everything else has had a chance to mount.
@@ -31423,5 +31695,1743 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     📊 REAL ADX(14) SUB-PANES — Chart.js with dotted 20-line threshold
+     Renders below the TradingView panel and the DVOL Live Chart.
+     Computes a rolling ADX series from btcHistory / dvol history,
+     and draws a real horizontal dotted line at y=20 via a custom plugin.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function realAdxPanes(){
+  'use strict';
+
+  /* ── Rolling ADX series builder (Wilder smoothing, period=14) ──
+     Returns arrays {adx[], plusDI[], minusDI[]} aligned to candles. */
+  function _buildAdxSeries(candles, period){
+    period = period || 14;
+    if(!Array.isArray(candles) || candles.length < period+2) return null;
+    const n = candles.length;
+    const TR = [], pDM = [], nDM = [];
+    for(let i=1;i<n;i++){
+      const H = candles[i].h, L = candles[i].l;
+      const pH = candles[i-1].h, pL = candles[i-1].l, pC = candles[i-1].c;
+      const tr = Math.max(H-L, Math.abs(H-pC), Math.abs(L-pC));
+      const upMove = H - pH, downMove = pL - L;
+      TR.push(tr);
+      pDM.push((upMove > downMove && upMove > 0) ? upMove : 0);
+      nDM.push((downMove > upMove && downMove > 0) ? downMove : 0);
+    }
+    if(TR.length < period) return null;
+
+    const wilder = (arr) => {
+      const out = new Array(arr.length).fill(null);
+      let s = 0;
+      for(let i=0;i<period;i++) s += arr[i];
+      out[period-1] = s;
+      for(let i=period;i<arr.length;i++){
+        s = s - (s/period) + arr[i];
+        out[i] = s;
+      }
+      return out;
+    };
+
+    const trS = wilder(TR), pDMS = wilder(pDM), nDMS = wilder(nDM);
+    const plusDI = [], minusDI = [], DX = [];
+    for(let i=0;i<TR.length;i++){
+      if(i < period-1 || !trS[i]){
+        plusDI.push(null); minusDI.push(null); DX.push(null); continue;
+      }
+      const pDI = 100*(pDMS[i]/trS[i]);
+      const mDI = 100*(nDMS[i]/trS[i]);
+      plusDI.push(pDI); minusDI.push(mDI);
+      const sum = pDI + mDI;
+      DX.push(sum>0 ? 100*Math.abs(pDI-mDI)/sum : 0);
+    }
+
+    // ADX = Wilder smoothing of DX, starting at index 2*period-2
+    const adx = new Array(DX.length).fill(null);
+    const startIdx = period-1; // first DX is at period-1
+    const dxValid = DX.slice(startIdx).filter(v => v != null);
+    if(dxValid.length < period) return { adx, plusDI, minusDI };
+
+    let adxSum = 0;
+    for(let i=0;i<period;i++) adxSum += DX[startIdx+i];
+    let curAdx = adxSum / period;
+    adx[startIdx + period - 1] = curAdx;
+    for(let i=startIdx+period;i<DX.length;i++){
+      curAdx = (curAdx*(period-1) + DX[i]) / period;
+      adx[i] = curAdx;
+    }
+    return { adx, plusDI, minusDI };
+  }
+
+  /* ── Synthesize OHLC candles from a close-only price series ── */
+  function _synthCandles(prices){
+    if(!Array.isArray(prices) || prices.length < 2) return [];
+    const out = [];
+    for(let i=0;i<prices.length;i++){
+      const prev = i>0 ? prices[i-1] : prices[i];
+      const mv   = Math.abs(prices[i]-prev);
+      const env  = Math.max(mv, prices[i]*0.0015);
+      out.push({
+        o: prev, c: prices[i],
+        h: Math.max(prices[i], prev) + env*0.5,
+        l: Math.min(prices[i], prev) - env*0.5,
+      });
+    }
+    return out;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     TIMEFRAME-AWARE KLINE FETCHER
+     Maps TradingView interval strings ('60','240','D','15') to Binance
+     interval strings, fetches OHLCV via REST, caches per (symbol,tf,bucket).
+     ───────────────────────────────────────────────────────────────── */
+
+  // Maps TV interval → Binance interval (only for BTC)
+  const TV_TO_BINANCE = {
+    '1':'1m','3':'3m','5':'5m','15':'15m','30':'30m',
+    '45':'30m', // closest
+    '60':'1h','120':'2h','180':'3h','240':'4h',
+    '360':'6h','480':'8h','720':'12h',
+    'D':'1d','1D':'1d','W':'1w','1W':'1w','M':'1M','1M':'1M'
+  };
+
+  /* Deribit DVOL only supports 5 resolutions: 1s, 60s, 3600s (1H), 43200s (12H), 1D.
+     For other TFs (15m, 30m, 4H), we fetch at the closest smaller supported resolution
+     and aggregate up in JS. Map: TV interval → { fetchRes, barsPerCandle }
+     'fetchRes' is sent to Deribit; 'agg' tells us how many fetched bars merge into one. */
+  const TV_TO_DERIBIT_AGG = {
+    '1':   { fetchRes: '60',    agg: 1 },     // 1m candle = 60s bar
+    '3':   { fetchRes: '60',    agg: 3 },     // 3m  = 3× 60s
+    '5':   { fetchRes: '60',    agg: 5 },     // 5m  = 5× 60s
+    '15':  { fetchRes: '60',    agg: 15 },    // 15m = 15× 60s
+    '30':  { fetchRes: '60',    agg: 30 },    // 30m = 30× 60s
+    '60':  { fetchRes: '3600',  agg: 1 },     // 1H  = 1× 3600s ← was wrong before!
+    '120': { fetchRes: '3600',  agg: 2 },     // 2H  = 2× 3600s
+    '180': { fetchRes: '3600',  agg: 3 },     // 3H  = 3× 3600s
+    '240': { fetchRes: '3600',  agg: 4 },     // 4H  = 4× 3600s
+    '360': { fetchRes: '3600',  agg: 6 },     // 6H  = 6× 3600s
+    '480': { fetchRes: '3600',  agg: 8 },     // 8H  = 8× 3600s
+    '720': { fetchRes: '43200', agg: 1 },     // 12H = 1× 43200s
+    'D':   { fetchRes: '1D',    agg: 1 },     // 1D
+    '1D':  { fetchRes: '1D',    agg: 1 },
+    'W':   { fetchRes: '1D',    agg: 7 },     // 1W = 7× 1D
+    '1W':  { fetchRes: '1D',    agg: 7 },
+    'M':   { fetchRes: '1D',    agg: 30 },
+    '1M':  { fetchRes: '1D',    agg: 30 },
+  };
+
+  // Maps TV interval → milliseconds (for cache TTL & lookback windows)
+  const TV_TO_MS = {
+    '1':60_000,'3':3*60_000,'5':5*60_000,'15':15*60_000,'30':30*60_000,
+    '60':60*60_000,'120':2*60*60_000,'180':3*60*60_000,'240':4*60*60_000,
+    '360':6*60*60_000,'480':8*60*60_000,'720':12*60*60_000,
+    'D':24*60*60_000,'1D':24*60*60_000,
+    'W':7*24*60*60_000,'1W':7*24*60*60_000,
+    'M':30*24*60*60_000,'1M':30*24*60*60_000
+  };
+
+  // Human-readable label
+  const TV_TO_LABEL = {
+    '1':'1m','3':'3m','5':'5m','15':'15m','30':'30m',
+    '60':'1H','120':'2H','180':'3H','240':'4H',
+    '360':'6H','480':'8H','720':'12H',
+    'D':'1D','1D':'1D','W':'1W','1W':'1W','M':'1M','1M':'1M'
+  };
+
+  // In-memory cache: key = `${symbol}|${tf}` → {data:[candles], ts:fetchTime}
+  const _klineCache = new Map();
+
+  function _cacheKey(symbol, tf){ return `${symbol}|${tf}`; }
+  function _cacheTTL(tf){
+    // Refetch when 1/3 of a bar has elapsed (so latest bar is fresh-ish)
+    return Math.max(15_000, Math.floor((TV_TO_MS[tf] || 60_000) / 3));
+  }
+
+  async function fetchBinanceKlines(symbol, tvTf, limit){
+    const interval = TV_TO_BINANCE[tvTf] || '1h';
+    const lim = Math.min(Math.max(limit || 100, 30), 500);
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${lim}`;
+    const resp = await safeFetch(url, {}, 15000);
+    if(!resp.ok) throw new Error('Binance kline HTTP '+resp.status);
+    const raw = await resp.json();
+    if(!Array.isArray(raw)) throw new Error('Binance kline: not array');
+    // Format: [openTime, open, high, low, close, volume, closeTime, ...]
+    return raw.map(k => ({
+      t: k[0],
+      o: parseFloat(k[1]),
+      h: parseFloat(k[2]),
+      l: parseFloat(k[3]),
+      c: parseFloat(k[4]),
+      v: parseFloat(k[5])
+    })).filter(c => c.h > 0 && c.l > 0);
+  }
+
+  /* Aggregates N raw candles into one merged candle (open=first.o, close=last.c, h=max, l=min) */
+  function _aggregateCandles(rawCandles, n){
+    if(n <= 1) return rawCandles;
+    const out = [];
+    for(let i = 0; i + n <= rawCandles.length; i += n){
+      const chunk = rawCandles.slice(i, i + n);
+      out.push({
+        t: chunk[0].t,
+        o: chunk[0].o,
+        c: chunk[chunk.length - 1].c,
+        h: Math.max(...chunk.map(b => b.h)),
+        l: Math.min(...chunk.map(b => b.l)),
+      });
+    }
+    return out;
+  }
+
+  async function fetchDeribitDvolCandles(tvTf, limit){
+    const cfg = TV_TO_DERIBIT_AGG[tvTf] || TV_TO_DERIBIT_AGG['60'];
+    const fetchRes = cfg.fetchRes;
+    const agg = cfg.agg;
+    const targetCandles = Math.min(Math.max(limit || 100, 30), 500);
+    // We need targetCandles*agg raw bars to aggregate
+    const rawNeeded = targetCandles * agg;
+
+    // Compute time range in ms based on the FETCH resolution (not target TF)
+    const RES_MS = {'1': 1000, '60': 60_000, '3600': 3600_000, '43200': 43200_000, '1D': 86400_000};
+    const barMs = RES_MS[fetchRes] || 60_000;
+    const end = Date.now();
+    // Pad start by 5% extra to handle gaps/missing bars
+    const start = end - Math.ceil(rawNeeded * barMs * 1.05);
+
+    const url = `https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=BTC&start_timestamp=${start}&end_timestamp=${end}&resolution=${fetchRes}`;
+    const resp = await safeFetch(url, {}, 15000);
+    if(!resp.ok) throw new Error('Deribit DVOL HTTP '+resp.status);
+    const j = await resp.json();
+    if(j.error) throw new Error('Deribit DVOL: '+(j.error.message || JSON.stringify(j.error)));
+    const data = j?.result?.data;
+    if(!Array.isArray(data)) throw new Error('Deribit DVOL: no data array');
+    if(data.length === 0) throw new Error('Deribit DVOL: empty data window');
+
+    // Format: [[timestamp, open, high, low, close], ...]
+    const rawCandles = data.map(row => ({
+      t: row[0],
+      o: parseFloat(row[1]),
+      h: parseFloat(row[2]),
+      l: parseFloat(row[3]),
+      c: parseFloat(row[4]),
+    })).filter(c => c.h > 0 && c.l > 0);
+
+    // Aggregate up to target TF
+    return _aggregateCandles(rawCandles, agg);
+  }
+
+  // Returns cached candles if fresh, else triggers async fetch and returns whatever we have
+  // When the fetch completes, it auto-triggers a render so the UI updates immediately.
+  function getCandlesForTF(symbol, tvTf, fetchFn, onUpdate){
+    const key = _cacheKey(symbol, tvTf);
+    const entry = _klineCache.get(key);
+    const now = Date.now();
+    const isFresh = entry && (now - entry.ts) < _cacheTTL(tvTf);
+
+    if(!isFresh && !entry?.fetching){
+      // Mark as fetching to avoid duplicate concurrent calls
+      _klineCache.set(key, { data: entry?.data || [], ts: entry?.ts || 0, fetching: true, fetchStart: now });
+      fetchFn()
+        .then(candles => {
+          _klineCache.set(key, { data: candles, ts: Date.now(), fetching: false });
+          // Auto-rerender so user sees data without waiting for next tick
+          if(typeof onUpdate === 'function') {
+            try{ onUpdate(); }catch(e){}
+          }
+        })
+        .catch(err => {
+          console.warn(`[ADX-fetch] ${symbol} ${tvTf}:`, err.message);
+          // Mark as failed; clear fetching so we can retry
+          _klineCache.set(key, {
+            data: entry?.data || [],
+            ts: entry?.ts || 0,
+            fetching: false,
+            lastError: err.message,
+            lastErrorAt: Date.now()
+          });
+          if(typeof onUpdate === 'function') {
+            try{ onUpdate(); }catch(e){}
+          }
+        });
+    }
+    return entry?.data || [];
+  }
+
+  /* ── Manual TF overrides per pane (null = auto-follow chart) ── */
+  let _btcAdxTfOverride = null;   // BTC ADX manual TF, or null = auto
+  let _dvolAdxTfOverride = null;  // DVOL ADX manual TF, or null = auto
+
+  /* Returns: { tvTf, label } for the active BTC/TV chart */
+  function getActiveTvBtcTf(){
+    // Manual override wins
+    if(_btcAdxTfOverride){
+      return { tvTf: _btcAdxTfOverride, label: TV_TO_LABEL[_btcAdxTfOverride] || _btcAdxTfOverride };
+    }
+    if(typeof TV_CHARTS !== 'undefined' && typeof _tvCurrentTab !== 'undefined'){
+      const cfg = TV_CHARTS[_tvCurrentTab];
+      if(cfg && cfg.interval){
+        return { tvTf: String(cfg.interval), label: TV_TO_LABEL[cfg.interval] || cfg.interval };
+      }
+    }
+    return { tvTf: '60', label: '1H' };
+  }
+
+  function getActiveDvolTf(){
+    // Manual override wins
+    if(_dvolAdxTfOverride){
+      return { tvTf: _dvolAdxTfOverride, label: TV_TO_LABEL[_dvolAdxTfOverride] || _dvolAdxTfOverride };
+    }
+    const tvTf = String(window._dtvCurInterval || '60');
+    return { tvTf, label: TV_TO_LABEL[tvTf] || tvTf };
+  }
+
+  /* ── Update active button styling for a given pane ── */
+  function _updateAdxTfBtnUI(pane){
+    const rowId = pane === 'dvol' ? 'dvolAdxTfRow' : 'tvAdxTfRow';
+    const row = document.getElementById(rowId);
+    if(!row) return;
+    const override = pane === 'dvol' ? _dvolAdxTfOverride : _btcAdxTfOverride;
+    const activeKey = override == null ? 'auto' : override;
+    row.querySelectorAll('.adx-tf-btn').forEach(btn => {
+      const k = btn.getAttribute('data-tf');
+      btn.classList.toggle('active', k === activeKey);
+    });
+  }
+
+  /* ── Public handler: set TF for a pane ('btc'|'dvol', tf|'auto') ── */
+  window._brmSetAdxTf = function(pane, tf){
+    if(pane !== 'btc' && pane !== 'dvol') return;
+    const newVal = (tf === 'auto') ? null : tf;
+    if(pane === 'btc')  _btcAdxTfOverride  = newVal;
+    if(pane === 'dvol') _dvolAdxTfOverride = newVal;
+    _updateAdxTfBtnUI(pane);
+
+    // Clear the existing chart canvas so user doesn't see stale data while fetching
+    if(pane === 'btc' && _tvChart){
+      _tvChart.data.labels = [];
+      _tvChart.data.datasets.forEach(ds => ds.data = []);
+      _tvChart.update('none');
+    }
+    if(pane === 'dvol' && _dvolChart){
+      _dvolChart.data.labels = [];
+      _dvolChart.data.datasets.forEach(ds => ds.data = []);
+      _dvolChart.update('none');
+    }
+
+    // Reset header values to clear stale state (regime badge, +DI/-DI etc)
+    if(pane === 'btc'){
+      const ids = ['tvAdxVal','tvAdxPlusDI','tvAdxMinusDI'];
+      ids.forEach(id => { const el = document.getElementById(id); if(el) el.textContent = '—'; });
+      const reg = document.getElementById('tvAdxRegime');
+      if(reg){ reg.textContent = 'fetching…'; reg.style.background = 'rgba(148,163,184,0.15)'; reg.style.color = '#64748b'; }
+    }
+    if(pane === 'dvol'){
+      const valEl = document.getElementById('dvolAdxVal');
+      if(valEl) valEl.textContent = '—';
+      const reg = document.getElementById('dvolAdxRegime');
+      if(reg){ reg.textContent = 'fetching…'; reg.style.background = 'rgba(148,163,184,0.15)'; reg.style.color = '#64748b'; }
+    }
+
+    // Trigger immediate re-render of just that pane (faster than full tick)
+    try {
+      if(pane === 'btc')  { renderTvAdx(); if(typeof renderTvIvp === 'function') renderTvIvp(); }
+      if(pane === 'dvol') renderDvolAdx();
+    } catch(e){ console.warn('[ADX-TF-set]', e.message); }
+
+    // Schedule a follow-up render in 1.5s to catch the async fetch result
+    setTimeout(() => {
+      try {
+        if(pane === 'btc')  { renderTvAdx(); if(typeof renderTvIvp === 'function') renderTvIvp(); }
+        if(pane === 'dvol') renderDvolAdx();
+      } catch(e){}
+    }, 1500);
+    // And another in 4s in case the network is slow
+    setTimeout(() => {
+      try {
+        if(pane === 'btc')  { renderTvAdx(); if(typeof renderTvIvp === 'function') renderTvIvp(); }
+        if(pane === 'dvol') renderDvolAdx();
+      } catch(e){}
+    }, 4000);
+  };
+
+  /* ── Custom Chart.js plugin: draws a dotted horizontal line at y=20 ── */
+  const dotted20Plugin = {
+    id: 'dotted20Line',
+    afterDatasetsDraw(chart){
+      // Respect explicit disable flag (e.g. IVP chart sets dotted20Line:false)
+      if(chart.config?.options?.plugins?.dotted20Line === false) return;
+      const {ctx, chartArea, scales} = chart;
+      if(!scales.y || !chartArea) return;
+      const y20 = scales.y.getPixelForValue(20);
+      if(y20 < chartArea.top || y20 > chartArea.bottom) return;
+      ctx.save();
+      // Dotted threshold line spanning the chart area
+      ctx.strokeStyle = 'rgba(239,68,68,0.85)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, y20);
+      ctx.lineTo(chartArea.right, y20);
+      ctx.stroke();
+      // Label "20" — small chip sitting on the LEFT side, NOT covering rightmost data
+      ctx.setLineDash([]);
+      const labelText = '20';
+      ctx.font = 'bold 9px -apple-system, system-ui, sans-serif';
+      const padX = 4;
+      const tw = ctx.measureText(labelText).width;
+      const labelX = chartArea.left + 2;
+      const labelY = y20 - 7;
+      // Background chip
+      ctx.fillStyle = 'rgba(239,68,68,0.95)';
+      ctx.beginPath();
+      const r = 2.5;
+      const w = tw + padX*2, h = 13;
+      ctx.moveTo(labelX + r, labelY);
+      ctx.lineTo(labelX + w - r, labelY);
+      ctx.quadraticCurveTo(labelX + w, labelY, labelX + w, labelY + r);
+      ctx.lineTo(labelX + w, labelY + h - r);
+      ctx.quadraticCurveTo(labelX + w, labelY + h, labelX + w - r, labelY + h);
+      ctx.lineTo(labelX + r, labelY + h);
+      ctx.quadraticCurveTo(labelX, labelY + h, labelX, labelY + h - r);
+      ctx.lineTo(labelX, labelY + r);
+      ctx.quadraticCurveTo(labelX, labelY, labelX + r, labelY);
+      ctx.closePath();
+      ctx.fill();
+      // Label text
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labelText, labelX + padX, labelY + h/2);
+      ctx.restore();
+    }
+  };
+
+  /* ── Custom Chart.js plugin: draws latest value chips on the RIGHT edge ── */
+  const lastValueLabelsPlugin = {
+    id: 'lastValueLabels',
+    afterDatasetsDraw(chart){
+      if(chart.config?.options?.plugins?.lastValueLabels === false) return;
+      const {ctx, chartArea, scales} = chart;
+      if(!scales.y || !chartArea) return;
+      ctx.save();
+      ctx.font = 'bold 9px -apple-system, system-ui, sans-serif';
+
+      const drawn = [];
+      chart.data.datasets.forEach((ds, dsIdx) => {
+        const meta = chart.getDatasetMeta(dsIdx);
+        if(meta.hidden) return;
+        // Get last non-null value
+        const data = ds.data || [];
+        let lastVal = null;
+        for(let i = data.length - 1; i >= 0; i--){
+          if(data[i] != null && !isNaN(data[i])){ lastVal = data[i]; break; }
+        }
+        if(lastVal == null) return;
+
+        const y = scales.y.getPixelForValue(lastVal);
+        if(y < chartArea.top - 2 || y > chartArea.bottom + 2) return;
+
+        // Avoid overlap with already-drawn labels
+        const overlap = drawn.some(d => Math.abs(d - y) < 13);
+        if(overlap) return;
+        drawn.push(y);
+
+        const labelText = lastVal.toFixed(1);
+        const padX = 4;
+        const tw = ctx.measureText(labelText).width;
+        const w = tw + padX*2, h = 13;
+        const labelX = chartArea.right - w - 1;
+        const labelY = Math.max(chartArea.top, Math.min(chartArea.bottom - h, y - h/2));
+
+        // Background chip with dataset color
+        const bgColor = ds.borderColor || '#64748b';
+        ctx.fillStyle = bgColor;
+        const r = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(labelX + r, labelY);
+        ctx.lineTo(labelX + w - r, labelY);
+        ctx.quadraticCurveTo(labelX + w, labelY, labelX + w, labelY + r);
+        ctx.lineTo(labelX + w, labelY + h - r);
+        ctx.quadraticCurveTo(labelX + w, labelY + h, labelX + w - r, labelY + h);
+        ctx.lineTo(labelX + r, labelY + h);
+        ctx.quadraticCurveTo(labelX, labelY + h, labelX, labelY + h - r);
+        ctx.lineTo(labelX, labelY + r);
+        ctx.quadraticCurveTo(labelX, labelY, labelX + r, labelY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, labelX + padX, labelY + h/2);
+      });
+      ctx.restore();
+    }
+  };
+
+  if(typeof Chart !== 'undefined' && Chart.register){
+    try{ Chart.register(dotted20Plugin); }catch(e){}
+    try{ Chart.register(lastValueLabelsPlugin); }catch(e){}
+  }
+
+  /* ── Regime classifier ── */
+  function _adxRegime(adx){
+    if(adx == null || isNaN(adx)) return { txt:'—', bg:'#94a3b8', fg:'#fff' };
+    if(adx < 20)  return { txt:'RANGING',     bg:'#dcfce7', fg:'#15803d' };
+    if(adx < 25)  return { txt:'BUILDING',    bg:'#fef9c3', fg:'#92400e' };
+    if(adx < 40)  return { txt:'TRENDING',    bg:'#fee2e2', fg:'#b91c1c' };
+    return                { txt:'STRONG TREND', bg:'#fecaca', fg:'#991b1b' };
+  }
+
+  /* ── Chart instances ── */
+  let _tvChart = null, _dvolChart = null;
+
+  function _commonChartOpts(maxY){
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+      || (window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches
+          && document.documentElement.getAttribute('data-theme') !== 'light');
+    const tickColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.12)';
+    return {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        layout: { padding: { top: 4, right: 36, bottom: 0, left: 0 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', align: 'end',
+            labels: { boxWidth: 12, boxHeight: 2, font:{size:9, weight:'600'}, padding: 8,
+              color: tickColor
+            }
+          },
+          tooltip: {
+            displayColors: true,
+            backgroundColor: 'rgba(15,23,42,0.95)',
+            titleFont: { size: 10, weight: '700' },
+            bodyFont: { size: 10 },
+            padding: 8,
+            cornerRadius: 6,
+            callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(2):'—'}` }
+          }
+        },
+        scales: {
+          x: { display: false, grid: { display: false } },
+          y: {
+            min: 0, max: maxY || 60,
+            ticks: {
+              font: { size: 9 }, color: tickColor,
+              stepSize: 20,                     // exactly 0, 20, 40, 60
+              padding: 4,
+              callback: (v) => Number.isInteger(v) ? v : ''
+            },
+            grid: { color: gridColor, drawTicks: false },
+            border: { display: false }
+          }
+        }
+      }
+    };
+  }
+
+  /* ── TV (BTC) ADX renderer — TF-aware ── */
+  function renderTvAdx(){
+    const canvas = document.getElementById('tvAdxCanvas');
+    if(!canvas || typeof Chart === 'undefined') return;
+
+    // Resolve active TF based on currently selected TV tab
+    const { tvTf, label: tfLabel } = getActiveTvBtcTf();
+
+    // Update TF badge + source label
+    const tfBadge = document.getElementById('tvAdxTfBadge');
+    if(tfBadge) tfBadge.textContent = tfLabel;
+    const srcLbl = document.getElementById('tvAdxSourceLbl');
+    if(srcLbl){
+      const mode = _btcAdxTfOverride ? 'manual' : 'auto-sync';
+      srcLbl.textContent = `BTCUSDT · ${tfLabel} candles · ${mode}`;
+    }
+
+    // Determine which symbol to use based on the active tab
+    let symbol = 'BTCUSDT';
+    if(typeof TV_CHARTS !== 'undefined' && typeof _tvCurrentTab !== 'undefined'){
+      const cfg = TV_CHARTS[_tvCurrentTab];
+      if(cfg && cfg.symbol){
+        if(cfg.symbol === 'DERIBIT:DVOL'){
+          // DVOL tab — skip BTC ADX for this symbol
+          // Render placeholder
+          const valEl = document.getElementById('tvAdxVal');
+          if(valEl) valEl.textContent = 'N/A (DVOL)';
+          return;
+        }
+        if(cfg.symbol === 'CRYPTOCAP:BTC.D'){
+          // BTC.D — also skip (Binance doesn't have this)
+          const valEl = document.getElementById('tvAdxVal');
+          if(valEl) valEl.textContent = 'N/A (BTC.D)';
+          return;
+        }
+        if(cfg.symbol.includes('BTCUSDT')) symbol = 'BTCUSDT';
+      }
+    }
+
+    // Fetch candles at the active TF (cached, async). When fetch completes, auto-rerender.
+    const candles = getCandlesForTF(symbol, tvTf,
+      () => fetchBinanceKlines(symbol, tvTf, 100),
+      () => { try{ renderTvAdx(); }catch(e){} }
+    );
+
+    if(!candles || candles.length < 18){
+      const valEl = document.getElementById('tvAdxVal');
+      const reg = document.getElementById('tvAdxRegime');
+      const cacheEntry = _klineCache.get(_cacheKey(symbol, tvTf));
+      let msgVal, msgReg, regBg, regFg;
+      if(cacheEntry?.lastError){
+        msgVal = 'fetch failed';
+        msgReg = 'retry on next tick';
+        regBg = 'rgba(239,68,68,0.12)'; regFg = '#dc2626';
+      } else if(cacheEntry?.fetching){
+        msgVal = candles.length === 0 ? 'fetching…' : `fetching (${candles.length}/18)…`;
+        msgReg = 'loading…';
+        regBg = 'rgba(148,163,184,0.15)'; regFg = '#64748b';
+      } else {
+        msgVal = candles.length === 0 ? 'loading…' : `loading (${candles.length}/18)…`;
+        msgReg = 'loading…';
+        regBg = 'rgba(148,163,184,0.15)'; regFg = '#64748b';
+      }
+      if(valEl) valEl.textContent = msgVal;
+      if(reg){
+        reg.textContent = msgReg;
+        reg.style.background = regBg;
+        reg.style.color = regFg;
+      }
+      return;
+    }
+
+    const series = _buildAdxSeries(candles, 14);
+    if(!series) return;
+
+    const labels = series.adx.map((_, i) => i);
+    const lastAdx    = series.adx.filter(v => v != null).pop();
+    const lastPlusDI = series.plusDI.filter(v => v != null).pop();
+    const lastMinusDI= series.minusDI.filter(v => v != null).pop();
+
+    // Update header values
+    const valEl = document.getElementById('tvAdxVal');
+    const pdiEl = document.getElementById('tvAdxPlusDI');
+    const mdiEl = document.getElementById('tvAdxMinusDI');
+    const regEl = document.getElementById('tvAdxRegime');
+    if(valEl) valEl.textContent = lastAdx != null ? lastAdx.toFixed(2) : '—';
+    if(pdiEl) pdiEl.textContent = lastPlusDI != null ? lastPlusDI.toFixed(1) : '—';
+    if(mdiEl) mdiEl.textContent = lastMinusDI != null ? lastMinusDI.toFixed(1) : '—';
+    if(regEl){
+      const r = _adxRegime(lastAdx);
+      regEl.textContent = r.txt;
+      regEl.style.background = r.bg;
+      regEl.style.color = r.fg;
+    }
+
+    const datasets = [
+      { label:'ADX',  data: series.adx,    borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)', borderWidth:1.8, pointRadius:0, fill:false, tension:0.2, spanGaps:true },
+      { label:'+DI',  data: series.plusDI, borderColor:'#22c55e', borderWidth:1, pointRadius:0, fill:false, tension:0.2, spanGaps:true, hidden:false },
+      { label:'−DI',  data: series.minusDI,borderColor:'#3b82f6', borderWidth:1, pointRadius:0, fill:false, tension:0.2, spanGaps:true, hidden:false },
+    ];
+
+    // Dynamic y-max: round up to next 20 above the highest value (min 60)
+    const allVals = [...series.adx, ...series.plusDI, ...series.minusDI].filter(v => v != null);
+    const peak = allVals.length ? Math.max(...allVals) : 50;
+    const yMax = Math.max(60, Math.ceil((peak + 5) / 20) * 20);
+
+    if(_tvChart){
+      _tvChart.data.labels = labels;
+      _tvChart.data.datasets = datasets;
+      _tvChart.options.scales.y.max = yMax;
+      _tvChart.update('none');
+    } else {
+      const opts = _commonChartOpts(yMax);
+      opts.data.labels = labels;
+      opts.data.datasets = datasets;
+      _tvChart = new Chart(canvas, opts);
+    }
+  }
+
+  /* ── DVOL ADX renderer — TF-aware (uses DVOL chart's selected TF) ── */
+  function renderDvolAdx(){
+    const canvas = document.getElementById('dvolAdxCanvas');
+    if(!canvas) return;
+    if(typeof Chart === 'undefined') return;
+
+    const { tvTf, label: tfLabel } = getActiveDvolTf();
+
+    // Update TF badge + source label
+    const tfBadge = document.getElementById('dvolAdxTfBadge');
+    if(tfBadge) tfBadge.textContent = tfLabel;
+    const srcLbl = document.getElementById('dvolAdxSourceLbl');
+    if(srcLbl){
+      const mode = _dvolAdxTfOverride ? 'manual' : 'auto-sync';
+      srcLbl.textContent = `DVOL · ${tfLabel} candles · ${mode}`;
+    }
+
+    // Fetch candles at the active TF (cached, async). When fetch completes, auto-rerender.
+    const candles = getCandlesForTF('DERIBIT_DVOL', tvTf,
+      () => fetchDeribitDvolCandles(tvTf, 100),
+      () => { try{ renderDvolAdx(); }catch(e){} }
+    );
+
+    if(!candles || candles.length < 18){
+      const v1 = document.getElementById('dvolAdxVal');
+      const reg = document.getElementById('dvolAdxRegime');
+      // Check cache state for richer messaging
+      const cacheEntry = _klineCache.get(_cacheKey('DERIBIT_DVOL', tvTf));
+      let msgVal, msgReg, regBg, regFg;
+      if(cacheEntry?.lastError){
+        msgVal = 'fetch failed';
+        msgReg = 'retry on next tick';
+        regBg = 'rgba(239,68,68,0.12)'; regFg = '#dc2626';
+      } else if(cacheEntry?.fetching){
+        msgVal = candles.length === 0 ? 'fetching…' : `fetching (${candles.length}/18)…`;
+        msgReg = 'loading…';
+        regBg = 'rgba(148,163,184,0.15)'; regFg = '#64748b';
+      } else {
+        msgVal = candles.length === 0 ? 'loading…' : `loading (${candles.length}/18)…`;
+        msgReg = 'loading…';
+        regBg = 'rgba(148,163,184,0.15)'; regFg = '#64748b';
+      }
+      if(v1) v1.textContent = msgVal;
+      if(reg){
+        reg.textContent = msgReg;
+        reg.style.background = regBg;
+        reg.style.color = regFg;
+      }
+      return;
+    }
+
+    const series = _buildAdxSeries(candles, 14);
+    if(!series) return;
+
+    const labels = series.adx.map((_, i) => i);
+    const lastAdx = series.adx.filter(v => v != null).pop();
+    const regime = _adxRegime(lastAdx);
+
+    // Update header
+    const valEl = document.getElementById('dvolAdxVal');
+    const regEl = document.getElementById('dvolAdxRegime');
+    if(valEl) valEl.textContent = lastAdx != null ? lastAdx.toFixed(2) : '—';
+    if(regEl){
+      regEl.textContent = regime.txt;
+      regEl.style.background = regime.bg;
+      regEl.style.color = regime.fg;
+    }
+
+    const datasets = [
+      { label:'DVOL ADX', data: series.adx, borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,0.08)', borderWidth:1.8, pointRadius:0, fill:true, tension:0.2, spanGaps:true },
+    ];
+
+    const adxVals = series.adx.filter(v => v != null);
+    const peak = adxVals.length ? Math.max(...adxVals) : 50;
+    const yMax = Math.max(60, Math.ceil((peak + 5) / 20) * 20);
+
+    if(_dvolChart){
+      _dvolChart.data.labels = labels;
+      _dvolChart.data.datasets = datasets;
+      _dvolChart.options.scales.y.max = yMax;
+      _dvolChart.update('none');
+    } else {
+      const opts = _commonChartOpts(yMax);
+      opts.data.labels = labels;
+      opts.data.datasets = datasets;
+      _dvolChart = new Chart(canvas, opts);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     IV PERCENTILE — HV-based percentile rank with dynamic timeframe
+     Replicates Pine Script logic from user's IVP indicator.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* Settings */
+  let _ivpTfOverride = null;       // null = auto-follow BTC ADX TF
+  let _ivpLookback   = 252;        // bars in rolling window
+  let _ivpHvLength   = 30;         // bars for HV calc
+  let _tvIvpChart    = null;
+
+  /* Compute Historical Volatility (annualized %) over the last N closes.
+     HV = stdev(log returns) × √252 × 100 */
+  function _computeHV(closes, length){
+    if(!Array.isArray(closes) || closes.length < length + 1) return null;
+    const slice = closes.slice(-length - 1);
+    const returns = [];
+    for(let i = 1; i < slice.length; i++){
+      if(slice[i-1] > 0 && slice[i] > 0){
+        returns.push(Math.log(slice[i] / slice[i-1]));
+      }
+    }
+    if(returns.length < 2) return null;
+    const mean = returns.reduce((a,b)=>a+b,0) / returns.length;
+    const variance = returns.reduce((a,b)=>a + (b-mean)*(b-mean), 0) / (returns.length - 1);
+    const stdev = Math.sqrt(variance);
+    return stdev * Math.sqrt(252) * 100;
+  }
+
+  /* Compute IV Percentile series: for each bar i (where we have enough history),
+     compute HV(length) ending at bar i, then percentile rank within the trailing
+     'lookback' window. Returns { hv:[...], ivp:[...] } aligned to candles. */
+  function _buildIvpSeries(candles, hvLen, lookback){
+    const closes = candles.map(c => c.c);
+    const n = closes.length;
+    const hv = new Array(n).fill(null);
+    const ivp = new Array(n).fill(null);
+
+    // Compute HV at every bar where there's enough history
+    for(let i = hvLen; i < n; i++){
+      const window = closes.slice(i - hvLen, i + 1);
+      hv[i] = _computeHV(window, hvLen);
+    }
+
+    // Compute IVP: percentile of current HV within trailing lookback HVs
+    for(let i = 0; i < n; i++){
+      if(hv[i] == null) continue;
+      // Build a trailing window of HV values up to and including i
+      const start = Math.max(0, i - lookback + 1);
+      const winHV = [];
+      for(let j = start; j <= i; j++){
+        if(hv[j] != null) winHV.push(hv[j]);
+      }
+      if(winHV.length < 10) continue; // need at least 10 points (matches Pine logic)
+      const cur = hv[i];
+      const below = winHV.filter(v => v < cur).length;
+      ivp[i] = (below / winHV.length) * 100;
+    }
+    return { hv, ivp };
+  }
+
+  /* Custom plugin: draws horizontal reference lines at 20/30/50/70/80
+     and shades the background by zone */
+  const ivpZonesPlugin = {
+    id: 'ivpZones',
+    beforeDatasetsDraw(chart){
+      if(!chart.config?.options?.plugins?.ivpZones) return;
+      const {ctx, chartArea, scales} = chart;
+      if(!scales.y || !chartArea) return;
+      const lvl = (v) => scales.y.getPixelForValue(v);
+
+      // Background zones
+      ctx.save();
+      // High IV zone (>80)
+      const y80 = Math.max(chartArea.top, lvl(80));
+      if(y80 < chartArea.bottom){
+        ctx.fillStyle = 'rgba(239,68,68,0.07)';
+        ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, y80 - chartArea.top);
+      }
+      // Low IV zone (<20)
+      const y20 = Math.min(chartArea.bottom, lvl(20));
+      if(y20 > chartArea.top){
+        ctx.fillStyle = 'rgba(34,197,94,0.07)';
+        ctx.fillRect(chartArea.left, y20, chartArea.right - chartArea.left, chartArea.bottom - y20);
+      }
+      ctx.restore();
+    },
+    afterDatasetsDraw(chart){
+      if(!chart.config?.options?.plugins?.ivpZones) return;
+      const {ctx, chartArea, scales} = chart;
+      if(!scales.y || !chartArea) return;
+
+      const refs = [
+        { y:80, color:'rgba(239,68,68,0.85)',  label:'80', style:[5,4] },
+        { y:70, color:'rgba(249,115,22,0.7)',  label:'70', style:[2,3] },
+        { y:50, color:'rgba(148,163,184,0.6)', label:'50', style:[]    },
+        { y:30, color:'rgba(249,115,22,0.7)',  label:'30', style:[2,3] },
+        { y:20, color:'rgba(34,197,94,0.85)',  label:'20', style:[5,4] },
+      ];
+
+      ctx.save();
+      ctx.font = 'bold 9px -apple-system, system-ui, sans-serif';
+      refs.forEach(({y, color, label, style}) => {
+        const py = scales.y.getPixelForValue(y);
+        if(py < chartArea.top || py > chartArea.bottom) return;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.1;
+        ctx.setLineDash(style);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, py);
+        ctx.lineTo(chartArea.right, py);
+        ctx.stroke();
+        // Left-side label chip
+        ctx.setLineDash([]);
+        const padX = 4;
+        const tw = ctx.measureText(label).width;
+        const w = tw + padX*2, h = 13;
+        const lx = chartArea.left + 2;
+        const ly = py - 7;
+        ctx.fillStyle = color.replace(/[\d.]+\)$/, '0.95)');
+        const r = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(lx + r, ly);
+        ctx.lineTo(lx + w - r, ly);
+        ctx.quadraticCurveTo(lx + w, ly, lx + w, ly + r);
+        ctx.lineTo(lx + w, ly + h - r);
+        ctx.quadraticCurveTo(lx + w, ly + h, lx + w - r, ly + h);
+        ctx.lineTo(lx + r, ly + h);
+        ctx.quadraticCurveTo(lx, ly + h, lx, ly + h - r);
+        ctx.lineTo(lx, ly + r);
+        ctx.quadraticCurveTo(lx, ly, lx + r, ly);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, lx + padX, ly + h/2);
+      });
+      ctx.restore();
+    }
+  };
+  if(typeof Chart !== 'undefined' && Chart.register){
+    try{ Chart.register(ivpZonesPlugin); }catch(e){}
+  }
+
+  /* Signal classifier */
+  function _ivpSignal(ivp){
+    if(ivp == null || isNaN(ivp)) return { txt:'—', bg:'rgba(148,163,184,0.15)', fg:'#64748b' };
+    if(ivp >= 80) return { txt:'SELL PREMIUM', bg:'#fee2e2', fg:'#991b1b' };
+    if(ivp >= 70) return { txt:'HIGH IV',      bg:'#fef3c7', fg:'#b45309' };
+    if(ivp <= 20) return { txt:'BUY PREMIUM',  bg:'#dcfce7', fg:'#166534' };
+    if(ivp <= 30) return { txt:'LOW IV',       bg:'#fef9c3', fg:'#854d0e' };
+    return                { txt:'NEUTRAL',     bg:'rgba(148,163,184,0.15)', fg:'#475569' };
+  }
+
+  function getActiveIvpTf(){
+    if(_ivpTfOverride){
+      return { tvTf: _ivpTfOverride, label: TV_TO_LABEL[_ivpTfOverride] || _ivpTfOverride };
+    }
+    return getActiveTvBtcTf(); // auto-sync to BTC ADX
+  }
+
+  /* Main renderer */
+  function renderTvIvp(){
+    const canvas = document.getElementById('tvIvpCanvas');
+    if(!canvas || typeof Chart === 'undefined') return;
+
+    const { tvTf, label: tfLabel } = getActiveIvpTf();
+
+    // Update header
+    const tfBadge = document.getElementById('tvIvpTfBadge');
+    if(tfBadge) tfBadge.textContent = tfLabel;
+    const hvLenSpan = document.getElementById('tvIvpHvLen');
+    if(hvLenSpan) hvLenSpan.textContent = String(_ivpHvLength);
+    const srcLbl = document.getElementById('tvIvpSourceLbl');
+    if(srcLbl){
+      const mode = _ivpTfOverride ? 'manual' : 'auto-sync';
+      srcLbl.textContent = `HV(${_ivpHvLength}) percentile · ${_ivpLookback}-bar · ${tfLabel} · ${mode}`;
+    }
+
+    // Determine BTC symbol from active TV tab (skip non-BTC tabs)
+    let symbol = 'BTCUSDT';
+    if(typeof TV_CHARTS !== 'undefined' && typeof _tvCurrentTab !== 'undefined'){
+      const cfg = TV_CHARTS[_tvCurrentTab];
+      if(cfg && cfg.symbol){
+        if(cfg.symbol === 'DERIBIT:DVOL' || cfg.symbol === 'CRYPTOCAP:BTC.D'){
+          const v = document.getElementById('tvIvpVal');
+          if(v) v.textContent = `N/A (${cfg.symbol.split(':')[1]})`;
+          return;
+        }
+      }
+    }
+
+    // We need lookback + hvLen + buffer bars to fully populate IVP.
+    // Cap fetch at 500 (Binance limit) — that's still ~250 daily bars or ~83 4H bars.
+    const want = Math.min(500, _ivpLookback + _ivpHvLength + 5);
+
+    const candles = getCandlesForTF(symbol, tvTf,
+      () => fetchBinanceKlines(symbol, tvTf, want),
+      () => { try{ renderTvIvp(); }catch(e){} }
+    );
+
+    if(!candles || candles.length < _ivpHvLength + 10){
+      const v = document.getElementById('tvIvpVal');
+      const hvVal = document.getElementById('tvIvpHvVal');
+      const sig = document.getElementById('tvIvpSignal');
+      const cacheEntry = _klineCache.get(_cacheKey(symbol, tvTf));
+      let txt;
+      if(cacheEntry?.lastError){ txt = 'fetch failed'; }
+      else if(cacheEntry?.fetching){ txt = candles.length === 0 ? 'fetching…' : `fetching (${candles.length})…`; }
+      else { txt = candles.length === 0 ? 'loading…' : `loading (${candles.length})…`; }
+      if(v) v.textContent = txt;
+      if(hvVal) hvVal.textContent = '—';
+      if(sig){ sig.textContent = '—'; sig.style.background = 'rgba(148,163,184,0.15)'; sig.style.color = '#64748b'; }
+      return;
+    }
+
+    const { hv, ivp } = _buildIvpSeries(candles, _ivpHvLength, _ivpLookback);
+
+    const lastIvp = ivp.filter(v => v != null).pop();
+    const lastHv  = hv.filter(v => v != null).pop();
+    const sig = _ivpSignal(lastIvp);
+
+    // Update header
+    const v = document.getElementById('tvIvpVal');
+    const hvVal = document.getElementById('tvIvpHvVal');
+    const sigEl = document.getElementById('tvIvpSignal');
+    if(v) v.textContent = lastIvp != null ? lastIvp.toFixed(1) + '%' : '—';
+    if(hvVal) hvVal.textContent = lastHv != null ? lastHv.toFixed(2) : '—';
+    if(sigEl){
+      sigEl.textContent = sig.txt;
+      sigEl.style.background = sig.bg;
+      sigEl.style.color = sig.fg;
+    }
+
+    // Trim leading nulls so chart starts where we have data
+    const firstValidIdx = ivp.findIndex(v => v != null);
+    const start = firstValidIdx >= 0 ? firstValidIdx : 0;
+    const ivpTrimmed = ivp.slice(start);
+    const labels = ivpTrimmed.map((_, i) => i);
+
+    // Color the line by current zone
+    const lineColor = lastIvp == null ? '#64748b'
+      : lastIvp >= 80 ? '#dc2626'
+      : lastIvp >= 70 ? '#f97316'
+      : lastIvp <= 20 ? '#16a34a'
+      : lastIvp <= 30 ? '#84cc16'
+      : '#2563eb';
+
+    const datasets = [
+      { label:'IV Percentile', data: ivpTrimmed, borderColor: lineColor, backgroundColor:'rgba(37,99,235,0.06)', borderWidth:1.8, pointRadius:0, fill:true, tension:0.2, spanGaps:true },
+    ];
+
+    // Build chart options with IVP-specific Y axis (0-100) and our custom plugin enabled
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+      || (window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches
+          && document.documentElement.getAttribute('data-theme') !== 'light');
+    const tickColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.12)';
+
+    if(_tvIvpChart){
+      _tvIvpChart.data.labels = datasets[0].data.map((_,i)=>i);
+      _tvIvpChart.data.datasets = datasets;
+      _tvIvpChart.update('none');
+    } else {
+      _tvIvpChart = new Chart(canvas, {
+        type:'line',
+        data: { labels: datasets[0].data.map((_,i)=>i), datasets },
+        options: {
+          responsive:true, maintainAspectRatio:false, animation:false,
+          layout:{ padding:{ top:4, right:36, bottom:0, left:0 } },
+          interaction:{ mode:'index', intersect:false },
+          plugins:{
+            legend:{ display:false },
+            tooltip:{
+              displayColors:false,
+              backgroundColor:'rgba(15,23,42,0.95)',
+              titleFont:{size:10,weight:'700'}, bodyFont:{size:10},
+              padding:8, cornerRadius:6,
+              callbacks:{
+                title:()=>'',
+                label:(ctx)=> `IVP: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(2):'—'}%`
+              }
+            },
+            ivpZones: true,           // enable our zone+threshold plugin
+            dotted20Line: false,      // disable the ADX 20-line plugin for this chart
+            lastValueLabels: true,    // show last-value chip on right
+          },
+          scales:{
+            x:{ display:false, grid:{ display:false } },
+            y:{
+              min:0, max:100,
+              ticks:{ font:{size:9}, color:tickColor, stepSize:25, padding:4,
+                callback:(v)=> Number.isInteger(v) ? v : '' },
+              grid:{ color:gridColor, drawTicks:false },
+              border:{ display:false }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  /* Public setters for dropdowns */
+  window._brmSetIvpTf = function(tf){
+    _ivpTfOverride = (tf === 'auto') ? null : tf;
+    // Clear chart so user doesn't see stale candles while fetching
+    if(_tvIvpChart){
+      _tvIvpChart.data.labels = [];
+      _tvIvpChart.data.datasets.forEach(ds => ds.data = []);
+      _tvIvpChart.update('none');
+    }
+    const v = document.getElementById('tvIvpVal');
+    if(v) v.textContent = '—';
+    try{ renderTvIvp(); }catch(e){}
+    setTimeout(()=>{ try{ renderTvIvp(); }catch(e){} }, 1500);
+    setTimeout(()=>{ try{ renderTvIvp(); }catch(e){} }, 4000);
+  };
+  window._brmSetIvpLookback = function(n){
+    if(!Number.isFinite(n) || n < 10 || n > 1000) return;
+    _ivpLookback = n;
+    try{ renderTvIvp(); }catch(e){}
+  };
+  window._brmSetIvpHvLen = function(n){
+    if(!Number.isFinite(n) || n < 5 || n > 200) return;
+    _ivpHvLength = n;
+    try{ renderTvIvp(); }catch(e){}
+  };
+
+  function tick(){
+    try{ renderTvAdx(); }catch(e){ console.warn('[ADX-TV]', e.message); }
+    try{ renderTvIvp(); }catch(e){ console.warn('[IVP-TV]', e.message); }
+    try{ renderDvolAdx(); }catch(e){ console.warn('[ADX-DVOL]', e.message); }
+  }
+
+  // Expose for external triggers (TV tab switch, DVOL TF switch)
+  window._brmRefreshAdx = tick;
+
+  // Initialize button UI (default: both panes start in 'auto' mode)
+  setTimeout(() => {
+    try{ _updateAdxTfBtnUI('btc'); }catch(e){}
+    try{ _updateAdxTfBtnUI('dvol'); }catch(e){}
+  }, 500);
+
+  // First render after DOM + data have had a chance to populate
+  setTimeout(tick, 2500);
+  // Refresh every 5 seconds (live data)
+  setInterval(tick, 5000);
+
+  console.log('[real-adx] ADX(14) sub-panes initialized · dotted 20-threshold active');
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     🎯 GROUPED PANEL REORDER + RANK BADGES (added 2026-04-26)
+     Groups every panel inside .desk into 5 named sections by importance
+     for a SHORT STRANGLE seller's workflow:
+       1. Market Environment   — what is BTC doing right now?
+       2. IV Environment       — is the premium rich/cheap and stable?
+       3. Theta Environment    — am I being paid enough decay vs my risk?
+       4. Market Participant   — what are dealers / flows / news doing?
+       5. Simulation           — plan / sim / execute the trade
+     Adds a numbered rank badge at the top-right corner of every panel
+     showing its short-strangle importance rank (1 = most important).
+     Supersedes the older flat panelReorder() above.
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Group section heading ── */
+.brm-group{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:18px 0 10px 0;
+  padding:10px 14px;
+  border-radius:11px;
+  background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(59,130,246,0.06));
+  border:1px solid rgba(124,58,237,0.22);
+  position:relative;
+}
+.brm-group::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  border-radius:11px 0 0 11px;
+  background:var(--brm-grp-accent,#7c3aed);
+}
+.brm-group-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:30px;height:30px;padding:0 9px;
+  border-radius:8px;
+  font-size:14px;font-weight:900;
+  color:#fff;
+  background:var(--brm-grp-accent,#7c3aed);
+  letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+  box-shadow:0 2px 6px rgba(0,0,0,0.18);
+}
+.brm-group-title{
+  font-size:14px;font-weight:900;color:var(--color-text-primary);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.brm-group-sub{
+  font-size:10px;font-weight:600;color:var(--color-text-secondary);
+  letter-spacing:.04em;
+}
+.brm-group-spacer{flex:1}
+.brm-group-count{
+  font-size:9px;font-weight:700;letter-spacing:.06em;
+  padding:3px 8px;border-radius:5px;
+  background:rgba(124,58,237,0.14);color:#7c3aed;
+  text-transform:uppercase;
+  border:0.5px solid rgba(124,58,237,0.28);
+}
+
+/* Per-group accent colors */
+.brm-group[data-grp="1"]{--brm-grp-accent:#3b82f6}      /* Market    — blue   */
+.brm-group[data-grp="1"] .brm-group-count{background:rgba(59,130,246,0.14);color:#3b82f6;border-color:rgba(59,130,246,0.28)}
+.brm-group[data-grp="2"]{--brm-grp-accent:#7c3aed}      /* IV        — purple */
+.brm-group[data-grp="2"] .brm-group-count{background:rgba(124,58,237,0.14);color:#7c3aed;border-color:rgba(124,58,237,0.28)}
+.brm-group[data-grp="3"]{--brm-grp-accent:#10b981}      /* Theta     — green  */
+.brm-group[data-grp="3"] .brm-group-count{background:rgba(16,185,129,0.14);color:#10b981;border-color:rgba(16,185,129,0.28)}
+.brm-group[data-grp="4"]{--brm-grp-accent:#f59e0b}      /* Particip. — amber  */
+.brm-group[data-grp="4"] .brm-group-count{background:rgba(245,158,11,0.16);color:#b45309;border-color:rgba(245,158,11,0.32)}
+.brm-group[data-grp="5"]{--brm-grp-accent:#ef4444}      /* Simulation— red    */
+.brm-group[data-grp="5"] .brm-group-count{background:rgba(239,68,68,0.14);color:#ef4444;border-color:rgba(239,68,68,0.28)}
+
+/* ── Panel rank badge (top-right corner of every panel) ── */
+.brm-ranked{position:relative}
+.brm-rank-badge{
+  position:absolute;
+  top:8px;right:10px;
+  z-index:5;
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;
+  border-radius:7px;
+  font-size:10px;font-weight:900;
+  letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+  background:var(--brm-rank-bg,linear-gradient(135deg,#7c3aed,#3b82f6));
+  color:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,0.22);
+  border:0.5px solid rgba(255,255,255,0.18);
+  pointer-events:none;
+  user-select:none;
+  white-space:nowrap;
+}
+.brm-rank-badge .brm-rank-num{
+  font-size:11px;font-weight:900;line-height:1;
+}
+.brm-rank-badge .brm-rank-grp{
+  font-size:8px;font-weight:700;opacity:0.92;line-height:1;
+  padding-left:5px;margin-left:1px;
+  border-left:1px solid rgba(255,255,255,0.35);
+}
+
+/* Top-3 ranks get a glow to draw the eye */
+.brm-rank-badge.brm-top1{
+  background:linear-gradient(135deg,#dc2626,#ef4444);
+  box-shadow:0 0 0 2px rgba(239,68,68,0.25),0 2px 8px rgba(220,38,38,0.45);
+}
+.brm-rank-badge.brm-top2{
+  background:linear-gradient(135deg,#ea580c,#f59e0b);
+  box-shadow:0 0 0 2px rgba(245,158,11,0.22),0 2px 8px rgba(234,88,12,0.40);
+}
+.brm-rank-badge.brm-top3{
+  background:linear-gradient(135deg,#7c3aed,#3b82f6);
+  box-shadow:0 0 0 2px rgba(124,58,237,0.22),0 2px 8px rgba(124,58,237,0.40);
+}
+
+/* When the panel itself has internal absolutely-positioned content
+   we still want the badge to sit above it. */
+.brm-ranked > .brm-rank-badge{z-index:50}
+
+@media(max-width:600px){
+  .brm-group{padding:8px 11px;margin:14px 0 8px 0}
+  .brm-group-title{font-size:12px}
+  .brm-group-num{min-width:26px;height:26px;font-size:12px}
+  .brm-rank-badge{top:6px;right:7px;padding:2px 6px;font-size:9px}
+  .brm-rank-badge .brm-rank-num{font-size:10px}
+}
+</style>
+<script>
+(function brmGroupedReorder(){
+  'use strict';
+
+  /* ─────────────────────────────────────────────────────────────────
+     GROUP DEFINITIONS — each group has:
+       • num/title/subtitle for the visible heading
+       • panels[]: ordered list of {id, name} pairs.
+         Order inside the array = local rank within the group.
+     Global rank (#1, #2, ...) is computed by flattening all groups
+     in order. So group 1 panel 1 = global #1, group 1 panel 2 = #2,
+     group 2 panel 1 = the next number after group 1 ends, etc.
+
+     IMPORTANCE LOGIC for SHORT STRANGLE (high → low):
+     1. Market Environment first — if BTC is in a violent regime
+        nothing else matters; you don't sell strangles into chaos.
+     2. IV Environment — once tape is calm, check IV richness. This
+        is your core edge. Without rich IV there's no reason to be
+        short vol.
+     3. Theta Environment — confirm the Greeks pay you enough income
+        relative to the gamma/vega risk you're taking on.
+     4. Market Participant — dealer GEX, skew, news, funding. These
+        modulate size & strike selection but rarely flip the trade.
+     5. Simulation — finally, plan and execute. Comes last because
+        you should only open the planner once the first 4 say GO.
+     ───────────────────────────────────────────────────────────── */
+  const GROUPS = [
+    {
+      num: 1,
+      title: 'Market Environment',
+      subtitle: 'Is BTC tradeable right now? (regime · structure · big moves)',
+      panels: [
+        { id:'mpoPanel',     name:'Market Pattern Observer' },
+        { id:'amdPanel',     name:'AMD + Market Behaviour' },
+        { id:'btcMovePanel', name:'BTC Big Move Radar' },
+        { id:'tvPanel',      name:'TradingView Live Analysis' },
+      ]
+    },
+    {
+      num: 2,
+      title: 'IV Environment',
+      subtitle: 'Is the premium rich enough? (IV · IVR · VoV · DVOL)',
+      panels: [
+        { id:'vapPanel',       name:'IV·RV·HV Vol Analytics' },
+        { id:'rvivPanel',      name:'RV vs IV Live Graph' },
+        { id:'vov2Panel',      name:'VoV Stability Map' },
+        { id:'dvolLiveBlock',  name:'DVOL Live + DVOL MPO' },
+        { id:'relPanel',       name:'DVOL × Pattern Relationship' },
+        { id:'straddleIVWindow', name:'ATM Straddle vs IV Window' },
+        { id:'liveIVWindow',   name:'Live IV Compact Window' },
+        { id:'ivRecorderWin',  name:'Friday/Monday IV Recorder' },
+      ]
+    },
+    {
+      num: 3,
+      title: 'Theta Environment',
+      subtitle: 'Am I paid enough decay? (Greeks · countdown · seller edge)',
+      panels: [
+        { id:'sdePanel',  name:'Strangle Decision Edge' },
+        { id:'gcdPanel',  name:'Greek Countdown to Expiry' },
+      ]
+    },
+    {
+      num: 4,
+      title: 'Market Participant',
+      subtitle: 'Dealers · skew · funding · news (size/strike modifiers)',
+      panels: [
+        { id:'pvsPanel',    name:'Pro-Vol Suite (GEX · Max Pain · Skew)' },
+        { id:'vsgPanel',    name:'Vol-Sell Gaps Suite' },
+        { id:'mcFeedWrap',  name:'India + Crypto News Feed' },
+      ]
+    },
+    {
+      num: 5,
+      title: 'Simulation',
+      subtitle: 'Plan · simulate · execute the strangle',
+      panels: [
+        { id:'sdpWrap',       name:'Synthesis Decision Panel' },
+        { id:'plannerPanel',  name:'Strategy Planner' },
+        { id:'simDesk',       name:'Short Strangle Sim Desk' },
+      ]
+    },
+  ];
+
+  // ── Build a flat global-rank lookup: panelId → {rank, group, name} ──
+  function buildRankMap(){
+    const map = new Map();
+    let rank = 1;
+    GROUPS.forEach(g => {
+      g.panels.forEach(p => {
+        map.set(p.id, { rank, groupNum: g.num, groupTitle: g.title, name: p.name });
+        rank++;
+      });
+    });
+    return map;
+  }
+
+  // ── Create one section heading element ──
+  function makeGroupHeading(g, foundCount, totalCount){
+    const h = document.createElement('div');
+    h.className = 'brm-group';
+    h.dataset.grp = String(g.num);
+    h.id = 'brmGroup_' + g.num;
+    h.innerHTML = `
+      <span class="brm-group-num">${g.num}</span>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <span class="brm-group-title">${g.title}</span>
+        <span class="brm-group-sub">${g.subtitle}</span>
+      </div>
+      <span class="brm-group-spacer"></span>
+      <span class="brm-group-count">${foundCount}/${totalCount} panels</span>
+    `;
+    return h;
+  }
+
+  // ── Add or refresh the rank badge on a panel ──
+  function applyRankBadge(el, info){
+    if(!el) return;
+    el.classList.add('brm-ranked');
+    // Remove any prior badge so re-runs don't stack them
+    const prior = el.querySelector(':scope > .brm-rank-badge');
+    if(prior) prior.remove();
+
+    const badge = document.createElement('div');
+    badge.className = 'brm-rank-badge';
+    if(info.rank === 1) badge.classList.add('brm-top1');
+    else if(info.rank === 2) badge.classList.add('brm-top2');
+    else if(info.rank === 3) badge.classList.add('brm-top3');
+    badge.title = `Short-strangle importance rank #${info.rank} · ${info.groupTitle} · ${info.name}`;
+    badge.innerHTML = `
+      <span class="brm-rank-num">#${info.rank}</span>
+      <span class="brm-rank-grp">G${info.groupNum}</span>
+    `;
+    // Ensure the host element can position the badge absolutely
+    const cs = getComputedStyle(el);
+    if(cs.position === 'static') el.style.position = 'relative';
+    el.appendChild(badge);
+  }
+
+  // ── Main reorder + grouping pass ──
+  function reorder(){
+    const desk = document.querySelector('.desk');
+    if(!desk){ console.warn('[brm-grouped] .desk not found'); return; }
+
+    const rankMap = buildRankMap();
+
+    // 1. Strip any prior group headings from a previous run so this is idempotent.
+    desk.querySelectorAll(':scope > .brm-group').forEach(n => n.remove());
+
+    // 2. For each group, append heading then move each found panel after it.
+    GROUPS.forEach(g => {
+      const found = g.panels.filter(p => document.getElementById(p.id));
+      const heading = makeGroupHeading(g, found.length, g.panels.length);
+      desk.appendChild(heading);
+
+      g.panels.forEach(p => {
+        const el = document.getElementById(p.id);
+        if(!el) return;
+        // Move into .desk if it was nested elsewhere, then to end of .desk
+        // (which, after our append above, is right after the heading + any
+        // prior panels we already moved this pass).
+        desk.appendChild(el);
+      });
+    });
+
+    // 3. Apply rank badges to every panel that has a known rank, even if
+    //    it lives outside .desk (e.g. inside a wrapper). This way the user
+    //    sees the rank no matter where the panel ends up.
+    let badged = 0, missing = [];
+    rankMap.forEach((info, id) => {
+      const el = document.getElementById(id);
+      if(!el){ missing.push(id); return; }
+      applyRankBadge(el, info);
+      badged++;
+    });
+
+    console.log(`[brm-grouped] Grouped reorder complete · ${badged}/${rankMap.size} panels ranked`
+      + (missing.length ? ` · missing: ${missing.join(', ')}` : ''));
+  }
+
+  // Re-apply on theme toggle / late-mounting panels
+  function scheduleReorder(){
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', () => setTimeout(reorder, 150));
+    } else {
+      setTimeout(reorder, 150);
+    }
+    // Catch panels that mount late (some panels build themselves after
+    // websocket data arrives). Re-run a few times then stop.
+    setTimeout(reorder, 1500);
+    setTimeout(reorder, 4000);
+    setTimeout(reorder, 9000);
+  }
+
+  scheduleReorder();
+
+  // Expose for manual re-trigger from console (debugging convenience)
+  window._brmRegroup = reorder;
+})();
+</script>
+
+
+
+<!-- ── BRAHMASTRA Live-WS Patch (auto-injected) ── -->
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BRAHMASTRA — WebSocket-Live Patch v1.0
+   ──────────────────────────────────────────────────────────────────────────
+   Replaces every Math.random() / random-walk fallback for live values with
+   real WebSocket / REST data only. After this loads:
+
+     • state.btcBase / btcSpotLive / btcMarkLive  — Binance WS only
+     • state.dvolBase                             — Deribit WS only
+     • state.hv30                                 — computed from Binance klines
+     • state.ivHistory[i]                         — Deribit ATM-ticker WS only
+     • state.vovHistory                           — REAL VoV: rolling stdev of
+                                                    DVOL log-returns (no random)
+     • state.oiData                               — Deribit book_summary REST
+     • vapState.zScoreWindow                      — pure live IV (no jitter)
+
+   When a feed is down, values are LEFT FROZEN at their last real reading
+   instead of drifting on noise. UI badges already say "API offline" in those
+   cases — so users see honest staleness instead of fake motion.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function brahmastraLivePatch(){
+  'use strict';
+  if(window.__brahmastraLivePatchInstalled){ return; }
+  window.__brahmastraLivePatchInstalled = true;
+
+  const log = (...a)=>console.log('[ws-live-patch]', ...a);
+  log('installing real-data-only overrides');
+
+  // ── 0. Wait for the dashboard's `state` object to exist ───────────────
+  function whenReady(fn){
+    if(typeof window.state !== 'undefined' && window.state && Array.isArray(window.state.ivHistory)){
+      fn();
+    } else {
+      setTimeout(()=>whenReady(fn), 200);
+    }
+  }
+
+  whenReady(()=>{
+    const state = window.state;
+    const EXPIRIES = window.EXPIRIES || [];
+
+    /* ── 1. Real VoV: rolling stdev of DVOL log-returns ──────────────────
+       True "volatility of volatility" = how jumpy the DVOL feed itself is.
+       We sample DVOL once a minute and keep the last 30 samples (≈30 min).
+       VoV = stdev(log-returns) × sqrt(525600) × 100   (annualised %).      */
+    const _dvolSamples = [];                   // {ts, dvol}
+    const VOV_WINDOW   = 30;                   // samples
+    const VOV_SAMPLE_MS = 60_000;              // 1 minute
+
+    function computeRealVoV(){
+      if(_dvolSamples.length < 4) return null;
+      const rets = [];
+      for(let i=1; i<_dvolSamples.length; i++){
+        const a = _dvolSamples[i-1].dvol, b = _dvolSamples[i].dvol;
+        if(a > 0 && b > 0) rets.push(Math.log(b/a));
+      }
+      if(rets.length < 3) return null;
+      const mean = rets.reduce((s,x)=>s+x,0) / rets.length;
+      const varc = rets.reduce((s,x)=>s+(x-mean)*(x-mean),0) / (rets.length-1);
+      const stdev = Math.sqrt(varc);
+      // annualise: 525600 minutes per year
+      const annualPct = stdev * Math.sqrt(525600) * 100;
+      return parseFloat(annualPct.toFixed(2));
+    }
+
+    function sampleDVOL(){
+      const dvol = state.dvolBase;
+      if(typeof dvol !== 'number' || dvol <= 0) return;
+      _dvolSamples.push({ts: Date.now(), dvol});
+      if(_dvolSamples.length > VOV_WINDOW) _dvolSamples.shift();
+      const vov = computeRealVoV();
+      if(vov !== null && isFinite(vov)){
+        state.vovHistory.push(vov);
+        if(state.vovHistory.length > 80) state.vovHistory.shift();
+      }
+    }
+    setInterval(sampleDVOL, VOV_SAMPLE_MS);
+
+    /* ── 2. Override simulate() — pure pass-through, no random walk ──────
+       Original behaviour:
+         • If no spot from Delta, did rnd(-200,200) on btcBase
+         • If DVOL feed stale > 60s, did rnd(-0.35,0.35) on dvolBase
+         • If HV30 not yet computed, did rnd(-0.07,0.07)
+         • Per-expiry IV: random walk + occasional "spike"
+         • VoV: random walk + spike
+       New behaviour: only push values that came from real feeds. If a feed
+       is silent, leave the last value frozen and rely on the UI's stale-feed
+       badges to communicate that.                                          */
+    if(typeof window.simulate === 'function'){
+      window._origSimulate = window.simulate;   // keep reference for debugging
+    }
+    window.simulate = function liveOnlySimulate(spotFromDelta, ivLiveFetched){
+      // Update prev/base from real spot only
+      state.btcPrev = state.btcBase;
+      if(spotFromDelta && spotFromDelta > 10000){
+        state.btcBase = spotFromDelta;
+      } else if(state.btcSpotLive && state.btcSpotLive > 10000){
+        state.btcBase = state.btcSpotLive;
+      }
+      // No drift on dvolBase or hv30 — they update only when their WS/calc fires.
+
+      // Per-expiry IV: only persist if we have a real value from WS.
+      // The Deribit ATM-ticker handler (line ~18598 of the dashboard) already
+      // pushes into state.ivHistory[i] on every tick. Here we just trim and
+      // touch the session H/L; we never invent new points.
+      EXPIRIES.forEach((ex, i) => {
+        if(!state.ivHistory[i]) state.ivHistory[i] = [];
+        if(ex.expired){
+          // For expired expiries, freeze at last value (no synthetic push)
+          return;
+        }
+        if(state.ivHistory[i].length > 80) state.ivHistory[i].shift();
+        const last = state.ivHistory[i].at(-1);
+        if(typeof last === 'number' && isFinite(last)){
+          state.ivSessionHigh[i] = Math.max(state.ivSessionHigh[i] || last, last);
+          state.ivSessionLow[i]  = Math.min(state.ivSessionLow[i]  || last, last);
+        }
+      });
+
+      // BTC history — push ONLY if we have a real spot. No timestamp-only rows.
+      if(state.btcSpotLive && state.btcSpotLive > 10000){
+        const ts = new Date().toLocaleTimeString('en-IN',
+          {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        const lastEntry = state.btcHistory.at(-1);
+        // De-duplicate same-second pushes
+        if(!lastEntry || lastEntry.t !== ts){
+          state.btcHistory.push({
+            t:    ts,
+            btc:  state.btcBase,
+            dvol: state.dvolBase,
+            spot: state.btcSpotLive
+          });
+          if(state.btcHistory.length > 80) state.btcHistory.shift();
+        }
+      }
+      // VoV is now driven exclusively by sampleDVOL() above on a 60s timer.
+    };
+    log('simulate() replaced with live-only pass-through');
+
+    /* ── 3. Override simulateOI() — fall back to "stale" not random ──────
+       Original simulateOI used rnd(-50,50) jitter to fake OI when Deribit
+       book_summary failed. We now keep the last-known values and mark the
+       source as 'stale' so downstream UI can show a warning instead of a
+       moving fake number.                                                  */
+    if(typeof window.simulateOI === 'function'){
+      window._origSimulateOI = window.simulateOI;
+    }
+    window.simulateOI = function liveOnlySimulateOI(){
+      EXPIRIES.forEach((ex, i) => {
+        if(ex.expired) return;
+        const prev = state.oiData[i] || {};
+        // Keep last real numbers; only update src tag if we had real data once
+        state.oiData[i] = {
+          callOI: prev.callOI || 0,
+          putOI:  prev.putOI  || 0,
+          pcr:    prev.pcr    || 1,
+          src:    prev.callOI ? 'stale' : 'no-data'
+        };
+      });
+    };
+    log('simulateOI() replaced — preserves last real values, marks stale');
+
+    /* ── 4. Patch vapState z-score window: drop the ±2 jitter ────────────
+       Original (line 9676):
+         vapState.zScoreWindow.push(iv0 + (Math.random()-0.5)*2);
+       The +/-2 was added to "expand the window so z-score is always finite"
+       but that destroys the statistic. We replace push behaviour at runtime
+       by wrapping the array's push with one that strips synthetic noise.   */
+    if(window.vapState && Array.isArray(window.vapState.zScoreWindow)){
+      // We can't easily detect "synthetic vs real" pushes from outside, so
+      // we provide a clean replacement function the dashboard CAN call, AND
+      // we periodically de-noise: rebuild from real ivHistory current values.
+      function rebuildZScoreFromLiveIV(){
+        if(!window.vapState || !Array.isArray(state.ivHistory)) return;
+        const realPts = [];
+        EXPIRIES.forEach((ex, i) => {
+          if(ex.expired) return;
+          const arr = state.ivHistory[i];
+          if(!arr || !arr.length) return;
+          // Take the last 5 points per expiry as a sample of real IV
+          arr.slice(-5).forEach(v => {
+            if(typeof v === 'number' && isFinite(v) && v > 5 && v < 250) realPts.push(v);
+          });
+        });
+        if(realPts.length >= 10){
+          // Cap window size at 200 like the original code expects
+          window.vapState.zScoreWindow = realPts.slice(-200);
+        }
+      }
+      setInterval(rebuildZScoreFromLiveIV, 30_000);
+      // Run once after 5s so initial computation has live data
+      setTimeout(rebuildZScoreFromLiveIV, 5_000);
+      log('vapState.zScoreWindow rebuilt from real ivHistory every 30s');
+    }
+
+    /* ── 5. Live OI poller — Deribit book_summary every 20s ──────────────
+       The dashboard already has fetchOI() that calls this endpoint, but it
+       isn't on a guaranteed interval. We add a steady 20s poll so OI/PCR
+       stays fresh without depending on the main fullUpdate cycle.          */
+    let _oiPollInflight = false;
+    async function pollDeribitOI(){
+      if(_oiPollInflight) return;
+      _oiPollInflight = true;
+      try{
+        const url = 'https://www.deribit.com/api/v2/public/get_book_summary_by_currency'
+                  + '?currency=BTC&kind=option';
+        const fn = (typeof window.safeFetch === 'function') ? window.safeFetch : window.fetch;
+        const res = await fn(url, {}, 8000);
+        const json = await res.json();
+        if(!json?.result?.length) return;
+
+        // Group by expiry date tag (e.g. "17APR26") and call/put
+        const byExp = {};
+        json.result.forEach(r => {
+          // instrument_name format: BTC-DDMMMYY-STRIKE-C/P
+          const m = /^BTC-([0-9]{1,2}[A-Z]{3}[0-9]{2})-(\d+)-([CP])$/.exec(r.instrument_name);
+          if(!m) return;
+          const tag = m[1], type = m[3];
+          if(!byExp[tag]) byExp[tag] = { callOI:0, putOI:0 };
+          const oi = parseFloat(r.open_interest || 0);
+          if(type === 'C') byExp[tag].callOI += oi;
+          else             byExp[tag].putOI  += oi;
+        });
+
+        // Map back to EXPIRIES indices
+        function labelToTag(label){
+          if(!label) return '';
+          const [dd, mon, yy] = label.split('-');
+          return dd.padStart(2,'0') + mon.toUpperCase() + (yy.length===4 ? yy.slice(-2) : yy);
+        }
+        EXPIRIES.forEach((ex, i) => {
+          if(ex.expired) return;
+          const tag = labelToTag(ex.label);
+          const d = byExp[tag];
+          if(!d) return;
+          const callOI = Math.round(d.callOI);
+          const putOI  = Math.round(d.putOI);
+          state.oiData[i] = {
+            callOI, putOI,
+            pcr: callOI > 0 ? +(putOI/callOI).toFixed(3) : 1,
+            src: 'Deribit'
+          };
+        });
+        if(typeof window.DQ !== 'undefined') window.DQ.touch('deribit_oi', byExp, 'deribit');
+      }catch(e){
+        // network blocked / rate-limited — leave existing values, mark stale
+        EXPIRIES.forEach((ex, i) => {
+          if(ex.expired) return;
+          const prev = state.oiData[i];
+          if(prev && prev.callOI) state.oiData[i] = Object.assign({}, prev, {src:'stale'});
+        });
+      }finally{
+        _oiPollInflight = false;
+      }
+    }
+    setInterval(pollDeribitOI, 20_000);
+    setTimeout(pollDeribitOI, 1_500);
+    log('Deribit OI poll active (every 20s)');
+
+    /* ── 6. Sanity sweep — clear any stale random VoV bootstrap data ─────
+       The original boot sequence calls simulate(null) 50 times before any
+       WebSocket has connected, polluting state.vovHistory with random
+       values. We clear it once and let the real DVOL sampler fill in.     */
+    setTimeout(()=>{
+      if(state.vovHistory && state.vovHistory.length){
+        log('clearing', state.vovHistory.length, 'random-walk VoV bootstrap values');
+        state.vovHistory.length = 0;
+      }
+    }, 3_000);
+
+    /* ── 7. Live HV30 watchdog — make sure it runs ───────────────────────
+       computeLiveHV30() already exists in the dashboard; it derives HV30
+       from state.btcHistory which is now ONLY filled from real Binance
+       ticks. We just make sure it fires every 60s once we have ≥30 ticks. */
+    setInterval(()=>{
+      if(state.btcHistory.length >= 30 && typeof window.computeLiveHV30 === 'function'){
+        try{ window.computeLiveHV30(); }catch(e){}
+      }
+    }, 60_000);
+
+    /* ── 8. Stale-feed annunciator — paint the live badge red if all WS
+       are silent for > 90s. Prevents users from trusting frozen numbers. */
+    setInterval(()=>{
+      const ws = window._ws;
+      if(!ws) return;
+      const now = Date.now();
+      const ages = ['binance','deribit','delta'].map(k => now - (ws.lastTick[k]||0));
+      const minAge = Math.min(...ages);
+      const dot = document.querySelector('.live-dot');
+      if(!dot) return;
+      if(minAge > 90_000){
+        dot.style.background = '#ef4444';
+        dot.title = 'All WebSocket feeds silent for >90s — values are frozen';
+      } else if(minAge > 30_000){
+        dot.style.background = '#eab308';
+        dot.title = 'Some feeds slow (>30s since last tick)';
+      } else {
+        dot.style.background = '#22c55e';
+        dot.title = 'Live';
+      }
+    }, 5_000);
+
+    log('all live-data overrides installed');
+  });
+})();
+
+</script>
 </body>
 </html>
