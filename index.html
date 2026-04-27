@@ -1644,6 +1644,2411 @@ window._brahmastraADX = _ciComputeADX;
 
 <div class="desk">
 
+<!-- ═══════════════════════════════════════════════════════════════
+     🚗 COCKPIT MASTER PANEL — Drive your Short Strangle
+     ─────────────────────────────────────────────────────────────
+     One unified driver's view that translates every other panel on
+     the page into a single instrument on the dashboard. Reads only;
+     never mutates source state. Each tile is clickable and scrolls
+     to its source panel for deeper inspection.
+
+     Metaphor:
+       • Car      = the short strangle (centered = balanced; tilts to
+                    whichever wing is being tested as delta drifts)
+       • Road     = the market itself (BTC price/IV/regime)
+       • Gauges   = each existing panel's primary diagnostic
+     ═══════════════════════════════════════════════════════════════ -->
+<style>
+.ckp-panel{
+  background:linear-gradient(135deg,#0c1424 0%, #1a2236 50%, #0c1424 100%);
+  color:#e2e8f0;
+  border-radius:16px;
+  padding:14px 16px 16px;
+  margin-bottom:14px;
+  border:1px solid rgba(99,102,241,0.25);
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.25);
+}
+.ckp-panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899,#f59e0b,#22c55e);
+  border-radius:16px 16px 0 0;
+}
+.ckp-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-top:4px}
+.ckp-title{font-size:13px;font-weight:800;letter-spacing:.04em;color:#f1f5f9;display:flex;align-items:center;gap:8px}
+.ckp-title-badge{font-size:9px;font-weight:700;background:linear-gradient(135deg,#3b82f6,#1e3a8a);color:#fff;padding:3px 9px;border-radius:5px;letter-spacing:.05em}
+.ckp-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:9.5px}
+.ckp-meta-pill{padding:3px 9px;border-radius:10px;background:rgba(15,23,42,0.6);color:#cbd5e1;font-weight:600;border:0.5px solid rgba(99,102,241,0.2);font-variant-numeric:tabular-nums}
+.ckp-meta-pill.green{color:#86efac;background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4)}
+.ckp-meta-pill.red{color:#fca5a5;background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.4)}
+.ckp-meta-pill.amber{color:#fcd34d;background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.4)}
+
+/* ── CAR + ROAD — the centerpiece ── */
+.ckp-stage{
+  position:relative;
+  height:130px;
+  background:linear-gradient(180deg,#0a0f1c 0%, #1c2538 80%, #0a0f1c 100%);
+  border-radius:12px;
+  margin-bottom:12px;
+  overflow:hidden;
+  border:1px solid rgba(99,102,241,0.15);
+}
+/* Sky / horizon gradient changes with regime */
+.ckp-stage.regime-calm{background:linear-gradient(180deg,#0a1f1a 0%, #1a3a2e 50%, #0a1f1a 100%)}
+.ckp-stage.regime-warn{background:linear-gradient(180deg,#1f1a0a 0%, #3a2e1a 50%, #1f1a0a 100%)}
+.ckp-stage.regime-storm{background:linear-gradient(180deg,#1f0a0a 0%, #3a1a1a 50%, #1f0a0a 100%)}
+
+/* Road — perspective lines */
+.ckp-road{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  height:55%;
+  background:#1a2032;
+  border-top:2px solid #2d3450;
+}
+.ckp-road::before, .ckp-road::after{
+  content:'';position:absolute;
+  top:0;bottom:0;width:1px;
+  background:linear-gradient(180deg,transparent,rgba(253,224,71,0.45));
+}
+.ckp-road::before{left:25%;transform:skewX(-30deg);transform-origin:bottom}
+.ckp-road::after{left:75%;transform:skewX(30deg);transform-origin:bottom}
+.ckp-lane-mark{
+  position:absolute;
+  left:50%;top:30%;bottom:0;
+  width:3px;
+  transform:translateX(-50%);
+  background:repeating-linear-gradient(180deg,
+    rgba(253,224,71,0.7) 0 14px,
+    transparent 14px 30px);
+}
+
+/* Horizon haze */
+.ckp-horizon{
+  position:absolute;
+  left:0;right:0;
+  top:38%;
+  height:14px;
+  background:radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.18), transparent);
+  pointer-events:none;
+}
+
+/* ── Session zone strip (Asia / London / NY / Late) ── 
+   v2: absolute-positioned segments so we can render a ROLLING 24h-ahead
+   window where the car sits at a fixed anchor and road-ahead is the future. */
+.ckp-sessions{
+  position:absolute;
+  left:0;right:0;
+  bottom:0;
+  height:55%;
+  z-index:1;
+  pointer-events:none;
+  overflow:hidden;
+}
+.ckp-session-zone{
+  position:absolute;
+  top:0;bottom:0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding-top:4px;
+  font-size:8.5px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  border-right:1px dashed rgba(148,163,184,0.18);
+  white-space:nowrap;
+  overflow:hidden;
+}
+.ckp-session-zone.asia  {background:linear-gradient(180deg,rgba(59,130,246,0.10),transparent 70%); color:rgba(147,197,253,0.85)}
+.ckp-session-zone.london{background:linear-gradient(180deg,rgba(168,85,247,0.10),transparent 70%); color:rgba(216,180,254,0.85)}
+.ckp-session-zone.ny    {background:linear-gradient(180deg,rgba(245,158,11,0.10),transparent 70%); color:rgba(253,224,71,0.85)}
+.ckp-session-zone.late  {background:linear-gradient(180deg,rgba(107,114,128,0.10),transparent 70%); color:rgba(203,213,225,0.7)}
+.ckp-session-zone.active{
+  background-image:linear-gradient(180deg,rgba(253,224,71,0.18),transparent 70%) !important;
+  color:#fde047 !important;
+}
+.ckp-session-zone.active::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:currentColor;
+  opacity:0.9;
+}
+/* "Now" marker — a vertical line at the car's anchor position */
+.ckp-now-marker{
+  position:absolute;
+  top:42%;bottom:0;
+  width:2px;
+  background:linear-gradient(180deg,
+    transparent 0%,
+    rgba(253,224,71,0.4) 20%,
+    rgba(253,224,71,0.9) 100%);
+  z-index:2;
+  pointer-events:none;
+  box-shadow:0 0 8px rgba(253,224,71,0.5);
+}
+.ckp-now-marker::after{
+  content:'NOW';
+  position:absolute;
+  top:-12px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:7.5px;
+  font-weight:900;
+  color:#fde047;
+  background:rgba(15,23,42,0.85);
+  padding:1px 4px;
+  border-radius:3px;
+  letter-spacing:.08em;
+  white-space:nowrap;
+  border:0.5px solid rgba(253,224,71,0.5);
+}
+
+/* ── Speed breakers — visible road obstacles AHEAD of the car.
+   Each breaker is positioned by its hours-from-now (mapped via the same
+   PCT_PER_HOUR scale the session ribbon uses). Color encodes severity:
+   yellow = caution (news, settle), red = stop (kill zone NY entry, IV
+   spike, gamma flip), striped chevron = upcoming sharp move. */
+.ckp-breaker{
+  position:absolute;
+  bottom:6%;
+  height:14px;
+  width:8px;
+  z-index:4;
+  pointer-events:auto;
+  cursor:help;
+  border-radius:1px;
+  transform:translateX(-50%);
+}
+.ckp-breaker.bump{
+  background:repeating-linear-gradient(90deg,
+    #fbbf24 0 3px,
+    #1f2937 3px 6px);
+  border:0.5px solid #f59e0b;
+  box-shadow:0 1px 2px rgba(0,0,0,0.5);
+}
+.ckp-breaker.stop{
+  background:repeating-linear-gradient(90deg,
+    #ef4444 0 3px,
+    #1f2937 3px 6px);
+  border:0.5px solid #b91c1c;
+  box-shadow:0 0 6px rgba(239,68,68,0.6);
+  animation:ckp-breaker-flash 1.1s ease-in-out infinite;
+}
+.ckp-breaker.cone{
+  background:linear-gradient(180deg,#f97316,#7c2d12);
+  width:0;
+  height:0;
+  border-left:5px solid transparent;
+  border-right:5px solid transparent;
+  border-bottom:14px solid #f97316;
+  border-radius:0;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,0.6));
+}
+@keyframes ckp-breaker-flash{
+  0%,100%{box-shadow:0 0 4px rgba(239,68,68,0.4)}
+  50%    {box-shadow:0 0 12px rgba(239,68,68,0.95)}
+}
+/* Tooltip-like label above each breaker */
+.ckp-breaker-lbl{
+  position:absolute;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:8px;
+  font-weight:800;
+  color:#f1f5f9;
+  background:rgba(15,23,42,0.92);
+  padding:1px 5px;
+  border-radius:3px;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  border:0.5px solid rgba(99,102,241,0.4);
+  pointer-events:none;
+  font-variant-numeric:tabular-nums;
+  max-width:90px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ckp-breaker.bump .ckp-breaker-lbl{border-color:#f59e0b;color:#fcd34d}
+.ckp-breaker.stop .ckp-breaker-lbl{border-color:#ef4444;color:#fca5a5}
+.ckp-breaker.cone .ckp-breaker-lbl{border-color:#f97316;color:#fdba74}
+
+/* ── Clock pill (live IST date + day + time) ── */
+.ckp-clock{
+  position:absolute;
+  top:6px;
+  left:8px;
+  z-index:7;
+  background:rgba(15,23,42,0.85);
+  border:1px solid rgba(99,102,241,0.4);
+  border-radius:8px;
+  padding:4px 10px;
+  font-size:10px;
+  font-weight:700;
+  color:#f1f5f9;
+  letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  line-height:1.15;
+  pointer-events:none;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+}
+.ckp-clock-time{font-size:13px;font-weight:900;color:#f1f5f9;letter-spacing:.02em}
+.ckp-clock-day{font-size:8.5px;color:#94a3b8;font-weight:700;text-transform:uppercase}
+
+/* Day-progress indicator — represents the PAST behind the car.
+   Fills from 0 → car-anchor (~18%) as the day completes. */
+.ckp-day-progress{
+  position:absolute;
+  bottom:0;
+  left:0;
+  height:3px;
+  background:linear-gradient(90deg,
+    rgba(34,197,94,0.5) 0%,
+    rgba(245,158,11,0.5) 50%,
+    rgba(239,68,68,0.6) 100%);
+  z-index:2;
+  transition:width 1s linear;
+  pointer-events:none;
+  opacity:0.7;
+}
+
+/* The car wrapper (3D look) */
+.ckp-car-wrap{
+  position:absolute;
+  left:50%;
+  bottom:14%;
+  width:90px;
+  height:54px;
+  transform:translateX(-50%);
+  transition:left 0.9s linear, transform 0.6s ease;
+  z-index:5;
+  filter:drop-shadow(0 6px 8px rgba(0,0,0,0.6));
+}
+.ckp-car-wrap.tilted-left{transform:translateX(-50%) rotate(-3deg)}
+.ckp-car-wrap.tilted-right{transform:translateX(-50%) rotate(3deg)}
+.ckp-car-wrap.spinning{animation:ckp-spin 1.2s linear infinite}
+@keyframes ckp-spin{to{transform:translateX(-50%) rotate(360deg)}}
+
+.ckp-car-svg{width:100%;height:100%}
+.ckp-car-shadow{
+  position:absolute;
+  left:50%;bottom:8%;
+  width:80px;height:8px;
+  background:radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 70%);
+  transform:translateX(-50%);
+  z-index:4;
+  pointer-events:none;
+}
+
+/* Position label below car */
+.ckp-car-label{
+  position:absolute;
+  left:50%;
+  bottom:2%;
+  transform:translateX(-50%);
+  font-size:9px;
+  font-weight:800;
+  color:#f1f5f9;
+  background:rgba(15,23,42,0.85);
+  padding:2px 9px;
+  border-radius:10px;
+  border:1px solid rgba(99,102,241,0.4);
+  letter-spacing:.04em;
+  white-space:nowrap;
+  z-index:6;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Side roadside event icons */
+.ckp-roadside{
+  position:absolute;
+  bottom:62%;
+  font-size:18px;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6));
+  cursor:help;
+  z-index:3;
+}
+.ckp-roadside.left{left:4%}
+.ckp-roadside.right{right:4%}
+
+/* Dashboard cluster (gauge tiles) */
+.ckp-cluster{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:8px;
+  margin-bottom:10px;
+}
+.ckp-tile{
+  background:rgba(15,23,42,0.7);
+  border:1px solid rgba(99,102,241,0.18);
+  border-radius:10px;
+  padding:8px 10px;
+  cursor:pointer;
+  transition:all .2s;
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-height:62px;
+}
+.ckp-tile:hover{border-color:rgba(99,102,241,0.5);background:rgba(15,23,42,0.9);transform:translateY(-1px)}
+.ckp-tile-icon{font-size:14px;line-height:1;position:absolute;top:7px;right:8px;opacity:.85}
+.ckp-tile-lbl{font-size:8.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding-right:18px}
+.ckp-tile-val{font-size:14px;font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums;line-height:1.1}
+.ckp-tile-sub{font-size:8.5px;color:#cbd5e1;font-weight:500;line-height:1.3}
+.ckp-tile-bar{
+  position:absolute;
+  bottom:0;left:0;
+  height:2px;
+  width:0%;
+  transition:width 0.6s ease, background 0.3s;
+}
+.ckp-tile.green .ckp-tile-val{color:#86efac}
+.ckp-tile.green .ckp-tile-bar{background:#22c55e}
+.ckp-tile.amber .ckp-tile-val{color:#fcd34d}
+.ckp-tile.amber .ckp-tile-bar{background:#f59e0b}
+.ckp-tile.red .ckp-tile-val{color:#fca5a5}
+.ckp-tile.red .ckp-tile-bar{background:#ef4444}
+.ckp-tile.purple .ckp-tile-val{color:#c4b5fd}
+.ckp-tile.purple .ckp-tile-bar{background:#a855f7}
+.ckp-tile.cyan .ckp-tile-val{color:#67e8f9}
+.ckp-tile.cyan .ckp-tile-bar{background:#06b6d4}
+.ckp-tile.flash-warn{animation:ckp-flash-amber 1.2s ease-in-out infinite}
+.ckp-tile.flash-danger{animation:ckp-flash-red 0.9s ease-in-out infinite}
+@keyframes ckp-flash-amber{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.0)}50%{box-shadow:inset 0 0 0 1px rgba(245,158,11,0.6),0 0 12px rgba(245,158,11,0.4)}}
+@keyframes ckp-flash-red  {0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.0)} 50%{box-shadow:inset 0 0 0 1px rgba(239,68,68,0.7), 0 0 14px rgba(239,68,68,0.5)}}
+
+/* Verdict ribbon */
+.ckp-verdict{
+  background:rgba(15,23,42,0.6);
+  border:1px solid rgba(99,102,241,0.18);
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:11px;
+  color:#cbd5e1;
+  line-height:1.55;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.ckp-verdict-pill{
+  font-size:10px;
+  font-weight:900;
+  padding:3px 10px;
+  border-radius:5px;
+  letter-spacing:.05em;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.ckp-verdict-pill.go    {background:#16a34a;color:#fff}
+.ckp-verdict-pill.slow  {background:#f59e0b;color:#fff}
+.ckp-verdict-pill.brake {background:#dc2626;color:#fff}
+.ckp-verdict-pill.park  {background:#475569;color:#fff}
+
+@media (max-width:600px){
+  .ckp-cluster{grid-template-columns:repeat(2,1fr)}
+  .ckp-stage{height:110px}
+  .ckp-car-wrap{width:72px;height:44px}
+  .ckp-tile{min-height:56px}
+  .ckp-tile-val{font-size:13px}
+}
+
+/* ── Traffic signal (top-right of stage, alerts driver to upcoming hazards) ── */
+.ckp-traffic{
+  position:absolute;
+  top:6px;
+  right:8px;
+  z-index:7;
+  background:rgba(15,23,42,0.85);
+  border:1px solid rgba(99,102,241,0.4);
+  border-radius:10px;
+  padding:5px 7px 5px 8px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+  pointer-events:auto;
+  cursor:help;
+}
+.ckp-traffic-lights{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:3px;
+  background:#0a0f1c;
+  border-radius:4px;
+  border:1px solid rgba(148,163,184,0.25);
+}
+.ckp-traffic-bulb{
+  width:9px;height:9px;border-radius:50%;
+  background:#1f2937;
+  border:0.5px solid rgba(255,255,255,0.08);
+  transition:background 0.3s, box-shadow 0.3s;
+}
+.ckp-traffic-bulb.on.red   {background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,0.85), inset 0 0 2px #fca5a5}
+.ckp-traffic-bulb.on.amber {background:#f59e0b; box-shadow:0 0 6px rgba(245,158,11,0.85), inset 0 0 2px #fcd34d}
+.ckp-traffic-bulb.on.green {background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,0.85), inset 0 0 2px #86efac}
+.ckp-traffic-bulb.flash{animation:ckp-bulb-flash 0.8s ease-in-out infinite}
+@keyframes ckp-bulb-flash{0%,100%{opacity:1}50%{opacity:0.35}}
+.ckp-traffic-label{
+  display:flex;flex-direction:column;line-height:1.1;font-variant-numeric:tabular-nums;
+}
+.ckp-traffic-label-top{font-size:8.5px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase}
+.ckp-traffic-label-bot{font-size:10px;font-weight:800;color:#f1f5f9;letter-spacing:.02em}
+.ckp-traffic-label-bot.red{color:#fca5a5}
+.ckp-traffic-label-bot.amber{color:#fcd34d}
+.ckp-traffic-label-bot.green{color:#86efac}
+
+/* ── Weekday history strip — past N same-weekdays' BTC close-to-close % ── */
+.ckp-weekday-strip{
+  display:flex;
+  align-items:stretch;
+  background:rgba(15,23,42,0.55);
+  border:1px solid rgba(99,102,241,0.18);
+  border-radius:10px;
+  padding:8px 10px;
+  margin-bottom:10px;
+  gap:8px;
+  overflow:hidden;
+}
+.ckp-wd-head{
+  display:flex;flex-direction:column;justify-content:center;
+  min-width:108px;flex-shrink:0;
+  border-right:1px dashed rgba(148,163,184,0.18);
+  padding-right:10px;
+}
+.ckp-wd-title{
+  font-size:9px;font-weight:800;letter-spacing:.06em;
+  color:#94a3b8;text-transform:uppercase;line-height:1.2;
+}
+.ckp-wd-day{
+  font-size:13px;font-weight:900;color:#f1f5f9;letter-spacing:.02em;
+  margin-top:2px;
+}
+.ckp-wd-summary{
+  font-size:9px;font-weight:600;color:#cbd5e1;
+  margin-top:2px;font-variant-numeric:tabular-nums;
+}
+.ckp-wd-summary.green{color:#86efac}
+.ckp-wd-summary.red{color:#fca5a5}
+.ckp-wd-summary.amber{color:#fcd34d}
+.ckp-wd-bars{
+  display:flex;align-items:flex-end;justify-content:flex-start;
+  flex:1;gap:6px;
+  min-height:40px;
+  position:relative;
+  padding:2px 0;
+}
+.ckp-wd-axis{
+  position:absolute;left:0;right:0;
+  top:50%;height:1px;
+  background:rgba(148,163,184,0.25);
+  pointer-events:none;
+}
+.ckp-wd-bar-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  flex:1;min-width:30px;max-width:60px;
+  position:relative;height:40px;
+  cursor:help;
+}
+.ckp-wd-bar{
+  position:absolute;left:50%;transform:translateX(-50%);
+  width:60%;min-height:2px;
+  border-radius:2px;
+  transition:height 0.4s ease, background 0.3s;
+}
+.ckp-wd-bar.up{background:linear-gradient(180deg,#22c55e,#15803d);bottom:50%}
+.ckp-wd-bar.down{background:linear-gradient(0deg,#ef4444,#7f1d1d);top:50%}
+.ckp-wd-bar.zero{background:#475569;bottom:50%;height:2px !important}
+.ckp-wd-bar-lbl{
+  position:absolute;
+  bottom:-14px;
+  font-size:8px;font-weight:700;color:#94a3b8;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+.ckp-wd-bar-lbl.today{color:#fde047;font-weight:800}
+.ckp-wd-bar-pct{
+  position:absolute;font-size:8px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.ckp-wd-bar-pct.up   {color:#86efac;bottom:calc(50% + var(--bh, 0px) + 2px)}
+.ckp-wd-bar-pct.down {color:#fca5a5;top:calc(50% + var(--bh, 0px) + 2px)}
+.ckp-wd-bar-wrap.today .ckp-wd-bar{
+  outline:1.5px solid #fde047;
+  outline-offset:1px;
+  border-radius:3px;
+}
+.ckp-wd-loading{
+  font-size:10px;color:#94a3b8;font-style:italic;
+  display:flex;align-items:center;
+}
+
+@media (max-width:600px){
+  .ckp-wd-head{min-width:80px;padding-right:6px}
+  .ckp-wd-day{font-size:11px}
+  .ckp-wd-bars{min-height:36px}
+  .ckp-wd-bar-wrap{min-width:24px;height:36px}
+  .ckp-traffic{padding:4px 6px}
+  .ckp-traffic-bulb{width:7px;height:7px}
+  .ckp-traffic-label-bot{font-size:9px}
+}
+</style>
+
+<div class="ckp-panel" id="cockpitPanel">
+  <div class="ckp-header">
+    <div class="ckp-title">
+      🚗 Cockpit · Drive your Strangle
+      <span class="ckp-title-badge">UNIFIED</span>
+    </div>
+    <div class="ckp-meta">
+      <span class="ckp-meta-pill" id="ckpStatusPill">Booting…</span>
+      <span class="ckp-meta-pill" id="ckpPositionPill">No position</span>
+    </div>
+  </div>
+
+  <!-- The driving stage -->
+  <div class="ckp-stage" id="ckpStage">
+    <!-- Live IST clock — date · weekday · time -->
+    <div class="ckp-clock" id="ckpClock">
+      <span class="ckp-clock-time" id="ckpClockTime">—:—</span>
+      <span class="ckp-clock-day"  id="ckpClockDay">—</span>
+    </div>
+
+    <!-- Traffic signal (alerts: news, IV spike, vol spike, settlement) -->
+    <div class="ckp-traffic" id="ckpTraffic" title="Traffic signal — green = clear road, amber = caution, red = stop and reassess">
+      <div class="ckp-traffic-lights">
+        <div class="ckp-traffic-bulb red"   id="ckpTrafficRed"></div>
+        <div class="ckp-traffic-bulb amber" id="ckpTrafficAmber"></div>
+        <div class="ckp-traffic-bulb green" id="ckpTrafficGreen"></div>
+      </div>
+      <div class="ckp-traffic-label">
+        <span class="ckp-traffic-label-top">Signal</span>
+        <span class="ckp-traffic-label-bot green" id="ckpTrafficLabel">Clear</span>
+      </div>
+    </div>
+
+    <div class="ckp-horizon"></div>
+
+    <!-- Session zones (rolling 24h-ahead window — populated by JS) -->
+    <div class="ckp-sessions" id="ckpSessions">
+      <!-- Dynamically rendered: each segment positioned absolutely based on
+           its hours-ahead-of-now, so the car sees upcoming road. -->
+    </div>
+
+    <!-- Vertical "NOW" marker at the car's anchor position -->
+    <div class="ckp-now-marker" id="ckpNowMarker" style="left:18%"></div>
+
+    <!-- Speed-breakers layer — populated by JS with upcoming obstacles -->
+    <div id="ckpBreakers" style="position:absolute;left:0;right:0;bottom:0;height:55%;pointer-events:none;z-index:4">
+      <!-- absolute-positioned .ckp-breaker children go here -->
+    </div>
+
+    <div class="ckp-road">
+      <div class="ckp-lane-mark"></div>
+    </div>
+
+    <!-- Day-progress bar at very bottom -->
+    <div class="ckp-day-progress" id="ckpDayProgress" style="width:0%"></div>
+
+    <!-- Roadside icons (slot for upcoming hazard / event ahead) -->
+    <span class="ckp-roadside left"  id="ckpRoadsideLeft"  title=""></span>
+    <span class="ckp-roadside right" id="ckpRoadsideRight" title=""></span>
+
+    <!-- The shadow (under the car) -->
+    <div class="ckp-car-shadow" id="ckpCarShadow"></div>
+
+    <!-- The car (re-uses Day Roadmap car SVG, scaled bigger) -->
+    <div class="ckp-car-wrap" id="ckpCarWrap">
+      <svg class="ckp-car-svg" viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 28 L8 22 L18 18 L24 14 L42 14 L48 18 L58 20 L60 28 Z"
+              fill="#ef4444" stroke="#7f1d1d" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M22 16 L26 18 L42 18 L46 16 L42 14 L26 14 Z" fill="#0f172a" opacity="0.85"/>
+        <line x1="34" y1="14" x2="34" y2="18" stroke="#7f1d1d" stroke-width="0.6"/>
+        <circle cx="58" cy="24" r="1.6" fill="#fde047"/>
+        <circle cx="16" cy="30" r="5" fill="#1f2937" stroke="#0f172a" stroke-width="1"/>
+        <circle cx="16" cy="30" r="2" fill="#6b7280"/>
+        <circle cx="48" cy="30" r="5" fill="#1f2937" stroke="#0f172a" stroke-width="1"/>
+        <circle cx="48" cy="30" r="2" fill="#6b7280"/>
+      </svg>
+    </div>
+
+    <!-- Live label: what state is the car in -->
+    <div class="ckp-car-label" id="ckpCarLabel">Initializing…</div>
+  </div>
+
+  <!-- Weekday history strip — same-weekday BTC performance over past N weeks -->
+  <div class="ckp-weekday-strip" id="ckpWeekdayStrip">
+    <div class="ckp-wd-head">
+      <span class="ckp-wd-title">Same-Weekday History</span>
+      <span class="ckp-wd-day" id="ckpWdDayName">—</span>
+      <span class="ckp-wd-summary" id="ckpWdSummary">loading klines…</span>
+    </div>
+    <div class="ckp-wd-bars" id="ckpWdBars">
+      <div class="ckp-wd-axis"></div>
+      <div class="ckp-wd-loading">loading…</div>
+    </div>
+  </div>
+
+  <!-- Dashboard cluster: each tile reads from one panel, click to jump -->
+  <div class="ckp-cluster" id="ckpCluster">
+    <!-- Speedometer — BTC realized vol / hourly move -->
+    <div class="ckp-tile" id="ckpTileSpeed" data-target="amdPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🏎️</div>
+      <div class="ckp-tile-lbl">Speed (RV)</div>
+      <div class="ckp-tile-val" id="ckpSpeedVal">—</div>
+      <div class="ckp-tile-sub" id="ckpSpeedSub">market velocity</div>
+      <div class="ckp-tile-bar" id="ckpSpeedBar"></div>
+    </div>
+
+    <!-- Tachometer — IV (engine RPM) -->
+    <div class="ckp-tile" id="ckpTileRpm" data-target="vapPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">⚙️</div>
+      <div class="ckp-tile-lbl">RPM (IV)</div>
+      <div class="ckp-tile-val" id="ckpRpmVal">—</div>
+      <div class="ckp-tile-sub" id="ckpRpmSub">engine stress</div>
+      <div class="ckp-tile-bar" id="ckpRpmBar"></div>
+    </div>
+
+    <!-- Fuel — DTE remaining (theta budget) -->
+    <div class="ckp-tile" id="ckpTileFuel" data-target="gcdPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">⛽</div>
+      <div class="ckp-tile-lbl">Fuel (DTE)</div>
+      <div class="ckp-tile-val" id="ckpFuelVal">—</div>
+      <div class="ckp-tile-sub" id="ckpFuelSub">theta runway</div>
+      <div class="ckp-tile-bar" id="ckpFuelBar"></div>
+    </div>
+
+    <!-- GPS — term structure (open road / roadworks) -->
+    <div class="ckp-tile" id="ckpTileGps" data-target="exsumPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🧭</div>
+      <div class="ckp-tile-lbl">GPS (Term)</div>
+      <div class="ckp-tile-val" id="ckpGpsVal">—</div>
+      <div class="ckp-tile-sub" id="ckpGpsSub">curve direction</div>
+      <div class="ckp-tile-bar" id="ckpGpsBar"></div>
+    </div>
+
+    <!-- Steering — net delta / position lean -->
+    <div class="ckp-tile" id="ckpTileSteer" data-target="simDesk" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🎮</div>
+      <div class="ckp-tile-lbl">Steering (Δ)</div>
+      <div class="ckp-tile-val" id="ckpSteerVal">—</div>
+      <div class="ckp-tile-sub" id="ckpSteerSub">position lean</div>
+      <div class="ckp-tile-bar" id="ckpSteerBar"></div>
+    </div>
+
+    <!-- Suspension — gamma -->
+    <div class="ckp-tile" id="ckpTileSusp" data-target="gcdPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🔧</div>
+      <div class="ckp-tile-lbl">Suspension (Γ)</div>
+      <div class="ckp-tile-val" id="ckpSuspVal">—</div>
+      <div class="ckp-tile-sub" id="ckpSuspSub">bumpiness</div>
+      <div class="ckp-tile-bar" id="ckpSuspBar"></div>
+    </div>
+
+    <!-- Weather — VoV / DVOL -->
+    <div class="ckp-tile" id="ckpTileWeather" data-target="vov2Panel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🌦️</div>
+      <div class="ckp-tile-lbl">Weather (VoV)</div>
+      <div class="ckp-tile-val" id="ckpWeatherVal">—</div>
+      <div class="ckp-tile-sub" id="ckpWeatherSub">vol-of-vol</div>
+      <div class="ckp-tile-bar" id="ckpWeatherBar"></div>
+    </div>
+
+    <!-- Hazard light — MPO regime -->
+    <div class="ckp-tile" id="ckpTileHazard" data-target="mpoPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">⚠️</div>
+      <div class="ckp-tile-lbl">Hazards (MPO)</div>
+      <div class="ckp-tile-val" id="ckpHazardVal">—</div>
+      <div class="ckp-tile-sub" id="ckpHazardSub">pattern regime</div>
+      <div class="ckp-tile-bar" id="ckpHazardBar"></div>
+    </div>
+
+    <!-- Headlights — next news event ahead -->
+    <div class="ckp-tile" id="ckpTileHeadlight" data-target="mcFeedWrap" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">💡</div>
+      <div class="ckp-tile-lbl">Headlights (News)</div>
+      <div class="ckp-tile-val" id="ckpHeadlightVal">—</div>
+      <div class="ckp-tile-sub" id="ckpHeadlightSub">next event</div>
+      <div class="ckp-tile-bar" id="ckpHeadlightBar"></div>
+    </div>
+
+    <!-- Settlement countdown — daily 17:30 IST -->
+    <div class="ckp-tile" id="ckpTileSettle" data-target="gcdPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🏁</div>
+      <div class="ckp-tile-lbl">Pit Stop (17:30)</div>
+      <div class="ckp-tile-val" id="ckpSettleVal">—</div>
+      <div class="ckp-tile-sub" id="ckpSettleSub">to settlement</div>
+      <div class="ckp-tile-bar" id="ckpSettleBar"></div>
+    </div>
+
+    <!-- Tank pressure — premium richness (IV vs HV) -->
+    <div class="ckp-tile" id="ckpTilePremium" data-target="sdePanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">💰</div>
+      <div class="ckp-tile-lbl">Tank ($credit)</div>
+      <div class="ckp-tile-val" id="ckpPremiumVal">—</div>
+      <div class="ckp-tile-sub" id="ckpPremiumSub">IV − HV edge</div>
+      <div class="ckp-tile-bar" id="ckpPremiumBar"></div>
+    </div>
+
+    <!-- Crash sensor — dealer GEX / max pain pull -->
+    <div class="ckp-tile" id="ckpTileCrash" data-target="pvsPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🛡️</div>
+      <div class="ckp-tile-lbl">Crash Sensor (GEX)</div>
+      <div class="ckp-tile-val" id="ckpCrashVal">—</div>
+      <div class="ckp-tile-sub" id="ckpCrashSub">dealer pin</div>
+      <div class="ckp-tile-bar" id="ckpCrashBar"></div>
+    </div>
+
+    <!-- Co-Pilot — Master Decision Panel composite verdict -->
+    <div class="ckp-tile" id="ckpTileCopilot" data-target="mdpPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🤖</div>
+      <div class="ckp-tile-lbl">Co-Pilot (MDP)</div>
+      <div class="ckp-tile-val" id="ckpCopilotVal">—</div>
+      <div class="ckp-tile-sub" id="ckpCopilotSub">confidence score</div>
+      <div class="ckp-tile-bar" id="ckpCopilotBar"></div>
+    </div>
+
+    <!-- Dashcam — TradingView price-action signal -->
+    <div class="ckp-tile" id="ckpTileDashcam" data-target="tvPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">📹</div>
+      <div class="ckp-tile-lbl">Dashcam (Price)</div>
+      <div class="ckp-tile-val" id="ckpDashcamVal">—</div>
+      <div class="ckp-tile-sub" id="ckpDashcamSub">structure</div>
+      <div class="ckp-tile-bar" id="ckpDashcamBar"></div>
+    </div>
+
+    <!-- Route Plan — Strategy Planner (pre-trade) -->
+    <div class="ckp-tile" id="ckpTileRoute" data-target="plannerPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🗺️</div>
+      <div class="ckp-tile-lbl">Route (Plan)</div>
+      <div class="ckp-tile-val" id="ckpRouteVal">—</div>
+      <div class="ckp-tile-sub" id="ckpRouteSub">entry plan</div>
+      <div class="ckp-tile-bar" id="ckpRouteBar"></div>
+    </div>
+
+    <!-- Cross-Traffic — Pattern Relationship cross-signal -->
+    <div class="ckp-tile" id="ckpTileCross" data-target="relPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🚦</div>
+      <div class="ckp-tile-lbl">Cross-Traffic</div>
+      <div class="ckp-tile-val" id="ckpCrossVal">—</div>
+      <div class="ckp-tile-sub" id="ckpCrossSub">DVOL × pattern</div>
+      <div class="ckp-tile-bar" id="ckpCrossBar"></div>
+    </div>
+
+    <!-- Pothole Map — Vol-Sell Gaps (jumps, skew momentum) -->
+    <div class="ckp-tile" id="ckpTilePothole" data-target="vsgPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🕳️</div>
+      <div class="ckp-tile-lbl">Potholes (VSG)</div>
+      <div class="ckp-tile-val" id="ckpPotholeVal">—</div>
+      <div class="ckp-tile-sub" id="ckpPotholeSub">jumps · skew</div>
+      <div class="ckp-tile-bar" id="ckpPotholeBar"></div>
+    </div>
+
+    <!-- Wind — Funding rate (perp) -->
+    <div class="ckp-tile" id="ckpTileWind" data-target="pvsPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🌬️</div>
+      <div class="ckp-tile-lbl">Wind (Funding)</div>
+      <div class="ckp-tile-val" id="ckpWindVal">—</div>
+      <div class="ckp-tile-sub" id="ckpWindSub">perp lean</div>
+      <div class="ckp-tile-bar" id="ckpWindBar"></div>
+    </div>
+
+    <!-- Storm Radar — DVOL Market Pattern Observer -->
+    <div class="ckp-tile" id="ckpTileStorm" data-target="dvolMPOPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🌪️</div>
+      <div class="ckp-tile-lbl">Storm Radar (DVOL)</div>
+      <div class="ckp-tile-val" id="ckpStormVal">—</div>
+      <div class="ckp-tile-sub" id="ckpStormSub">DVOL regime</div>
+      <div class="ckp-tile-bar" id="ckpStormBar"></div>
+    </div>
+
+    <!-- Crumple Zone — Pro Risk metrics (liquidation, drawdown) -->
+    <div class="ckp-tile" id="ckpTileCrumple" data-target="simProRiskPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">💥</div>
+      <div class="ckp-tile-lbl">Crumple (Risk)</div>
+      <div class="ckp-tile-val" id="ckpCrumpleVal">—</div>
+      <div class="ckp-tile-sub" id="ckpCrumpleSub">liq · drawdown</div>
+      <div class="ckp-tile-bar" id="ckpCrumpleBar"></div>
+    </div>
+
+    <!-- Mirror — Volatility Edge / IV-RV-HV (full vapPanel context) -->
+    <div class="ckp-tile" id="ckpTileMirror" data-target="vapPanel" onclick="window.__ckpJump(this)">
+      <div class="ckp-tile-icon">🪞</div>
+      <div class="ckp-tile-lbl">Mirror (IVP)</div>
+      <div class="ckp-tile-val" id="ckpMirrorVal">—</div>
+      <div class="ckp-tile-sub" id="ckpMirrorSub">IV percentile</div>
+      <div class="ckp-tile-bar" id="ckpMirrorBar"></div>
+    </div>
+
+    <!-- Auto-discovered tiles will be appended here by ckpAutoDiscover() -->
+  </div>
+
+  <!-- Verdict ribbon — synthesises everything into one driving instruction -->
+  <div class="ckp-verdict" id="ckpVerdictWrap">
+    <span class="ckp-verdict-pill park" id="ckpVerdictPill">PARK</span>
+    <span id="ckpVerdictText">Cockpit booting — once the rest of the page lights up, this strip will tell you whether to drive (sell strangle), slow down (reduce size), brake (close), or park (stay flat) based on every gauge above.</span>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   COCKPIT MASTER ENGINE
+   ─────────────────────────────────────────────────────────────
+   Reads from existing globals every 3s and translates into the
+   car-and-road metaphor. NEVER mutates anything. If a source is
+   missing, the corresponding tile shows '—' and the engine
+   continues. Click any tile to scroll to its source panel.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const REFRESH_MS = 3000;
+
+  // ── DOM jump helper (clicking a tile scrolls to its source panel) ──
+  window.__ckpJump = function(tileEl){
+    if(!tileEl) return;
+    const target = tileEl.getAttribute('data-target');
+    if(!target) return;
+    const el = document.getElementById(target);
+    if(!el) return;
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+    // Brief highlight
+    const orig = el.style.outline;
+    el.style.outline = '2px solid #6366f1';
+    el.style.outlineOffset = '2px';
+    setTimeout(()=>{ el.style.outline = orig; }, 1400);
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────
+  function setTile(id, val, sub, cls, fillPct){
+    const valEl = $('ckp'+id+'Val');
+    const subEl = $('ckp'+id+'Sub');
+    const barEl = $('ckp'+id+'Bar');
+    const tile  = $('ckpTile'+id);
+    if(valEl) valEl.textContent = val;
+    if(subEl) subEl.textContent = sub;
+    if(tile){
+      tile.classList.remove('green','amber','red','purple','cyan','flash-warn','flash-danger');
+      if(cls) cls.split(' ').forEach(c => c && tile.classList.add(c));
+    }
+    if(barEl) barEl.style.width = (fillPct != null ? Math.max(0,Math.min(100,fillPct)) : 0) + '%';
+  }
+
+  function fmtPct(v,d){ d=d==null?1:d; return v==null||!isFinite(v)?'—':v.toFixed(d)+'%'; }
+  function fmt$(v){ return v==null||!isFinite(v)?'—':'$'+Math.round(v).toLocaleString('en-US'); }
+  function fmt$2(v){ return v==null||!isFinite(v)?'—':'$'+v.toFixed(2); }
+
+  // ── Data extractors (all guarded; never throw) ─────────────────
+  function getSpot(){
+    try { return (state.btcSpotLive>10000 ? state.btcSpotLive : state.btcBase) || 0; }
+    catch(e){ return 0; }
+  }
+  function getHV30(){ try { return state.hv30; } catch(e){ return null; } }
+  function getDvol(){ try { return state.dvolBase; } catch(e){ return null; } }
+  function getNearIdx(){
+    try { return EXPIRIES.findIndex((e,i) => !e.expired && i>0); } catch(e){ return -1; }
+  }
+  function getNearIV(){
+    try {
+      const idx = getNearIdx();
+      if(idx<0) return null;
+      const arr = state.ivHistory && state.ivHistory[idx];
+      if(arr && arr.length) return arr[arr.length-1];
+      return EXPIRIES[idx]?.base ?? null;
+    } catch(e){ return null; }
+  }
+  function getNearDTE(){
+    try { const idx = getNearIdx(); return idx>=0 ? EXPIRIES[idx].dte : null; }
+    catch(e){ return null; }
+  }
+  function getOpenPosition(){
+    try {
+      if(typeof window.simState === 'undefined' || !Array.isArray(window.simState.positions)) return null;
+      const positions = window.simState.positions.filter(p => p && p.call && p.put);
+      if(!positions.length) return null;
+      return positions.sort((a,b) => (b.entryTs||0)-(a.entryTs||0))[0];
+    } catch(e){ return null; }
+  }
+  // Sample BTC realized vol from recent 1h candles in mpoState
+  function get1hRV(){
+    try {
+      if(typeof mpoState==='undefined' || !mpoState.candles1h || mpoState.candles1h.length<10) return null;
+      const c = mpoState.candles1h.slice(-24);   // last 24h
+      const rets = [];
+      for(let i=1;i<c.length;i++){
+        if(c[i-1].c>0) rets.push(Math.log(c[i].c/c[i-1].c));
+      }
+      if(rets.length<5) return null;
+      const m = rets.reduce((s,v)=>s+v,0)/rets.length;
+      const v = rets.reduce((s,r)=>s+(r-m)*(r-m),0)/rets.length;
+      // annualise: hourly stddev × √(24*365)
+      return Math.sqrt(v) * Math.sqrt(24*365) * 100;
+    } catch(e){ return null; }
+  }
+  function get1hMovePct(){
+    try {
+      if(typeof mpoState==='undefined' || !mpoState.candles1h || mpoState.candles1h.length<2) return null;
+      const last = mpoState.candles1h[mpoState.candles1h.length-1];
+      if(!last || !last.o || !last.c) return null;
+      return (last.c - last.o) / last.o * 100;
+    } catch(e){ return null; }
+  }
+  function getVov(){
+    try {
+      const arr = state.vovHistory;
+      return (arr && arr.length) ? arr[arr.length-1] : null;
+    } catch(e){ return null; }
+  }
+  function getMpoRegime(){
+    // Inspect mpoState.patterns to derive a regime label
+    try {
+      if(typeof mpoState==='undefined' || !Array.isArray(mpoState.patterns)) return {label:'—', kind:'unk', counts:{iv:0,gamma:0}};
+      const pats = mpoState.patterns;
+      let iv=0, gamma=0;
+      for(const p of pats){
+        const state2 = p.state || p.status || '';
+        const name = (p.name||'').toLowerCase();
+        const cat  = (p.category||'').toLowerCase();
+        if(state2 === 'forming'){ iv++; continue; }
+        if(state2 !== 'confirmed') continue;
+        const isStruct = /bos|choch|hh|ll|hl|lh/.test(name) || cat==='structure';
+        const isImpulse= /impulse|wave [1-5]/.test(name) || cat==='elliott';
+        const isLiq    = /sweep|liquidity|stop hunt|grab/.test(name) || cat==='liquidity';
+        const hasBias  = p.bias==='bullish' || p.bias==='bearish';
+        if((isStruct&&hasBias) || isImpulse) gamma++;
+        else if(isLiq) iv++;
+        else if(p.isStrangleEnemy) iv++;
+        else if(hasBias) gamma++;
+        else iv++;
+      }
+      let label, kind;
+      if(iv===0 && gamma===0){ label='QUIET'; kind='quiet'; }
+      else if(gamma===0)     { label=`IV·${iv}`; kind='iv'; }
+      else if(iv===0)        { label=`Γ·${gamma}`; kind='gamma'; }
+      else if(iv > gamma*2)  { label=`IV-LEAN ${iv}/${gamma}`; kind='iv'; }
+      else if(gamma > iv*2)  { label=`Γ-LEAN ${gamma}/${iv}`; kind='gamma'; }
+      else                   { label=`MIXED ${iv}/${gamma}`; kind='mixed'; }
+      return {label, kind, counts:{iv,gamma}};
+    } catch(e){ return {label:'—', kind:'unk', counts:{iv:0,gamma:0}}; }
+  }
+  function getNextNewsEvent(){
+    try {
+      if(typeof mcState === 'undefined' || !Array.isArray(mcState.items)) return null;
+      const now = Date.now();
+      const future = mcState.items
+        .filter(it => {
+          const ts = it.sortKey || it.dt?.ts;
+          return ts && ts > now && (it.title||'').startsWith('🏛️') && (it.impact==='critical'||it.impact==='moderate');
+        })
+        .sort((a,b)=>(a.sortKey||a.dt?.ts)-(b.sortKey||b.dt?.ts));
+      return future[0] || null;
+    } catch(e){ return null; }
+  }
+  function getMaxPain(){
+    // Try DOM-based read from pvs panel (it computes this internally)
+    try {
+      const el = document.getElementById('pvsMaxPainStrike');
+      if(el && el.textContent) {
+        const v = parseFloat(el.textContent.replace(/[^0-9.]/g,''));
+        return isFinite(v) ? v : null;
+      }
+    } catch(e){}
+    return null;
+  }
+  function getDealerGEX(){
+    // Read from PVS DOM if available
+    try {
+      const el = document.getElementById('pvsGexDollarVal') || document.getElementById('pvsGEX');
+      if(el && el.textContent){
+        const txt = el.textContent;
+        if(/long|positive|\+/i.test(txt)) return {sign:'+', label:'long'};
+        if(/short|negative|−|-/i.test(txt)) return {sign:'-', label:'short'};
+      }
+    } catch(e){}
+    return null;
+  }
+
+  // Term-structure read from exsum panel (it already computes contango/backw)
+  function getTermStructure(){
+    try {
+      const el = document.getElementById('exsumTermContent');
+      if(!el) return null;
+      const html = el.innerHTML;
+      if(/CONTANGO/.test(html)) return 'contango';
+      if(/BACKWARDATION/.test(html)) return 'backw';
+      if(/FLAT/.test(html)) return 'flat';
+    } catch(e){}
+    return null;
+  }
+
+  // Position greeks (rough computation if open position exists)
+  function getPositionGreeks(){
+    const pos = getOpenPosition();
+    if(!pos) return null;
+    try {
+      const spot = getSpot();
+      const dte = (typeof EXPIRIES!=='undefined') ? (EXPIRIES.find(e=>e.label===pos.expiry)?.dte ?? 7) : 7;
+      const T = Math.max(dte, 0.25)/365;
+      const callIV = (pos.call.entryIV || getNearIV() || 40)/100;
+      const putIV  = (pos.put.entryIV  || getNearIV() || 40)/100;
+      // Simple BS for delta/gamma/theta/vega
+      function ncdf(x){
+        const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+        const sign = x<0?-1:1; x=Math.abs(x)/Math.sqrt(2);
+        const t=1/(1+p*x);
+        const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+        return 0.5*(1+sign*y);
+      }
+      function npdf(x){ return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI); }
+      function bs(S,K,T,sig,isCall){
+        const d1 = (Math.log(S/K)+(0.045+0.5*sig*sig)*T)/(sig*Math.sqrt(T));
+        const delta = isCall ? ncdf(d1) : ncdf(d1)-1;
+        const gamma = npdf(d1)/(S*sig*Math.sqrt(T));
+        const vega = S*npdf(d1)*Math.sqrt(T)/100;
+        const theta = (-S*npdf(d1)*sig/(2*Math.sqrt(T)))/365;
+        return {delta, gamma, vega, theta};
+      }
+      const cg = bs(spot, pos.call.strike, T, callIV, true);
+      const pg = bs(spot, pos.put.strike,  T, putIV,  false);
+      // Short strangle = -1 * each leg's greeks
+      const lots = pos.lots || 1;
+      const cs = (typeof CONTRACT_SIZE!=='undefined') ? CONTRACT_SIZE : 0.001;
+      const scale = lots * cs;
+      return {
+        delta: -(cg.delta + pg.delta) * scale,
+        gamma: -(cg.gamma + pg.gamma) * scale * spot, // dollarised gamma proxy
+        vega : -(cg.vega + pg.vega)  * scale,
+        theta: -(cg.theta + pg.theta)* scale,
+        spot, dte, callK:pos.call.strike, putK:pos.put.strike, lots
+      };
+    } catch(e){ return null; }
+  }
+
+  // ── Extractors for the EXPANDED panel set ────────────────────────
+  // All read from existing panel DOM. Each returns null if the source
+  // panel hasn't loaded yet — never throws.
+  function readNum(elId){
+    try {
+      const el = document.getElementById(elId);
+      if(!el) return null;
+      const txt = (el.textContent || '').replace(/[^\-0-9.]/g,'');
+      const v = parseFloat(txt);
+      return isFinite(v) ? v : null;
+    } catch(e){ return null; }
+  }
+  function readText(elId, max){
+    try {
+      const el = document.getElementById(elId);
+      if(!el) return null;
+      const t = (el.textContent || '').trim();
+      if(!t) return null;
+      return max ? t.slice(0, max) : t;
+    } catch(e){ return null; }
+  }
+
+  // MDP — Master Decision Panel: confidence score 0–100 + verdict text
+  function getMdp(){
+    const score = readNum('mdpScoreNum');
+    const verdict = readText('mdpVerdictText', 28);
+    if(score == null && !verdict) return null;
+    return { score, verdict };
+  }
+
+  // TradingView panel — derives a directional bias from SMC + ADX + Trend
+  function getTvSignal(){
+    const smc   = readText('tvSigSMC', 24);     // e.g. "BULLISH" / "BEARISH" / "NEUTRAL"
+    const trend = readText('tvSigTrend', 24);
+    const adxR  = readText('tvAdxRegime', 24);  // "STRONG TREND" etc
+    const adxV  = readNum('tvAdxVal');
+    const kz    = readText('tvSigKZ', 16);
+    if(!smc && !trend && !adxR) return null;
+    // Composite bias: prefer SMC, fall back to trend
+    const upper = ((smc||trend||'') + '').toUpperCase();
+    let dir = 'flat', cls = 'amber', icon = '⏸';
+    if(/BULL/.test(upper))      { dir='bullish'; cls='red';   icon='▲'; }
+    else if(/BEAR/.test(upper)) { dir='bearish'; cls='red';   icon='▼'; }
+    else                         { dir='neutral'; cls='green'; icon='⏸'; }
+    return { dir, cls, icon, smc, trend, adxR, adxV, kz };
+  }
+
+  // Strategy Planner — verdict title + score
+  function getPlanner(){
+    const title = readText('plnVerdictTitle', 24);
+    const sub   = readText('plnVerdictSub', 60);
+    const score = readNum('plnVerdictScore');
+    if(!title && score == null) return null;
+    return { title, sub, score };
+  }
+
+  // Pattern Relationship (DVOL × AI) — read the latest signal text
+  function getRelSignal(){
+    try {
+      const wrap = document.getElementById('relPanel');
+      if(!wrap) return null;
+      const ts = readText('relTs', 30);
+      // Try to find a verdict-class element inside relPanel
+      const vEl = wrap.querySelector('.rel-verdict, .rel-status, .rel-headline');
+      const status = vEl ? vEl.textContent.trim().slice(0,40) : null;
+      // Look for any prominent number/score
+      const numEl = wrap.querySelector('.rel-score-num, .rel-score, .rel-conf');
+      const score = numEl ? parseFloat((numEl.textContent||'').replace(/[^\-0-9.]/g,'')) : null;
+      if(!status && (score == null || !isFinite(score))) return null;
+      return { status, score: isFinite(score) ? score : null, ts };
+    } catch(e){ return null; }
+  }
+
+  // Vol-Sell Gaps — pull jump-risk verdict + kurtosis
+  function getVsg(){
+    const jumpTitle = readText('vsgJumpTitle', 24);
+    const jumpSub   = readText('vsgJumpSub', 50);
+    const kurt      = readNum('vsgKurt');
+    const maxJump   = readNum('vsgMaxJump');
+    const skew      = readNum('vsgSkewness');
+    if(!jumpTitle && kurt == null) return null;
+    return { jumpTitle, jumpSub, kurt, maxJump, skew };
+  }
+
+  // Funding rate (Binance perp)
+  function getFunding(){
+    const f = readNum('pvsFundBinance');         // raw %/8h
+    const f24 = readNum('pvsFund24h');           // 24h average
+    const basis = readNum('pvsBasis');
+    if(f == null && f24 == null) return null;
+    return { rate: f, rate24h: f24, basis };
+  }
+
+  // DVOL Market Pattern Observer — different from spot MPO
+  function getDvolMpo(){
+    try {
+      const wrap = document.getElementById('dvolMPOPanel');
+      if(!wrap) return null;
+      // Pull whatever pattern-count or active-regime text the panel shows
+      const mainEl = wrap.querySelector('.mpo-main, .mpo-regime, [class*="dominant"]');
+      const txt = mainEl ? mainEl.textContent.trim().slice(0,28) : null;
+      const countEls = wrap.querySelectorAll('[class*="count"]');
+      let total = 0;
+      countEls.forEach(e => {
+        const v = parseInt((e.textContent||'').replace(/[^0-9]/g,''),10);
+        if(isFinite(v)) total += v;
+      });
+      if(!txt && !total) return null;
+      return { regime: txt, count: total };
+    } catch(e){ return null; }
+  }
+
+  // Sim liquidation distance — how far is BTC from the nearest liq price
+  function getLiqDistance(){
+    try {
+      const upper = readNum('simLiqUpper');
+      const lower = readNum('simLiqLower');
+      const spot = getSpot();
+      if(spot < 1000 || (upper == null && lower == null)) return null;
+      let dPct = null, side = '';
+      if(upper && upper > spot){
+        dPct = ((upper - spot)/spot) * 100; side = '↑';
+      }
+      if(lower && lower < spot){
+        const lp = ((spot - lower)/spot) * 100;
+        if(dPct == null || lp < dPct){ dPct = lp; side = '↓'; }
+      }
+      if(dPct == null) return null;
+      return { distPct: dPct, side, upper, lower };
+    } catch(e){ return null; }
+  }
+
+  // IV percentile / IV Rank from vapPanel (vapMetIVR is the IV-rank metric)
+  function getIvp(){
+    const v = readNum('vapMetIVR');   // 0..100 %
+    if(v == null) return null;
+    return v;
+  }
+
+  // Active ICT kill zone — read from external CI_KZ_DEFS if present
+  function getActiveKZ(){
+    try {
+      if(typeof CI_KZ_DEFS === 'undefined' || typeof _ciIsInKZ !== 'function') return null;
+      const kz = CI_KZ_DEFS.find(k => _ciIsInKZ(k));
+      return kz || null;
+    } catch(e){ return null; }
+  }
+  // Find the next upcoming kill zone with hours-from-now
+  function getNextKZ(maxHrsAhead){
+    try {
+      if(typeof CI_KZ_DEFS === 'undefined' || typeof _ciGetISTMinute !== 'function') return null;
+      const nowMin = _ciGetISTMinute();
+      let best = null;
+      const max = maxHrsAhead != null ? maxHrsAhead : 18;
+      CI_KZ_DEFS.forEach(kz => {
+        if(!kz || typeof kz.start !== 'number' || typeof kz.end !== 'number') return;
+        // Distance to kz.start in minutes (future only)
+        let d = kz.start - nowMin;
+        if(d <= 0) d += 24*60;
+        const hrs = d / 60;
+        if(hrs <= max && (!best || hrs < best.hrs)){
+          best = { kz, hrs };
+        }
+      });
+      return best;
+    } catch(e){ return null; }
+  }
+
+  // Aggregate verdict — simple rule combining the most important sensors
+  function deriveVerdict(ctx){
+    // Returns {pill: 'go'|'slow'|'brake'|'park', text}
+    const reasons = [];
+    let score = 0;
+
+    // Brake cases
+    if(ctx.dteRemain != null && ctx.dteRemain < 2){
+      return {pill:'brake', text:`<b>BRAKE.</b> DTE ${ctx.dteRemain.toFixed(1)}d — gamma risk dominates. Close any open strangle; do not open new ones at this DTE.`};
+    }
+    if(ctx.mpoKind === 'gamma'){
+      reasons.push('MPO confirms gamma-driven thrust');
+      score -= 2;
+    }
+    if(ctx.term === 'backw'){
+      reasons.push('IV term structure backwardated (stress)');
+      score -= 1;
+    }
+    if(ctx.nextNewsHrs != null && ctx.nextNewsHrs < 4){
+      reasons.push(`high-impact macro event in ${ctx.nextNewsHrs.toFixed(1)}h`);
+      score -= 2;
+    }
+
+    // Go cases
+    if(ctx.term === 'contango'){
+      reasons.push('curve in contango (theta-friendly)');
+      score += 1;
+    }
+    if(ctx.ivOverHv != null && ctx.ivOverHv > 5){
+      reasons.push(`IV over HV by +${ctx.ivOverHv.toFixed(1)} (premium rich)`);
+      score += 2;
+    }
+    if(ctx.mpoKind === 'quiet'){
+      reasons.push('MPO clear');
+      score += 1;
+    }
+    if(ctx.dteRemain != null && ctx.dteRemain >= 14 && ctx.dteRemain <= 30){
+      reasons.push(`DTE ${ctx.dteRemain.toFixed(0)}d in seller sweet spot`);
+      score += 1;
+    }
+
+    let pill = 'park', text = '';
+    if(score >= 3){
+      pill = 'go';
+      text = `<b>DRIVE.</b> ${reasons.slice(0,3).join('; ')}. Conditions favour selling .10Δ strangle.`;
+    } else if(score <= -3){
+      pill = 'brake';
+      text = `<b>BRAKE.</b> ${reasons.slice(0,3).join('; ')}. Close existing shorts or stand aside.`;
+    } else if(score <= -1){
+      pill = 'slow';
+      text = `<b>SLOW DOWN.</b> ${reasons.slice(0,3).join('; ')}. If position is open, reduce size; no new entries.`;
+    } else if(score >= 1){
+      pill = 'go';
+      text = `<b>DRIVE (with caution).</b> ${reasons.slice(0,3).join('; ')}. Modest edge — proceed with normal size.`;
+    } else {
+      pill = 'park';
+      text = `<b>PARK.</b> Mixed signals${reasons.length?': '+reasons.slice(0,2).join('; '):''}. No clear edge for entry; existing position fine on neutral autopilot.`;
+    }
+    return {pill, text};
+  }
+
+  // ── Render ─────────────────────────────────────────────────────
+  function render(){
+    const spot = getSpot();
+    const hv30 = getHV30();
+    const dvol = getDvol();
+    const nearIV = getNearIV();
+    const nearDTE = getNearDTE();
+    const rv = get1hRV();
+    const move1h = get1hMovePct();
+    const vov = getVov();
+    const mpo = getMpoRegime();
+    const news = getNextNewsEvent();
+    const term = getTermStructure();
+    const pos = getOpenPosition();
+    const greeks = getPositionGreeks();
+
+    // Status pill (top-right)
+    const statusPill = $('ckpStatusPill');
+    if(spot > 0){
+      statusPill.textContent = `Spot $${Math.round(spot).toLocaleString('en-US')}`;
+      statusPill.className = 'ckp-meta-pill green';
+    } else {
+      statusPill.textContent = 'Waiting for spot…';
+      statusPill.className = 'ckp-meta-pill';
+    }
+
+    // Position pill
+    const posPill = $('ckpPositionPill');
+    if(pos){
+      posPill.textContent = `${pos.lots||1}× ${pos.call.strike}/${pos.put.strike} · ${pos.expiry}`;
+      posPill.className = 'ckp-meta-pill green';
+    } else {
+      posPill.textContent = 'No position';
+      posPill.className = 'ckp-meta-pill';
+    }
+
+    // ── Speedometer (RV + 1h move) ──
+    if(rv != null){
+      const cls = rv > 80 ? 'red' : rv > 50 ? 'amber' : 'green';
+      const arrow = move1h==null ? '' : (move1h>0.3 ? ' ↑' : move1h<-0.3 ? ' ↓' : '');
+      setTile('Speed', rv.toFixed(0)+'%'+arrow, `1h move ${move1h==null?'—':(move1h>=0?'+':'')+move1h.toFixed(2)+'%'}`, cls, Math.min(100, rv));
+    } else {
+      setTile('Speed', '—', 'awaiting candles', '', 0);
+    }
+
+    // ── RPM (IV) ──
+    if(nearIV != null){
+      const cls = nearIV > 70 ? 'red' : nearIV > 50 ? 'amber' : 'green';
+      const ivOverHv = (hv30!=null) ? (nearIV - hv30) : null;
+      const sub = ivOverHv != null ? `vs HV30 ${(ivOverHv>=0?'+':'')+ivOverHv.toFixed(1)}` : 'engine revs';
+      setTile('Rpm', nearIV.toFixed(1)+'%', sub, cls, Math.min(100, nearIV));
+    } else {
+      setTile('Rpm', '—', 'awaiting IV', '', 0);
+    }
+
+    // ── Fuel (DTE) ──
+    let dteRemain = nearDTE;
+    if(pos && typeof EXPIRIES!=='undefined'){
+      const ex = EXPIRIES.find(e => e.label === pos.expiry);
+      if(ex) dteRemain = ex.dte;
+    }
+    if(dteRemain != null){
+      const fuelPct = Math.max(0, Math.min(100, (dteRemain/30)*100));
+      const cls = dteRemain < 3 ? 'red' : dteRemain < 7 ? 'amber' : 'green';
+      const sub = pos ? 'your position' : 'nearest expiry';
+      setTile('Fuel', dteRemain.toFixed(1)+'d', sub, cls, fuelPct);
+    } else {
+      setTile('Fuel', '—', 'no expiry', '', 0);
+    }
+
+    // ── GPS (term structure) ──
+    if(term){
+      const map = {contango:{val:'CONTANGO',sub:'open road ahead',cls:'green',pct:75},
+                   flat:{val:'FLAT',sub:'no curve edge',cls:'amber',pct:50},
+                   backw:{val:'BACKWARDATION',sub:'roadworks ahead',cls:'red',pct:25}};
+      const m = map[term];
+      setTile('Gps', m.val, m.sub, m.cls, m.pct);
+    } else {
+      setTile('Gps', '—', 'need 2+ expiries', '', 0);
+    }
+
+    // ── Steering (delta) ──
+    if(greeks){
+      const dollarDelta = greeks.delta * spot;
+      const absD = Math.abs(dollarDelta);
+      const cls = absD > 200 ? 'red' : absD > 100 ? 'amber' : 'green';
+      const dir = greeks.delta > 0.001 ? '→ call-tested' : greeks.delta < -0.001 ? '← put-tested' : 'centered';
+      const pct = Math.min(100, absD/4); // 0..400$ → 0..100
+      setTile('Steer', '$'+dollarDelta.toFixed(0), dir, cls, pct);
+    } else {
+      setTile('Steer', 'CENTERED', 'no position open', 'green', 0);
+    }
+
+    // ── Suspension (gamma) ──
+    if(greeks){
+      const absG = Math.abs(greeks.gamma);
+      const cls = absG > 5 ? 'red' : absG > 2 ? 'amber' : 'green';
+      setTile('Susp', '$'+absG.toFixed(2), 'per $1 BTC move', cls, Math.min(100, absG*15));
+    } else {
+      setTile('Susp', '—', 'no position open', '', 0);
+    }
+
+    // ── Weather (VoV) ──
+    if(vov != null){
+      const cls = vov > 12 ? 'red' : vov > 8 ? 'amber' : 'green';
+      const wlbl = vov > 12 ? 'storm' : vov > 8 ? 'cloudy' : 'clear';
+      setTile('Weather', vov.toFixed(1), wlbl + (dvol?` · DVOL ${dvol.toFixed(0)}`:''), cls, Math.min(100, vov*5));
+    } else {
+      setTile('Weather', '—', 'awaiting VoV', '', 0);
+    }
+
+    // ── Hazards (MPO) ──
+    if(mpo){
+      let cls = '', flash = '';
+      if(mpo.kind==='quiet'){ cls='green'; }
+      else if(mpo.kind==='iv'){ cls='purple'; flash='flash-warn'; }
+      else if(mpo.kind==='gamma'){ cls='red'; flash='flash-danger'; }
+      else if(mpo.kind==='mixed'){ cls='amber'; flash='flash-warn'; }
+      const sub = mpo.kind==='quiet' ? 'no patterns' :
+                  mpo.kind==='iv' ? 'IV-driven (vol up, price slow)' :
+                  mpo.kind==='gamma' ? 'gamma-driven (sharp price)' :
+                  'mixed regime';
+      setTile('Hazard', mpo.label, sub, (cls+(flash?' '+flash:'')).trim(), 0);
+    } else {
+      setTile('Hazard', '—', 'awaiting MPO', '', 0);
+    }
+
+    // ── Headlights (next news) ──
+    let nextNewsHrs = null;
+    if(news){
+      const ts = news.sortKey || news.dt?.ts;
+      const hoursAhead = (ts - Date.now())/3600000;
+      nextNewsHrs = hoursAhead;
+      const cls = hoursAhead < 4 ? 'red' : hoursAhead < 24 ? 'amber' : 'green';
+      const flash = hoursAhead < 2 ? 'flash-danger' : (hoursAhead<6?'flash-warn':'');
+      const title = (news.title||'').replace(/^🏛️\s*/,'').replace(/\s*—.*$/,'').slice(0,28);
+      const valTxt = hoursAhead < 1 ? `${Math.round(hoursAhead*60)}m` : `${hoursAhead.toFixed(1)}h`;
+      setTile('Headlight', valTxt, title, (cls+(flash?' '+flash:'')).trim(), Math.max(0,Math.min(100, 100-hoursAhead*4)));
+    } else {
+      setTile('Headlight', 'CLEAR', 'no events 24h+', 'green', 0);
+    }
+
+    // ── Settlement countdown ──
+    const now = new Date(Date.now() + 330*60000); // IST
+    const todaySettle = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0)); // 17:30 IST = 12:00 UTC
+    let settleMs = todaySettle.getTime() - Date.now();
+    if(settleMs < 0) settleMs += 86400000; // tomorrow
+    const settleHrs = settleMs/3600000;
+    const settleMins = Math.round((settleMs%3600000)/60000);
+    const cls = settleHrs < 0.5 ? 'red' : settleHrs < 2 ? 'amber' : 'green';
+    const flash = settleHrs < 0.5 ? 'flash-danger' : settleHrs<1?'flash-warn':'';
+    setTile('Settle', settleHrs >= 1 ? `${Math.floor(settleHrs)}h ${settleMins}m` : `${Math.round(settleMs/60000)}m`,
+            'Delta India 17:30 IST', (cls+(flash?' '+flash:'')).trim(),
+            Math.max(0, Math.min(100, 100 - (settleHrs/24)*100)));
+
+    // ── Tank (premium IV-HV) ──
+    let ivOverHv = null;
+    if(nearIV != null && hv30 != null) ivOverHv = nearIV - hv30;
+    if(ivOverHv != null){
+      const cls = ivOverHv >= 5 ? 'green' : ivOverHv >= 0 ? 'amber' : 'red';
+      const lbl = ivOverHv >= 5 ? 'rich premium' : ivOverHv >= 0 ? 'fair' : 'cheap (don\'t sell)';
+      setTile('Premium', (ivOverHv>=0?'+':'')+ivOverHv.toFixed(1), lbl, cls, Math.min(100, Math.max(0, (ivOverHv+5)*8)));
+    } else {
+      setTile('Premium', '—', 'awaiting IV/HV', '', 0);
+    }
+
+    // ── Crash sensor (max pain) ──
+    const maxPain = getMaxPain();
+    if(maxPain && spot){
+      const distPct = ((spot - maxPain)/spot) * 100;
+      const cls = Math.abs(distPct) > 3 ? 'red' : Math.abs(distPct) > 1 ? 'amber' : 'green';
+      const dir = distPct > 0 ? `pin pull ↓ to $${Math.round(maxPain).toLocaleString()}` : `pin pull ↑ to $${Math.round(maxPain).toLocaleString()}`;
+      setTile('Crash', (distPct>=0?'+':'')+distPct.toFixed(1)+'%', dir, cls, Math.min(100, Math.abs(distPct)*15));
+    } else {
+      setTile('Crash', '—', 'awaiting GEX', '', 0);
+    }
+
+    // ── Co-Pilot (MDP composite verdict) ──
+    const mdp = getMdp();
+    if(mdp && mdp.score != null){
+      // Score: 0..100 — higher = stronger sell signal
+      const cls = mdp.score >= 70 ? 'green' :
+                  mdp.score >= 50 ? 'amber' :
+                  mdp.score >= 30 ? 'amber' : 'red';
+      setTile('Copilot', mdp.score.toFixed(0)+'/100',
+              mdp.verdict ? mdp.verdict.toLowerCase() : 'composite read',
+              cls, mdp.score);
+    } else {
+      setTile('Copilot', '—', 'reading panels…', '', 0);
+    }
+
+    // ── Dashcam (TradingView signal) ──
+    const tv = getTvSignal();
+    if(tv){
+      const subBits = [];
+      if(tv.adxV != null) subBits.push(`ADX ${tv.adxV.toFixed(0)}`);
+      if(tv.kz)            subBits.push(tv.kz);
+      const subTxt = subBits.length ? subBits.join(' · ') : (tv.smc || tv.trend || 'live');
+      // Dashcam is "stop and look" if BIG directional bias — bad for short strangle
+      const valTxt = tv.icon + ' ' + (tv.dir.toUpperCase());
+      setTile('Dashcam', valTxt, subTxt, tv.cls, tv.dir==='neutral' ? 80 : 40);
+    } else {
+      setTile('Dashcam', '—', 'TV loading…', '', 0);
+    }
+
+    // ── Route Plan (Strategy Planner) ──
+    const pln = getPlanner();
+    if(pln){
+      const valTxt = (pln.score != null && isFinite(pln.score)) ? pln.score.toFixed(0) : (pln.title ? pln.title.slice(0,12) : '—');
+      const subTxt = pln.title ? pln.title.toLowerCase() : 'configure & evaluate';
+      const cls = (pln.score != null) ? (pln.score >= 70 ? 'green' : pln.score >= 40 ? 'amber' : 'red') : '';
+      setTile('Route', valTxt, subTxt, cls, pln.score != null ? pln.score : 0);
+    } else {
+      setTile('Route', '—', 'open planner', '', 0);
+    }
+
+    // ── Cross-Traffic (Pattern Relationship: DVOL × AI) ──
+    const rel = getRelSignal();
+    if(rel){
+      const valTxt = rel.score != null ? rel.score.toFixed(0) : (rel.status ? rel.status.split(/\s/)[0].slice(0,10) : '—');
+      const subTxt = rel.status ? rel.status.toLowerCase() : 'cross-signal live';
+      const cls = (rel.score != null) ? (rel.score >= 70 ? 'red' : rel.score >= 40 ? 'amber' : 'green') : '';
+      setTile('Cross', valTxt, subTxt, cls, Math.min(100, rel.score || 0));
+    } else {
+      setTile('Cross', '—', 'awaiting cross-signal', '', 0);
+    }
+
+    // ── Potholes (Vol-Sell Gaps: jumps + skew + kurtosis) ──
+    const vsg = getVsg();
+    if(vsg){
+      // Higher kurtosis or skew → fatter tails → more potholes
+      const k = vsg.kurt;
+      let cls = 'green', valTxt = '—';
+      if(k != null){
+        cls = k > 6 ? 'red' : k > 4 ? 'amber' : 'green';
+        valTxt = 'κ ' + k.toFixed(1);
+      } else if(vsg.maxJump != null){
+        cls = vsg.maxJump > 4 ? 'red' : vsg.maxJump > 2.5 ? 'amber' : 'green';
+        valTxt = vsg.maxJump.toFixed(1) + 'σ';
+      }
+      const subTxt = vsg.jumpTitle ? vsg.jumpTitle.toLowerCase().slice(0,28) : 'jump-risk profile';
+      setTile('Pothole', valTxt, subTxt, cls, k != null ? Math.min(100, k * 12) : 30);
+    } else {
+      setTile('Pothole', '—', 'scanning klines…', '', 0);
+    }
+
+    // ── Wind (Funding rate) ──
+    const fund = getFunding();
+    if(fund && fund.rate != null){
+      // Funding %/8h. Annualized ≈ rate × 365 × 3 = rate × 1095.
+      const r = fund.rate;
+      const absR = Math.abs(r);
+      const cls = absR > 0.05 ? 'red' : absR > 0.02 ? 'amber' : 'green';
+      const dir = r > 0.005 ? '↑ longs pay' : r < -0.005 ? '↓ shorts pay' : 'neutral';
+      const valTxt = (r >= 0 ? '+' : '') + r.toFixed(3) + '%';
+      setTile('Wind', valTxt, dir, cls, Math.min(100, absR * 1500));
+    } else {
+      setTile('Wind', '—', 'awaiting perp data', '', 0);
+    }
+
+    // ── Storm Radar (DVOL pattern observer) ──
+    const dvolMpo = getDvolMpo();
+    if(dvolMpo && (dvolMpo.regime || dvolMpo.count)){
+      const subTxt = dvolMpo.regime ? dvolMpo.regime.toLowerCase().slice(0,22) :
+                     `${dvolMpo.count} pattern${dvolMpo.count===1?'':'s'} active`;
+      const valTxt = dvolMpo.count != null && dvolMpo.count > 0 ? dvolMpo.count.toString() : (dvolMpo.regime||'').slice(0,8);
+      const cls = dvolMpo.count > 4 ? 'red' : dvolMpo.count > 2 ? 'amber' : 'green';
+      setTile('Storm', valTxt, subTxt, cls, Math.min(100, (dvolMpo.count||0)*15));
+    } else {
+      setTile('Storm', '—', 'DVOL scanning…', '', 0);
+    }
+
+    // ── Crumple Zone (liquidation distance + drawdown) ──
+    const liq = getLiqDistance();
+    if(liq){
+      const cls = liq.distPct < 5 ? 'red' : liq.distPct < 12 ? 'amber' : 'green';
+      const valTxt = liq.side + ' ' + liq.distPct.toFixed(1) + '%';
+      setTile('Crumple', valTxt, 'to nearest liq', cls, Math.max(0, Math.min(100, 100 - liq.distPct*4)));
+    } else {
+      setTile('Crumple', 'SAFE', 'no liq within range', 'green', 0);
+    }
+
+    // ── Mirror (IV percentile / IV rank) ──
+    const ivp = getIvp();
+    if(ivp != null){
+      // Higher IV percentile → richer premium → seller paradise (green)
+      const cls = ivp >= 60 ? 'green' : ivp >= 30 ? 'amber' : 'red';
+      const sub = ivp >= 75 ? 'rich — premium juicy' :
+                  ivp >= 50 ? 'fair — average' :
+                  ivp >= 25 ? 'cheap — be patient' : 'very low — skip';
+      setTile('Mirror', ivp.toFixed(0)+'%ile', sub, cls, ivp);
+    } else {
+      setTile('Mirror', '—', 'awaiting IVP', '', 0);
+    }
+
+    // ── Car position + tilt ──
+    const stage = $('ckpStage');
+    const carWrap = $('ckpCarWrap');
+    const carLabel = $('ckpCarLabel');
+    const roadsideL = $('ckpRoadsideLeft');
+    const roadsideR = $('ckpRoadsideRight');
+
+    // ── Live IST time + day + date ──
+    // IST = UTC+5:30. Use a shifted Date to extract IST clock components.
+    const istNow = new Date(Date.now() + 330*60000);
+    const istHour = istNow.getUTCHours();
+    const istMin  = istNow.getUTCMinutes();
+    const istSec  = istNow.getUTCSeconds();
+    const istDow  = istNow.getUTCDay();              // 0..6 Sun..Sat
+    const istDate = istNow.getUTCDate();
+    const istMonth= istNow.getUTCMonth();
+    const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Format 12-hour clock with leading zeros for minutes/seconds
+    const ampm = istHour < 12 ? 'AM' : 'PM';
+    const h12  = istHour===0 ? 12 : (istHour>12 ? istHour-12 : istHour);
+    const clockTimeEl = $('ckpClockTime');
+    const clockDayEl  = $('ckpClockDay');
+    if(clockTimeEl){
+      clockTimeEl.textContent =
+        `${String(h12).padStart(2,'0')}:${String(istMin).padStart(2,'0')}:${String(istSec).padStart(2,'0')} ${ampm}`;
+    }
+    if(clockDayEl){
+      clockDayEl.textContent =
+        `${DOW_SHORT[istDow]} · ${istDate} ${MON_SHORT[istMonth]} · IST`;
+    }
+
+    // ── Position within today's trading session ──
+    // Session window: 5:30 IST → 5:30 IST next day. Compute fractional hours
+    // since session-start (0..24).
+    let sessionPos = istHour - 5 + (istMin/60) + (istSec/3600) - (30/60);
+    if(sessionPos < 0) sessionPos += 24;
+    const sessionPct = Math.max(0, Math.min(100, (sessionPos / 24) * 100));
+
+    // ── Active session detection (still useful for the car label) ──
+    // Asia 5:30..14:30 (9h)  → sessionPos 0..9
+    // London 14:30..20:30 (6h) → sessionPos 9..15
+    // NY 20:30..02:30 (6h)   → sessionPos 15..21
+    // Late 02:30..05:30 (3h) → sessionPos 21..24
+    let activeSession = 'asia';
+    if(sessionPos >= 21)      activeSession = 'late';
+    else if(sessionPos >= 15) activeSession = 'ny';
+    else if(sessionPos >= 9)  activeSession = 'london';
+    else                      activeSession = 'asia';
+
+    // ── Rolling 24h-ahead session ribbon ──
+    // The car is anchored at CAR_ANCHOR_PCT from the left of the stage.
+    // Everything to the LEFT of the car = past 24h. Everything to the RIGHT
+    // of the car = next 24h. The session ribbon is rebuilt every render so
+    // segments slide leftward as time passes — the driver always "sees the
+    // upcoming road."
+    const CAR_ANCHOR_PCT = 18; // car sits 18% from left
+    // Each pixel-percent of the stage represents some hours of time. We show
+    // 6 hours of past (left of car) + 18 hours of future (right of car) so
+    // the driver sees most of the upcoming day. Total window = 24h.
+    const PAST_HOURS   = 6;
+    const FUTURE_HOURS = 18;
+    const TOTAL_HOURS  = PAST_HOURS + FUTURE_HOURS; // 24
+    // % per hour on the ribbon. CAR_ANCHOR_PCT covers PAST_HOURS hours,
+    // so each hour = CAR_ANCHOR_PCT / PAST_HOURS percent (== 3% per hour
+    // when 18%/6h). Right side: (100 - CAR_ANCHOR_PCT) / FUTURE_HOURS.
+    // To keep it linear/uniform across the whole ribbon we use one rate
+    // derived from the future side (which is what the driver cares about):
+    const PCT_PER_HOUR = (100 - CAR_ANCHOR_PCT) / FUTURE_HOURS;
+    // Recompute past width consistently (so the past-side scale matches):
+    const PAST_PCT = PAST_HOURS * PCT_PER_HOUR;
+    // Stage's effective left edge (in "hours from now"): -PAST_HOURS
+    // The car sits at hour=0 (now), pixel=CAR_ANCHOR_PCT (or PAST_PCT, same).
+    const carPxAtNow = PAST_PCT; // === CAR_ANCHOR_PCT by construction
+
+    // Sync the visual NOW marker + day-progress fill to the car anchor
+    const nowMarker = $('ckpNowMarker');
+    if(nowMarker) nowMarker.style.left = carPxAtNow + '%';
+    const dayProgEl = $('ckpDayProgress');
+    if(dayProgEl) dayProgEl.style.width = carPxAtNow + '%';
+
+    // Build the rolling 24h session ribbon. Sessions repeat daily so we map
+    // each hour-offset (-PAST_HOURS .. +FUTURE_HOURS) to its session label.
+    function sessionAtSessionPos(sp){
+      // sp is in [0, 24). Returns the session key.
+      if(sp >= 21)      return 'late';
+      if(sp >= 15)      return 'ny';
+      if(sp >= 9)       return 'london';
+      return 'asia';
+    }
+    function sessionMeta(key){
+      const meta = {
+        asia:   { label:'ASIA',   range:'5:30–14:30' },
+        london: { label:'LONDON', range:'14:30–20:30' },
+        ny:     { label:'NY',     range:'20:30–02:30' },
+        late:   { label:'LATE',   range:'02:30–05:30' },
+      };
+      return meta[key];
+    }
+    const sessionsEl = $('ckpSessions');
+    if(sessionsEl){
+      sessionsEl.innerHTML = '';
+      // Walk from -PAST_HOURS to +FUTURE_HOURS, grouping consecutive hours
+      // that fall in the same session into a single segment.
+      let segStart = -PAST_HOURS;
+      let segKey   = sessionAtSessionPos((sessionPos - PAST_HOURS + 24) % 24);
+      function emitSeg(start, end, key){
+        const meta = sessionMeta(key);
+        const leftPct  = (start + PAST_HOURS) * PCT_PER_HOUR;
+        const widthPct = (end - start) * PCT_PER_HOUR;
+        if(widthPct <= 0) return;
+        const div = document.createElement('div');
+        div.className = 'ckp-session-zone ' + key;
+        if(key === activeSession && start <= 0 && end >= 0){
+          // The segment that contains "now" gets the active highlight
+          div.classList.add('active');
+        }
+        div.style.left  = leftPct + '%';
+        div.style.width = widthPct + '%';
+        // Show the session label only if there's room; otherwise hide it.
+        // On wide segments add the time range; on narrow ones just the name.
+        if(widthPct > 4){
+          const showRange = widthPct > 18;
+          div.textContent = showRange ? (meta.label + ' · ' + meta.range) : meta.label;
+        }
+        div.title = meta.label + ' · ' + meta.range +
+          (start <= 0 && end >= 0 ? ' · LIVE NOW' :
+           start > 0 ? ' · in ' + start.toFixed(1) + 'h' :
+                       ' · ' + Math.abs(end).toFixed(1) + 'h ago');
+        div.dataset.session = key;
+        sessionsEl.appendChild(div);
+      }
+      for(let h = -PAST_HOURS + 0.25; h <= FUTURE_HOURS; h += 0.25){
+        const sp = ((sessionPos + h) % 24 + 24) % 24;
+        const k  = sessionAtSessionPos(sp);
+        if(k !== segKey){
+          emitSeg(segStart, h, segKey);
+          segStart = h;
+          segKey   = k;
+        }
+      }
+      emitSeg(segStart, FUTURE_HOURS, segKey);
+    }
+
+    if(stage && carWrap && carLabel){
+      // Stage backdrop based on overall regime
+      stage.classList.remove('regime-calm','regime-warn','regime-storm');
+      let stageCls = 'regime-calm';
+      if(mpo.kind === 'gamma' || (rv && rv > 80) || (vov && vov > 12)) stageCls = 'regime-storm';
+      else if(mpo.kind === 'iv' || mpo.kind === 'mixed' || (rv && rv > 50) || (vov && vov > 8)) stageCls = 'regime-warn';
+      stage.classList.add(stageCls);
+
+      // ── Car is now ANCHORED so the road ahead represents the future. ──
+      // The session ribbon scrolls underneath; the car stays put. Tilt =
+      // delta lean (separate axis). Net delta affects rotation only.
+      let tiltCls = '';
+      if(greeks){
+        const dollarDelta = greeks.delta * spot;
+        if(dollarDelta >  50) tiltCls = 'tilted-right';
+        if(dollarDelta < -50) tiltCls = 'tilted-left';
+      }
+      // Brief spin if MPO regime is gamma-driven and confirmed strong
+      const shouldSpin = (mpo.kind === 'gamma' && mpo.counts.gamma >= 3);
+      carWrap.style.left = CAR_ANCHOR_PCT + '%';
+      carWrap.classList.remove('tilted-left','tilted-right','spinning');
+      if(tiltCls) carWrap.classList.add(tiltCls);
+      if(shouldSpin) carWrap.classList.add('spinning');
+
+      // Car label — combines time-of-day session + position state
+      const sessionLabel = activeSession.charAt(0).toUpperCase() + activeSession.slice(1);
+      let label;
+      if(!greeks){
+        label = `${sessionLabel} session · No position`;
+      } else {
+        const absD = Math.abs(greeks.delta * spot);
+        let posPart;
+        if(absD > 200) posPart = `Wing tested · Δ$${absD.toFixed(0)}`;
+        else if(absD > 100) posPart = `Drifting · Δ$${absD.toFixed(0)}`;
+        else posPart = `Centered · Δ$${absD.toFixed(0)}`;
+        label = `${sessionLabel} · ${posPart}`;
+      }
+      carLabel.textContent = label;
+
+      // Roadside icons — left = recent (just-passed) condition, right = upcoming
+      if(roadsideL){
+        if(rv != null && rv > 80){ roadsideL.textContent='💨'; roadsideL.title='Recent realized vol high — turbulent road just driven'; }
+        else if(mpo.kind==='gamma'){ roadsideL.textContent='🚧'; roadsideL.title='Gamma-driven setups — sharp moves recently'; }
+        else if(mpo.kind==='iv'){ roadsideL.textContent='🌫️'; roadsideL.title='IV-driven setups — vol expanded'; }
+        else { roadsideL.textContent=''; roadsideL.title=''; }
+      }
+      if(roadsideR){
+        if(nextNewsHrs != null && nextNewsHrs < 4){
+          roadsideR.textContent = '🚨';
+          roadsideR.title = `UPCOMING: ${(news.title||'').replace(/^🏛️\s*/,'')} in ${nextNewsHrs.toFixed(1)}h`;
+        } else if(settleHrs < 1){
+          roadsideR.textContent = '🏁';
+          roadsideR.title = `UPCOMING: Delta India settlement in ${Math.round(settleMs/60000)}m`;
+        } else if(settleHrs < 4){
+          roadsideR.textContent = '🛣️';
+          roadsideR.title = `Settlement ahead in ${settleHrs.toFixed(1)}h — clear road for now`;
+        } else {
+          roadsideR.textContent = '';
+          roadsideR.title = '';
+        }
+      }
+    }
+
+    // ── Traffic signal — synthesises upcoming-road alerts into 1 light ──
+    // Inputs considered:
+    //  • news within next N hours (high-impact macro)
+    //  • settlement within next N minutes
+    //  • IV spike (rising fast vs prior reading)
+    //  • RV (realized vol) very high
+    //  • VoV (vol-of-vol) elevated
+    //  • MPO regime (gamma-driven = red, iv/mixed = amber)
+    // Hoisted so the breaker block (later in render) can reference it too.
+    let ivSpikePts = 0;
+    try {
+      const trafficRed   = $('ckpTrafficRed');
+      const trafficAmber = $('ckpTrafficAmber');
+      const trafficGreen = $('ckpTrafficGreen');
+      const trafficLabel = $('ckpTrafficLabel');
+      const trafficWrap  = $('ckpTraffic');
+
+      // Detect IV spike — compare current near-IV to last sample we kept
+      ivSpikePts = (function(){
+        try{
+          if(typeof window.__ckpLastIV !== 'number') { window.__ckpLastIV = nearIV; window.__ckpLastIVTs = Date.now(); return 0; }
+          const dtMin = (Date.now() - (window.__ckpLastIVTs||Date.now())) / 60000;
+          const delta = (nearIV != null && window.__ckpLastIV != null) ? (nearIV - window.__ckpLastIV) : 0;
+          // Refresh stored sample every ~10 min so spike window stays meaningful
+          if(dtMin > 10){ window.__ckpLastIV = nearIV; window.__ckpLastIVTs = Date.now(); }
+          return delta;
+        }catch(e){ return 0; }
+      })();
+
+      // Score each potential alarm; highest tier wins
+      const alarms = [];
+      if(nextNewsHrs != null && nextNewsHrs < 1)             alarms.push({tier:'red',   why:'Macro event <1h'});
+      else if(nextNewsHrs != null && nextNewsHrs < 4)        alarms.push({tier:'amber', why:`News in ${nextNewsHrs.toFixed(1)}h`});
+      if(settleHrs != null && settleHrs < 0.5)               alarms.push({tier:'red',   why:'Settle <30m'});
+      else if(settleHrs != null && settleHrs < 2)            alarms.push({tier:'amber', why:`Settle ${settleHrs.toFixed(1)}h`});
+      if(rv != null && rv > 80)                               alarms.push({tier:'red',   why:`RV ${rv.toFixed(0)}%`});
+      else if(rv != null && rv > 55)                          alarms.push({tier:'amber', why:`RV ${rv.toFixed(0)}%`});
+      if(ivSpikePts >= 5)                                     alarms.push({tier:'red',   why:`IV +${ivSpikePts.toFixed(1)}pt`});
+      else if(ivSpikePts >= 2)                                alarms.push({tier:'amber', why:`IV +${ivSpikePts.toFixed(1)}pt`});
+      if(vov != null && vov > 12)                             alarms.push({tier:'red',   why:`VoV ${vov.toFixed(1)}`});
+      else if(vov != null && vov > 8)                         alarms.push({tier:'amber', why:`VoV ${vov.toFixed(1)}`});
+      if(mpo && mpo.kind === 'gamma' && mpo.counts.gamma >= 3) alarms.push({tier:'red',   why:'Gamma regime'});
+      else if(mpo && (mpo.kind === 'iv' || mpo.kind === 'mixed')) alarms.push({tier:'amber', why:`${mpo.kind.toUpperCase()} regime`});
+
+      // Resolve worst tier
+      let tier = 'green', why = 'All clear ahead';
+      if(alarms.some(a => a.tier === 'red')){
+        tier = 'red';
+        const r = alarms.find(a => a.tier === 'red');
+        why = r.why;
+      } else if(alarms.some(a => a.tier === 'amber')){
+        tier = 'amber';
+        const a0 = alarms.find(a => a.tier === 'amber');
+        why = a0.why;
+      }
+
+      // Apply lights — only the active bulb glows; flashing if red/amber
+      [trafficRed, trafficAmber, trafficGreen].forEach(b => {
+        if(!b) return;
+        b.classList.remove('on','flash');
+      });
+      if(tier === 'red'   && trafficRed)   { trafficRed.classList.add('on','flash'); }
+      if(tier === 'amber' && trafficAmber) { trafficAmber.classList.add('on','flash'); }
+      if(tier === 'green' && trafficGreen) { trafficGreen.classList.add('on'); }
+      if(trafficLabel){
+        trafficLabel.textContent = why;
+        trafficLabel.className = 'ckp-traffic-label-bot ' + tier;
+      }
+      if(trafficWrap){
+        // Build a multi-line tooltip listing all active alarms
+        const lines = alarms.length
+          ? alarms.map(a => `[${a.tier.toUpperCase()}] ${a.why}`).join('\n')
+          : 'No alerts — clear road ahead.';
+        trafficWrap.title = 'Traffic signal — upcoming-road alerts:\n' + lines;
+      }
+    } catch(e){ /* never break the dashboard for an alert subsystem */ }
+
+    // ── Speed breakers — visible obstacles ON THE UPCOMING ROAD ──
+    // We only place breakers within the visible 18h-ahead window. Each
+    // breaker uses the same hour→% scale as the rolling session ribbon
+    // so that an obstacle appears at exactly the spot it's coming up.
+    try {
+      const breakersEl = $('ckpBreakers');
+      if(breakersEl){
+        breakersEl.innerHTML = '';
+        const list = [];
+
+        // 1. Upcoming news event (if within 18h)
+        if(nextNewsHrs != null && nextNewsHrs > 0 && nextNewsHrs <= FUTURE_HOURS){
+          const sev = nextNewsHrs < 1 ? 'stop' : nextNewsHrs < 4 ? 'bump' : 'cone';
+          const ttl = (news?.title||'Macro event').replace(/^🏛️\s*/,'').slice(0,28);
+          list.push({
+            hrs: nextNewsHrs, kind: sev,
+            label: '📰 ' + ttl,
+            tip: 'NEWS in ' + nextNewsHrs.toFixed(1) + 'h: ' + ttl
+          });
+        }
+
+        // 2. Daily settlement (Delta India 17:30 IST)
+        if(settleHrs != null && settleHrs > 0 && settleHrs <= FUTURE_HOURS){
+          const sev = settleHrs < 0.5 ? 'stop' : settleHrs < 2 ? 'bump' : 'cone';
+          list.push({
+            hrs: settleHrs, kind: sev,
+            label: '🏁 Settle',
+            tip: 'Delta India settlement in ' + (settleHrs<1 ? Math.round(settleMs/60000)+'m' : settleHrs.toFixed(1)+'h')
+          });
+        }
+
+        // 3. Upcoming kill zones (NY entry = STOP, others = caution)
+        const nextKZ = getNextKZ(FUTURE_HOURS);
+        if(nextKZ){
+          // NY KZ is "no new entries" per existing dashboard logic
+          const isNy = (nextKZ.kz.key === 'ny');
+          list.push({
+            hrs: nextKZ.hrs,
+            kind: isNy ? 'stop' : 'bump',
+            label: '⏱ ' + (nextKZ.kz.short || nextKZ.kz.name || 'KZ'),
+            tip: (isNy ? 'NY Kill Zone' : (nextKZ.kz.name||'Kill Zone'))
+                 + ' opens in ' + nextKZ.hrs.toFixed(1) + 'h'
+                 + (isNy ? ' — avoid new entries' : '')
+          });
+        }
+
+        // 4. IV spike — if IV has risen sharply in the last 10 min,
+        //    place a "live" breaker right at the car (hrs=0.05). This
+        //    shows the driver they JUST hit a bump even though it's not
+        //    truly "ahead". Only when the spike is fresh.
+        if(ivSpikePts >= 2){
+          list.push({
+            hrs: 0.05,
+            kind: ivSpikePts >= 5 ? 'stop' : 'bump',
+            label: '⚡ IV +' + ivSpikePts.toFixed(1) + 'pt',
+            tip: 'IV jumped ' + ivSpikePts.toFixed(1) + ' points in the last 10m'
+          });
+        }
+
+        // 5. Realized vol still elevated → wavy road ahead
+        if(rv != null && rv > 70){
+          list.push({
+            hrs: 0.5,
+            kind: rv > 90 ? 'stop' : 'bump',
+            label: '💨 RV ' + rv.toFixed(0) + '%',
+            tip: 'Realized vol is ' + rv.toFixed(0) + '% — ride is bumpy'
+          });
+        }
+
+        // 6. Approaching low-DTE expiry boundary (gamma cliff)
+        if(dteRemain != null && dteRemain > 0 && dteRemain <= 3){
+          list.push({
+            hrs: dteRemain * 24,
+            kind: dteRemain < 1 ? 'stop' : 'bump',
+            label: '🧨 ' + dteRemain.toFixed(1) + 'd expiry',
+            tip: 'Position expires in ' + dteRemain.toFixed(1) + ' days — gamma cliff approaching'
+          });
+        }
+
+        // 7. CLEAN-ROAD warning — if the trader sees nothing ahead but
+        //    the dashboard isn't fully loaded, show a soft cone hint so
+        //    they don't assume "all clear" when really we just don't
+        //    know yet. This covers the user's "if road looks clean" ask.
+        if(list.length === 0){
+          // Place a single soft cone at +6h labelled "scanning ahead"
+          // ONLY if some critical sensor is still null (loading).
+          const stillLoading = (rv == null) || (vov == null) || (mdp == null) || (term == null);
+          if(stillLoading){
+            list.push({
+              hrs: 6,
+              kind: 'cone',
+              label: '👀 Scanning',
+              tip: 'Some sensors still warming up — road read may improve in a moment'
+            });
+          }
+        }
+
+        // Render — sort so closer breakers paint last (on top)
+        list.sort((a,b) => b.hrs - a.hrs);
+        list.forEach(b => {
+          const leftPct = CAR_ANCHOR_PCT + b.hrs * PCT_PER_HOUR;
+          if(leftPct < CAR_ANCHOR_PCT - 1 || leftPct > 100) return; // off-screen
+          const el = document.createElement('div');
+          el.className = 'ckp-breaker ' + b.kind;
+          el.style.left = leftPct + '%';
+          el.title = b.tip;
+          if(b.label){
+            const lbl = document.createElement('div');
+            lbl.className = 'ckp-breaker-lbl';
+            lbl.textContent = b.label;
+            el.appendChild(lbl);
+          }
+          breakersEl.appendChild(el);
+        });
+      }
+    } catch(e){ /* breakers are decorative — never block render */ }
+
+    // ── Verdict ribbon ──
+    const verdict = deriveVerdict({
+      dteRemain, mpoKind: mpo.kind, term, nextNewsHrs, ivOverHv
+    });
+    const pill = $('ckpVerdictPill');
+    const text = $('ckpVerdictText');
+    if(pill){
+      pill.className = 'ckp-verdict-pill ' + verdict.pill;
+      pill.textContent = verdict.pill === 'go' ? 'DRIVE' :
+                         verdict.pill === 'slow' ? 'SLOW' :
+                         verdict.pill === 'brake' ? 'BRAKE' : 'PARK';
+    }
+    if(text) text.innerHTML = verdict.text;
+  }
+
+  function safeRender(){
+    try { render(); } catch(e){ console.warn('[ckp] render err', e); }
+  }
+
+  // Lightweight clock-only ticker (runs every second, just updates the
+  // clock pill + day-progress bar + active session highlight — no heavy
+  // recomputation of greeks/gauges, which stay on the 3-second render).
+  function tickClockOnly(){
+    try {
+      const istNow = new Date(Date.now() + 330*60000);
+      const h = istNow.getUTCHours();
+      const m = istNow.getUTCMinutes();
+      const s = istNow.getUTCSeconds();
+      const dow = istNow.getUTCDay();
+      const date = istNow.getUTCDate();
+      const mon  = istNow.getUTCMonth();
+      const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const h12  = h===0 ? 12 : (h>12 ? h-12 : h);
+      const tEl = $('ckpClockTime');
+      const dEl = $('ckpClockDay');
+      if(tEl) tEl.textContent =
+        `${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} ${ampm}`;
+      if(dEl) dEl.textContent =
+        `${DOW[dow]} · ${date} ${MON[mon]} · IST`;
+
+      // ── Anchored layout: car stays at CAR_ANCHOR_PCT, day-progress fills
+      // up to the same anchor (representing how much of the day is behind us
+      // relative to the visible window). The dynamic session ribbon is
+      // rebuilt by the heavier render() every 3s — we DON'T touch it here.
+      const CAR_ANCHOR_PCT = 18;
+      const pEl = $('ckpDayProgress');
+      if(pEl) pEl.style.width = CAR_ANCHOR_PCT + '%';
+      const carEl = $('ckpCarWrap');
+      if(carEl) carEl.style.left = CAR_ANCHOR_PCT + '%';
+      const nowMarker = $('ckpNowMarker');
+      if(nowMarker) nowMarker.style.left = CAR_ANCHOR_PCT + '%';
+    } catch(e){ /* ignore */ }
+  }
+
+  setTimeout(safeRender, 1500);
+  setInterval(safeRender, REFRESH_MS);
+  // Clock + session + day-progress ticks every second
+  setInterval(tickClockOnly, 1000);
+  window.refreshCockpit = safeRender;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     SAME-WEEKDAY HISTORY STRIP
+     ─────────────────────────────────────────────────────────────────────
+     Today is, say, Tuesday. This block fetches the past ~10 weeks of daily
+     BTC closes from Binance and renders the close-to-close % change for
+     each prior Tuesday plus today's WIP bar (current spot vs yesterday's
+     close). Helps the trader spot a same-day-of-week pattern (e.g. "BTC
+     usually drops on Tuesdays") before sizing the strangle.
+     ═════════════════════════════════════════════════════════════════════ */
+  (function weekdayHistory(){
+    const DOW_LONG  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const TARGET_BARS = 8; // how many same-weekday samples to display
+
+    // Binance daily klines — UTC bucketed. We fetch enough days to cover
+    // 8 weekdays + 1 prior reference close.
+    const DAYS_TO_FETCH = (TARGET_BARS + 2) * 7;
+
+    // We expose istWeekday() so we can show the right label even if the
+    // user's clock is off — IST is the trading day for Delta India.
+    function istWeekday(){
+      const ist = new Date(Date.now() + 330*60000);
+      return ist.getUTCDay();
+    }
+
+    let cachedDailies = null;     // [{ts, open, high, low, close, dayUtc}, ...]
+    let lastFetchTs   = 0;
+    const REFETCH_MS  = 30 * 60 * 1000; // 30 minutes — daily candles don't move fast
+
+    async function fetchDailies(){
+      try{
+        const url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${DAYS_TO_FETCH}`;
+        const fn = (typeof window.safeFetch === 'function') ? window.safeFetch : (u)=>fetch(u);
+        const res = await fn(url, {}, 8000);
+        if(!res || !res.ok) return null;
+        const arr = await res.json();
+        if(!Array.isArray(arr) || !arr.length) return null;
+        const out = arr.map(k => ({
+          ts:    k[0],                 // open time (ms, UTC)
+          open:  parseFloat(k[1]),
+          high:  parseFloat(k[2]),
+          low:   parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          // IST day-of-week of this candle's open. Each Binance daily bar
+          // opens at 00:00 UTC. In IST that's 05:30 IST, which falls within
+          // the "same trading day" we care about.
+          dayUtc: new Date(k[0]).getUTCDay(),
+        }));
+        cachedDailies = out;
+        lastFetchTs = Date.now();
+        return out;
+      } catch(e){
+        return null;
+      }
+    }
+
+    function getLiveSpot(){
+      try{
+        const s = (state.btcSpotLive>10000 ? state.btcSpotLive : state.btcBase) || 0;
+        return s > 0 ? s : null;
+      } catch(e){ return null; }
+    }
+
+    function renderStrip(){
+      const dayNameEl = $('ckpWdDayName');
+      const summaryEl = $('ckpWdSummary');
+      const barsEl    = $('ckpWdBars');
+      if(!dayNameEl || !summaryEl || !barsEl) return;
+
+      const todayDow = istWeekday();
+      dayNameEl.textContent = DOW_LONG[todayDow] + 's';
+
+      if(!cachedDailies){
+        summaryEl.textContent = 'loading klines…';
+        summaryEl.className = 'ckp-wd-summary';
+        return;
+      }
+
+      // Pick same-weekday candles. Each "weekday close" bar shows the
+      // close-to-close % change of THAT candle (i.e. that day's return).
+      // For today's still-open day we use live spot vs yesterday's close.
+      const sameDay = cachedDailies
+        .filter(c => c.dayUtc === todayDow)
+        .slice(-TARGET_BARS);
+
+      // For each completed same-weekday candle, return = (close - prevClose)/prevClose
+      // where prevClose = close of the previous calendar day.
+      const dailyByTs = {};
+      cachedDailies.forEach(c => { dailyByTs[c.ts] = c; });
+      const ONE_DAY = 86400000;
+
+      const samples = sameDay.map(c => {
+        const prev = dailyByTs[c.ts - ONE_DAY];
+        const prevClose = prev ? prev.close : c.open;
+        const pct = prevClose > 0 ? ((c.close - prevClose) / prevClose) * 100 : 0;
+        const d = new Date(c.ts);
+        const lbl = `${String(d.getUTCDate()).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]}`;
+        return { pct, label:lbl, isToday:false, ts:c.ts };
+      });
+
+      // Append today's WIP bar
+      const lastClose = (function(){
+        // Yesterday's daily close = the most recent finalized daily candle
+        // whose day !== today's day-of-week (or simply: the very last candle
+        // that's older than today's IST 00:00 UTC mark).
+        const istNow = new Date(Date.now() + 330*60000);
+        const istY  = istNow.getUTCFullYear();
+        const istM  = istNow.getUTCMonth();
+        const istD  = istNow.getUTCDate();
+        // Today's UTC start = today midnight UTC. Anything strictly before
+        // that timestamp is yesterday's bar or older.
+        const todayUtcStart = Date.UTC(istY, istM, istD, 0, 0, 0);
+        const finalized = cachedDailies.filter(c => c.ts < todayUtcStart);
+        return finalized.length ? finalized[finalized.length-1].close : null;
+      })();
+      const liveSpot = getLiveSpot();
+      if(liveSpot != null && lastClose != null && lastClose > 0){
+        const pct = ((liveSpot - lastClose) / lastClose) * 100;
+        samples.push({ pct, label:'Today', isToday:true, ts:Date.now() });
+        // Cap at TARGET_BARS — drop the oldest if we exceeded
+        if(samples.length > TARGET_BARS) samples.shift();
+      }
+
+      if(!samples.length){
+        summaryEl.textContent = 'no data';
+        summaryEl.className = 'ckp-wd-summary';
+        barsEl.innerHTML = '<div class="ckp-wd-axis"></div><div class="ckp-wd-loading">no klines</div>';
+        return;
+      }
+
+      // Compute summary: avg & % positive of historical (excludes today)
+      const hist = samples.filter(s => !s.isToday);
+      const avg = hist.length ? hist.reduce((a,b)=>a+b.pct,0)/hist.length : 0;
+      const upN = hist.filter(s => s.pct > 0).length;
+      const sumCls = avg > 0.3 ? 'green' : avg < -0.3 ? 'red' : 'amber';
+      summaryEl.textContent = `avg ${(avg>=0?'+':'')+avg.toFixed(2)}% · ${upN}/${hist.length} up`;
+      summaryEl.className = 'ckp-wd-summary ' + sumCls;
+
+      // Render bars — scale by max abs %
+      const maxAbs = Math.max(0.5, ...samples.map(s => Math.abs(s.pct)));
+      barsEl.innerHTML = '<div class="ckp-wd-axis"></div>';
+      samples.forEach(s => {
+        const wrap = document.createElement('div');
+        wrap.className = 'ckp-wd-bar-wrap' + (s.isToday ? ' today' : '');
+        const heightPct = Math.max(4, Math.min(48, (Math.abs(s.pct)/maxAbs) * 48));
+        const bar = document.createElement('div');
+        if(Math.abs(s.pct) < 0.01){
+          bar.className = 'ckp-wd-bar zero';
+        } else if(s.pct > 0){
+          bar.className = 'ckp-wd-bar up';
+          bar.style.height = heightPct + '%';
+        } else {
+          bar.className = 'ckp-wd-bar down';
+          bar.style.height = heightPct + '%';
+        }
+        wrap.appendChild(bar);
+        const lbl = document.createElement('div');
+        lbl.className = 'ckp-wd-bar-lbl' + (s.isToday ? ' today' : '');
+        lbl.textContent = s.label;
+        wrap.appendChild(lbl);
+        const pctLbl = document.createElement('div');
+        pctLbl.className = 'ckp-wd-bar-pct ' + (s.pct >= 0 ? 'up' : 'down');
+        pctLbl.style.setProperty('--bh', heightPct + '%');
+        pctLbl.textContent = (s.pct>=0?'+':'') + s.pct.toFixed(2) + '%';
+        wrap.appendChild(pctLbl);
+        wrap.title = `${s.label}: ${(s.pct>=0?'+':'')+s.pct.toFixed(2)}% close-to-close`
+          + (s.isToday ? ' (live, vs yesterday close)' : '');
+        barsEl.appendChild(wrap);
+      });
+    }
+
+    async function tick(){
+      // Refetch daily klines if cache is empty or stale
+      if(!cachedDailies || (Date.now() - lastFetchTs) > REFETCH_MS){
+        await fetchDailies();
+      }
+      renderStrip();
+    }
+
+    // Boot: fetch + render asap, then re-render every 60s (live today-bar
+    // updates with spot). Daily klines themselves are refetched every 30min.
+    setTimeout(tick, 800);
+    setInterval(tick, 60_000);
+  })();
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     AUTO-DISCOVERY: detect any panel that exists in the DOM but isn't
+     already represented by a cockpit tile, and auto-add a generic tile
+     so the cockpit stays a true 1-stop dashboard even after future panel
+     additions. New panels just need to follow the convention id="...Panel"
+     (or "...Desk").
+     ═════════════════════════════════════════════════════════════════════ */
+  (function ckpAutoDiscover(){
+    // Panels that are ALREADY represented by a tile (don't auto-add these)
+    const KNOWN = new Set([
+      'amdPanel', 'vapPanel', 'gcdPanel', 'exsumPanel', 'simDesk',
+      'vov2Panel', 'mpoPanel', 'mcFeedWrap', 'sdePanel', 'pvsPanel',
+      'mdpPanel', 'tvPanel', 'plannerPanel', 'relPanel', 'vsgPanel',
+      'dvolMPOPanel', 'simProRiskPanel',
+      // Aggregate / structural — not user-relevant standalone:
+      'cockpitPanel', 'rvHvPanel', 'tvChartWrap', 'mcFeedWrap',
+      'amdSessionPanel', 'amdsc24hWrap', 'tvChartWrap', 'dtvWrap',
+      'sdpWrap', 'sdpAltWrap', 'simPosRosterWrap',
+      'plnBktExitDateWrap','plnBktExitDaysWrap','plnBktExitDowWrap',
+      'plnBktExitHoursWrap','plnBktExitTimeWrap','plnBktExpiryPresetWrap',
+    ]);
+
+    // Friendly icon + label dictionary. New panels can extend this just
+    // by adding a key here; otherwise generic defaults are used.
+    const META = {
+      // (none required — only here if we want to override defaults)
+    };
+
+    function deriveIconAndLabel(id){
+      if(META[id]) return META[id];
+      // Try to read the panel's own title as the human label
+      let lbl = id.replace(/Panel$|Desk$/,'').replace(/([A-Z])/g,' $1').trim();
+      lbl = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+      // Pick an emoji based on naming hints
+      const lower = id.toLowerCase();
+      let icon = '📦';
+      if(/news|feed/.test(lower))           icon = '📰';
+      else if(/skew|smile/.test(lower))     icon = '🌗';
+      else if(/funding|basis|perp/.test(lower)) icon = '💱';
+      else if(/oi|chain/.test(lower))       icon = '🪢';
+      else if(/chart|tv|graph/.test(lower)) icon = '📈';
+      else if(/risk|liq/.test(lower))       icon = '🚨';
+      else if(/calendar|event/.test(lower)) icon = '📅';
+      else if(/macro|news/.test(lower))     icon = '🌐';
+      return { icon, label: lbl };
+    }
+
+    function readPanelTitle(panelEl){
+      // Try common title selectors
+      const sel = ['.mdp-title','.tv-title','.planner-title','.mpo-title',
+                   '.vap-title','.vov2-title','.rel-title','.exsum-title',
+                   '.sim-title','.sde-title','.pvs-title','.vsg-title',
+                   'h2','h3','h4'];
+      for(const s of sel){
+        const e = panelEl.querySelector(s);
+        if(e && e.textContent){
+          // Strip any inner badge/span content like "LIVE" tags
+          const t = e.firstChild && e.firstChild.nodeType===3
+                    ? e.firstChild.textContent.trim()
+                    : e.textContent.trim();
+          if(t && t.length < 60) return t.replace(/^[^\w]+/,'').trim();
+        }
+      }
+      return null;
+    }
+
+    function discover(){
+      try {
+        const cluster = document.getElementById('ckpCluster');
+        if(!cluster) return;
+
+        // Find every element with id ending in 'Panel' or 'Desk'
+        const candidates = document.querySelectorAll('[id$="Panel"], [id$="Desk"]');
+        const seen = new Set();
+        candidates.forEach(panel => {
+          const id = panel.id;
+          if(!id || KNOWN.has(id) || seen.has(id)) return;
+          seen.add(id);
+          // Skip if a tile for this id already exists (idempotent re-runs)
+          const existing = cluster.querySelector(`[data-target="${id}"]`);
+          if(existing) return;
+
+          // Skip tiny / hidden helper containers
+          const r = panel.getBoundingClientRect();
+          if(r.width === 0 && r.height === 0) {
+            // Could be lazily-rendered — still add but mark dimmed
+          } else if(r.width < 60 && r.height < 60) {
+            return;
+          }
+
+          const meta = deriveIconAndLabel(id);
+          const title = readPanelTitle(panel) || meta.label;
+
+          // Build the tile DOM by hand (avoids HTML injection of titles)
+          const tile = document.createElement('div');
+          tile.className = 'ckp-tile';
+          tile.id = 'ckpTileAuto_' + id;
+          tile.setAttribute('data-target', id);
+          tile.setAttribute('onclick', 'window.__ckpJump(this)');
+          tile.style.opacity = '0.85';
+          tile.title = 'Auto-discovered panel: ' + title;
+
+          const ico = document.createElement('div');
+          ico.className = 'ckp-tile-icon';
+          ico.textContent = meta.icon;
+          tile.appendChild(ico);
+
+          const lbl = document.createElement('div');
+          lbl.className = 'ckp-tile-lbl';
+          lbl.textContent = (meta.label.length > 18 ? meta.label.slice(0,17)+'…' : meta.label);
+          tile.appendChild(lbl);
+
+          const val = document.createElement('div');
+          val.className = 'ckp-tile-val';
+          val.style.fontSize = '11px';
+          val.textContent = '🔗 OPEN';
+          tile.appendChild(val);
+
+          const sub = document.createElement('div');
+          sub.className = 'ckp-tile-sub';
+          sub.textContent = title.toLowerCase().slice(0,28);
+          tile.appendChild(sub);
+
+          const bar = document.createElement('div');
+          bar.className = 'ckp-tile-bar';
+          tile.appendChild(bar);
+
+          cluster.appendChild(tile);
+        });
+      } catch(e){ /* never break the cockpit on auto-discover */ }
+    }
+
+    // Run once shortly after boot (so all panels have time to render),
+    // then again every 30s in case a panel is lazily injected later.
+    setTimeout(discover, 4000);
+    setInterval(discover, 30000);
+  })();
+})();
+</script>
+
+
 <!-- IV Alert Settings -->
 <details class="wa-settings" id="waSettingsBox">
   <summary>⚙️ &nbsp;Alert &amp; Voice Settings — Hindi/English · Telegram · Notifications</summary>
@@ -11404,270 +13809,7 @@ setTimeout(()=>{
 </script>
 
 
-<!-- ═══════════════════════════════════════════════════════════════
-     🎯 BTC BIG MOVE RADAR — Bi-Weekly & Bi-Monthly Strangle Timing
-     Deploy short strangle ONLY after volatility event has cleared
-     ═══════════════════════════════════════════════════════════════ -->
-<style>
-/* ── Big Move Radar Panel ── */
-.bmr-panel{
-  background:var(--color-background-primary);
-  border:1px solid var(--color-border-tertiary);
-  border-radius:14px;padding:14px 16px;margin-bottom:12px;
-  position:relative;overflow:hidden;
-}
-.bmr-panel::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,#dc2626,#f59e0b,#16a34a);
-  border-radius:14px 14px 0 0;
-}
-.bmr-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-top:4px}
-.bmr-title{font-size:13px;font-weight:800;letter-spacing:.03em;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.bmr-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;background:linear-gradient(135deg,#dc2626,#b45309);color:#fff;letter-spacing:.04em;white-space:nowrap}
 
-/* ── Deployment Decision Banner ── */
-.bmr-decision{
-  display:flex;align-items:center;gap:12px;padding:14px 16px;
-  border-radius:11px;border:1.5px solid transparent;margin-bottom:14px;
-  transition:all .4s ease;
-}
-.bmr-dec-enter {background:rgba(22,163,74,.10);border-color:#16a34a}
-.bmr-dec-wait  {background:rgba(245,158,11,.10);border-color:#f59e0b}
-.bmr-dec-danger{background:rgba(220,38,38,.10); border-color:#dc2626}
-.bmr-dec-icon{font-size:34px;line-height:1;flex-shrink:0}
-.bmr-dec-body{flex:1;min-width:0}
-.bmr-dec-title{font-size:16px;font-weight:900;letter-spacing:.03em;line-height:1.1}
-.bmr-dec-enter  .bmr-dec-title{color:#16a34a}
-.bmr-dec-wait   .bmr-dec-title{color:#d97706}
-.bmr-dec-danger .bmr-dec-title{color:#dc2626}
-.bmr-dec-sub{font-size:11px;color:var(--color-text-secondary);margin-top:4px;line-height:1.5}
-.bmr-dec-right{flex-shrink:0;text-align:center}
-.bmr-dec-days{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
-.bmr-dec-enter  .bmr-dec-days{color:#16a34a}
-.bmr-dec-wait   .bmr-dec-days{color:#d97706}
-.bmr-dec-danger .bmr-dec-days{color:#dc2626}
-.bmr-dec-days-lbl{font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em}
-
-/* ── 3-Column KPI Row ── */
-.bmr-kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
-.bmr-kpi{border-radius:9px;padding:9px 12px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)}
-.bmr-kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:3px}
-.bmr-kpi-val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
-.bmr-kpi-sub{font-size:9px;color:var(--color-text-secondary);margin-top:2px}
-
-/* ── Tab Strip ── */
-.bmr-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
-.bmr-tab{font-size:10px;font-weight:700;padding:4px 12px;border-radius:7px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-secondary);cursor:pointer;transition:all .15s;white-space:nowrap}
-.bmr-tab.active{background:#dc2626;color:#fff;border-color:#dc2626}
-.bmr-tab-content{display:none}
-.bmr-tab-content.active{display:block}
-
-/* ── Cycle Cards (Bi-Weekly / Bi-Monthly) ── */
-.bmr-cycle-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-@media(max-width:540px){.bmr-cycle-grid{grid-template-columns:1fr}}
-.bmr-cycle-card{border-radius:10px;padding:12px 14px;border:1px solid transparent}
-.bmr-cyc-biweek{background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.3)}
-.bmr-cyc-bimonth{background:rgba(124,58,237,0.06);border-color:rgba(124,58,237,0.3)}
-.bmr-cycle-head{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.bmr-cyc-biweek  .bmr-cycle-head{color:#2563eb}
-.bmr-cyc-bimonth .bmr-cycle-head{color:#7c3aed}
-.bmr-cycle-row{display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
-.bmr-cycle-row:last-child{border:none;padding-bottom:0}
-.bmr-cycle-key{color:var(--color-text-secondary)}
-.bmr-cycle-val{font-weight:700;color:var(--color-text-primary)}
-
-/* ── Weekly pattern heatmap ── */
-.bmr-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}
-.bmr-wday-col{text-align:center}
-.bmr-wday-lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:3px}
-.bmr-wday-tile{border-radius:5px;height:28px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;transition:opacity .2s}
-
-/* ── Month Distribution ── */
-.bmr-month-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
-.bmr-month-tile{flex:1;min-width:72px;border-radius:8px;padding:8px 10px;border:0.5px solid var(--color-border-tertiary);text-align:center;position:relative;overflow:hidden}
-.bmr-month-lbl{font-size:8px;font-weight:700;color:var(--color-text-secondary);margin-bottom:2px}
-.bmr-month-ret{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
-.bmr-month-big{font-size:8px;font-weight:700;margin-top:2px}
-.bmr-month-safe{font-size:8px;color:var(--color-text-secondary);margin-top:1px}
-.bmr-month-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 8px 8px}
-
-/* ── Chart wrap ── */
-.bmr-chart-wrap{border-radius:9px;overflow:hidden;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);padding:10px 10px 6px;margin-bottom:10px}
-.bmr-chart-hdr{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;font-size:9px}
-.bmr-chart-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary)}
-.bmr-chart-legend{display:flex;gap:10px;flex-wrap:wrap}
-.bmr-leg{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--color-text-secondary);font-weight:600}
-.bmr-leg-sq{width:8px;height:8px;border-radius:2px}
-
-/* ── Safe window indicators ── */
-.bmr-safe-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.bmr-safe-pill{flex:1;min-width:140px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:0.5px solid transparent}
-.bmr-safe-green{background:rgba(22,163,74,.08);border-color:rgba(22,163,74,.3)}
-.bmr-safe-yellow{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.3)}
-.bmr-safe-red{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.3)}
-.bmr-safe-icon{font-size:20px;flex-shrink:0}
-.bmr-safe-body .bmr-safe-name{font-size:10px;font-weight:800}
-.bmr-safe-green  .bmr-safe-name{color:#16a34a}
-.bmr-safe-yellow .bmr-safe-name{color:#d97706}
-.bmr-safe-red    .bmr-safe-name{color:#dc2626}
-.bmr-safe-body .bmr-safe-desc{font-size:9px;color:var(--color-text-secondary);margin-top:1px;line-height:1.35}
-</style>
-
-<div class="bmr-panel" id="btcMovePanel">
-  <div class="bmr-header">
-    <div>
-      <div class="bmr-title">
-        🎯 BTC Big Move Radar
-        <span class="bmr-badge">BI-WEEKLY &amp; BI-MONTHLY DEPLOYMENT</span>
-      </div>
-      <div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">Deploy short strangle ONLY in calm windows after large moves clear · 4%+ threshold</div>
-    </div>
-    <div style="display:flex;gap:6px;align-items:center">
-      <span style="font-size:9px;color:var(--color-text-secondary);font-variant-numeric:tabular-nums" id="btcMoveTs">—</span>
-      <button onclick="fetchBTCMoveHistory(true)" style="font-size:10px;padding:3px 10px;border-radius:6px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-weight:700">↻ Refresh</button>
-    </div>
-  </div>
-
-  <!-- ── DEPLOYMENT DECISION BANNER ── -->
-  <div class="bmr-decision bmr-dec-wait" id="bmrDecision">
-    <div class="bmr-dec-icon" id="bmrDecIcon">⏳</div>
-    <div class="bmr-dec-body">
-      <div class="bmr-dec-title" id="bmrDecTitle">LOADING MOVE DATA…</div>
-      <div class="bmr-dec-sub"  id="bmrDecSub">Fetching 90 days of BTC daily candles from Binance…</div>
-    </div>
-    <div class="bmr-dec-right">
-      <div class="bmr-dec-days" id="bmrDecDays">—</div>
-      <div class="bmr-dec-days-lbl">days since<br>last 4%+ move</div>
-    </div>
-  </div>
-
-  <!-- ── KPI ROW ── -->
-  <div class="bmr-kpi-row">
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">4%+ Moves · 60D</div>
-      <div class="bmr-kpi-val" id="bmrCount60" style="color:#ef4444">—</div>
-      <div class="bmr-kpi-sub">big days in 2 months</div>
-    </div>
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">Avg Frequency</div>
-      <div class="bmr-kpi-val" id="bmrFreq" style="color:#f59e0b">—</div>
-      <div class="bmr-kpi-sub">days between big moves</div>
-    </div>
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">Bi-Weekly Windows</div>
-      <div class="bmr-kpi-val" id="bmrBiWeekOk" style="color:#10b981">—</div>
-      <div class="bmr-kpi-sub">safe 14D windows (last 6M)</div>
-    </div>
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">Bi-Monthly Windows</div>
-      <div class="bmr-kpi-val" id="bmrBiMonthOk" style="color:#7c3aed">—</div>
-      <div class="bmr-kpi-sub">safe 30D windows (last 6M)</div>
-    </div>
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">Avg Hi-Lo Range</div>
-      <div class="bmr-kpi-val" id="bmrAvgRange" style="color:#06b6d4">—</div>
-      <div class="bmr-kpi-sub">daily wick (last 30D)</div>
-    </div>
-    <div class="bmr-kpi">
-      <div class="bmr-kpi-lbl">Calm Streak Now</div>
-      <div class="bmr-kpi-val" id="bmrCalmStreak" style="color:#22c55e">—</div>
-      <div class="bmr-kpi-sub">consecutive &lt;3% days</div>
-    </div>
-  </div>
-
-  <!-- ── TAB STRIP ── -->
-  <div class="bmr-tabs">
-    <button class="bmr-tab active" onclick="bmrTab('chart')">📊 60D Move Chart</button>
-    <button class="bmr-tab" onclick="bmrTab('cadence')">📅 Deploy Cadence</button>
-    <button class="bmr-tab" onclick="bmrTab('weekly')">🗓 Weekly Pattern</button>
-    <button class="bmr-tab" onclick="bmrTab('monthly')">📆 Monthly History</button>
-  </div>
-
-  <!-- TAB: 60D Move Chart -->
-  <div class="bmr-tab-content active" id="bmr-tab-chart">
-    <div class="bmr-chart-wrap">
-      <div class="bmr-chart-hdr">
-        <span class="bmr-chart-title">BTC Daily % Move · Last 60 Days</span>
-        <div class="bmr-chart-legend">
-          <span class="bmr-leg"><span class="bmr-leg-sq" style="background:rgba(34,197,94,0.8)"></span>&gt;4% up</span>
-          <span class="bmr-leg"><span class="bmr-leg-sq" style="background:rgba(239,68,68,0.8)"></span>&gt;4% dn</span>
-          <span class="bmr-leg"><span class="bmr-leg-sq" style="background:rgba(34,197,94,0.3)"></span>calm up</span>
-          <span class="bmr-leg"><span class="bmr-leg-sq" style="background:rgba(239,68,68,0.3)"></span>calm dn</span>
-          <span class="bmr-leg"><span class="bmr-leg-sq" style="background:rgba(245,158,11,0.5)"></span>deploy zone</span>
-        </div>
-      </div>
-      <div style="position:relative;width:100%;height:140px">
-        <canvas id="btcMoveChart"></canvas>
-      </div>
-    </div>
-    <!-- Safe Window Indicators -->
-    <div class="bmr-safe-grid" id="bmrSafeGrid">
-      <div class="bmr-safe-pill bmr-safe-yellow">
-        <div class="bmr-safe-icon">⏳</div>
-        <div class="bmr-safe-body"><div class="bmr-safe-name">Loading…</div><div class="bmr-safe-desc">Fetching data</div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: Deploy Cadence -->
-  <div class="bmr-tab-content" id="bmr-tab-cadence">
-    <div class="bmr-cycle-grid">
-      <div class="bmr-cycle-card bmr-cyc-biweek">
-        <div class="bmr-cycle-head">📅 Bi-Weekly Strangle (14DTE)</div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Deployment condition</span><span class="bmr-cycle-val" id="bcd-biw-cond">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Days since last 4%+</span><span class="bmr-cycle-val" id="bcd-biw-days">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Calm streak now</span><span class="bmr-cycle-val" id="bcd-biw-calm">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Next best entry</span><span class="bmr-cycle-val" id="bcd-biw-next">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Exit rule</span><span class="bmr-cycle-val">50% or 7D</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Avg safe windows/month</span><span class="bmr-cycle-val" id="bcd-biw-win">—</span></div>
-        <div style="margin-top:8px;padding:6px 8px;border-radius:6px;font-size:10px;font-weight:700;text-align:center" id="bcd-biw-verdict">Calculating…</div>
-      </div>
-      <div class="bmr-cycle-card bmr-cyc-bimonth">
-        <div class="bmr-cycle-head">📆 Bi-Monthly Strangle (30–45DTE)</div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Deployment condition</span><span class="bmr-cycle-val" id="bcd-bim-cond">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Days since last 4%+</span><span class="bmr-cycle-val" id="bcd-bim-days">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">4%+ moves last 14D</span><span class="bmr-cycle-val" id="bcd-bim-14d">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Next best entry</span><span class="bmr-cycle-val" id="bcd-bim-next">—</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Exit rule</span><span class="bmr-cycle-val">50% or 21D</span></div>
-        <div class="bmr-cycle-row"><span class="bmr-cycle-key">Avg safe windows/month</span><span class="bmr-cycle-val" id="bcd-bim-win">—</span></div>
-        <div style="margin-top:8px;padding:6px 8px;border-radius:6px;font-size:10px;font-weight:700;text-align:center" id="bcd-bim-verdict">Calculating…</div>
-      </div>
-    </div>
-    <!-- Post-move IV expansion guidance -->
-    <div style="padding:10px 14px;border-radius:9px;background:rgba(124,58,237,0.06);border:0.5px solid rgba(124,58,237,0.25);font-size:10px;line-height:1.6;color:var(--color-text-secondary)">
-      <b style="color:#7c3aed">📐 Deployment Rules (Augen/Sinclair framework):</b><br>
-      <b style="color:var(--color-text-primary)">Bi-Weekly (14DTE):</b> Wait ≥5 calm days after any 4%+ move. Enter when DVOL &gt; HV, VoV &lt;14%, ADX &lt;20. Target 40–50% premium. Exit at 7D or 50% profit.<br>
-      <b style="color:var(--color-text-primary)">Bi-Monthly (30–45DTE):</b> Wait ≥10 calm days. No 4%+ move in last 14D. IV must be in top 40% of 30D range. Exit at 21D or 50% profit. <b style="color:#dc2626">Skip if macro event within DTE window.</b>
-    </div>
-  </div>
-
-  <!-- TAB: Weekly Pattern -->
-  <div class="bmr-tab-content" id="bmr-tab-weekly">
-    <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:8px">
-      Average daily % move by weekday · Last 90D. <b>Enter strangle on low-volatility days (Mon/Tue calm).</b>
-    </div>
-    <div class="bmr-week-grid" id="bmrWeekGrid">
-      <div style="text-align:center;font-size:9px;color:var(--color-text-secondary)">Loading…</div>
-    </div>
-    <div style="font-size:9px;color:var(--color-text-secondary);margin-top:4px;padding:6px 10px;border-radius:6px;background:var(--color-background-secondary)">
-      💡 <b>Pattern insight:</b> BTC typically sees largest moves on <b>Mon (gap risk)</b> and <b>Fri (expiry)</b>. 
-      Safest strangle entry days: <b>Tue–Wed</b> after weekend calm. Avoid entering on Fri pre-expiry.
-    </div>
-  </div>
-
-  <!-- TAB: Monthly History -->
-  <div class="bmr-tab-content" id="bmr-tab-monthly">
-    <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:8px">
-      Last 6 months: avg return, big move count, and safe strangle windows per month.
-    </div>
-    <div class="bmr-month-row" id="bmrMonthRow">
-      <div style="font-size:10px;color:var(--color-text-secondary)">Loading…</div>
-    </div>
-    <div style="font-size:9px;color:var(--color-text-secondary);margin-top:4px;line-height:1.5">
-      <b>Safe window</b> = month had ≥10 consecutive calm days (&lt;3% daily) → ideal bi-monthly strangle entry period.
-    </div>
-  </div>
-</div>
 
 <!-- rvHvPanel hidden — data absorbed into Unified Final Signal -->
 <div id="rvHvPanel" style="display:none"><canvas id="rvHvChart" style="display:none"></canvas><select id="rvExpirySelect" style="display:none"></select><span id="rvSrcBadge"></span><span id="rvTs"></span><div id="rvExpiryTable"></div><div id="rvVerdict"></div></div>
@@ -16908,7 +19050,547 @@ setTimeout(()=>{
 /* ── EMPTY STATE ────────────────────────────────────────────── */
 .sim-empty{text-align:center;padding:24px 12px;color:var(--color-text-secondary);font-size:11px;background:var(--color-background-secondary);border-radius:9px;border:2px dashed var(--color-border-tertiary)}
 .sim-empty-icon{font-size:32px;margin-bottom:8px;opacity:.5}
+
+/* ═══════════════════════════════════════════════════════════════
+   EXPIRY SUMMARY PANEL — Seller's Structural Read (lean version)
+   ─────────────────────────────────────────────────────────────
+   ONLY shows fields that are deterministic from the chain:
+     • Term structure across expiries (contango/backwardation)
+     • Premium scatter (compact / scattered) via IV stddev
+     • Side bias (call-rich / put-rich) via IV avg diff
+     • Strike spacing (min/max adjacent-strike gap)
+     • Last-available delta on each side (chain reach)
+     • Suggested .10Δ short call & short put — with ACTUAL mark price
+     • Real mark-price trend (built from internal rolling snapshots)
+
+   No verdicts, no proxy trends, no rationale guesses.
+   ═══════════════════════════════════════════════════════════════ */
+.exsum-panel{background:linear-gradient(135deg,rgba(16,185,129,0.05),rgba(59,130,246,0.04));border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.exsum-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.exsum-title{font-size:13px;font-weight:800;color:var(--color-text-primary);display:flex;align-items:center;gap:8px}
+.exsum-title-badge{font-size:9px;font-weight:700;background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;letter-spacing:.04em}
+.exsum-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:9.5px}
+.exsum-meta-pill{padding:3px 8px;border-radius:10px;background:var(--color-background-secondary);color:var(--color-text-secondary);font-weight:600;border:0.5px solid var(--color-border-tertiary);font-variant-numeric:tabular-nums}
+.exsum-meta-pill.live{color:#16a34a;background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.3)}
+.exsum-meta-pill.stale{color:#dc2626;background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3)}
+
+.exsum-term-strip{background:var(--color-background-primary);border-radius:9px;padding:10px 12px;margin-bottom:10px;border:1px solid var(--color-border-tertiary)}
+.exsum-term-title{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:6px}
+.exsum-term-content{font-size:11px;color:var(--color-text-primary);line-height:1.5}
+.exsum-term-verdict{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:800;margin-right:6px;font-variant-numeric:tabular-nums}
+.exsum-term-verdict.contango{background:rgba(34,197,94,0.12);color:#16a34a;border:1px solid rgba(34,197,94,0.4)}
+.exsum-term-verdict.backw{background:rgba(239,68,68,0.12);color:#dc2626;border:1px solid rgba(239,68,68,0.4)}
+.exsum-term-verdict.flat{background:rgba(107,114,128,0.12);color:#6b7280;border:1px solid rgba(107,114,128,0.4)}
+.exsum-term-meaning{margin-top:5px;font-size:10px;color:var(--color-text-secondary);line-height:1.4}
+
+.exsum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}
+.exsum-card{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
+
+.exsum-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--color-border-tertiary);padding-bottom:6px}
+.exsum-card-exp{font-size:13px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
+.exsum-card-dte{font-size:9.5px;color:var(--color-text-secondary);font-weight:600;margin-left:4px}
+.exsum-card-iv{font-size:10px;color:var(--color-text-primary);font-weight:700;background:var(--color-background-secondary);padding:2px 7px;border-radius:5px;font-variant-numeric:tabular-nums}
+
+.exsum-row{display:grid;grid-template-columns:78px 1fr;gap:8px;font-size:10.5px;align-items:start;padding:2px 0}
+.exsum-row-lbl{color:var(--color-text-secondary);font-weight:600;font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;padding-top:1px}
+.exsum-row-val{color:var(--color-text-primary);font-weight:600;font-variant-numeric:tabular-nums;line-height:1.4}
+.exsum-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-right:4px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.exsum-tag.good{background:rgba(34,197,94,0.12);color:#16a34a}
+.exsum-tag.warn{background:rgba(245,158,11,0.12);color:#d97706}
+.exsum-tag.bad{background:rgba(239,68,68,0.12);color:#dc2626}
+.exsum-tag.info{background:rgba(59,130,246,0.12);color:#2563eb}
+.exsum-tag.muted{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+
+.exsum-strikes{background:var(--color-background-secondary);border-radius:7px;padding:8px 10px;margin-top:3px}
+.exsum-strikes-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);margin-bottom:6px}
+.exsum-strikes-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exsum-strikes-leg{display:flex;flex-direction:column;min-width:0;padding:6px 8px;background:var(--color-background-primary);border-radius:6px;border:0.5px solid var(--color-border-tertiary)}
+.exsum-strikes-leg.put{border-left:3px solid #dc2626}
+.exsum-strikes-leg.call{border-left:3px solid #16a34a}
+.exsum-strikes-leg-lbl{font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;font-weight:700;letter-spacing:.04em}
+.exsum-strikes-leg-strike{font-size:13px;color:var(--color-text-primary);font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.exsum-strikes-leg-price{font-size:14px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.exsum-strikes-leg.put .exsum-strikes-leg-price{color:#dc2626}
+.exsum-strikes-leg.call .exsum-strikes-leg-price{color:#16a34a}
+.exsum-strikes-leg-trend{font-size:10px;font-weight:800;font-variant-numeric:tabular-nums}
+.exsum-strikes-leg-trend.up{color:#dc2626}
+.exsum-strikes-leg-trend.dn{color:#16a34a}
+.exsum-strikes-leg-trend.flat{color:var(--color-text-secondary)}
+.exsum-strikes-leg-meta{font-size:8.5px;color:var(--color-text-secondary);font-weight:600;margin-top:2px}
+.exsum-strikes-credit{margin-top:6px;font-size:10px;font-weight:700;color:var(--color-text-primary);text-align:center;padding-top:6px;border-top:1px dashed var(--color-border-tertiary)}
+.exsum-strikes-credit b{color:#16a34a;font-size:12px}
+
+.exsum-empty{text-align:center;padding:30px 12px;color:var(--color-text-secondary);font-size:11px}
+.exsum-empty-icon{font-size:28px;margin-bottom:6px;opacity:.5}
+
+@media (max-width:600px){
+  .exsum-grid{grid-template-columns:1fr}
+  .exsum-row{grid-template-columns:70px 1fr;font-size:10px}
+}
 </style>
+
+<!-- ══════════════════════════════════════════════════════════════
+     EXPIRY SUMMARY PANEL — Lean structural read for the seller
+     ══════════════════════════════════════════════════════════════ -->
+<div class="exsum-panel" id="exsumPanel">
+  <div class="exsum-header">
+    <div class="exsum-title">
+      📊 Expiry Summary — Structural Read
+      <span class="exsum-title-badge">LIVE</span>
+    </div>
+    <div class="exsum-meta">
+      <span class="exsum-meta-pill" id="exsumStatusPill">Loading…</span>
+      <span class="exsum-meta-pill" id="exsumSpotPill">Spot —</span>
+    </div>
+  </div>
+
+  <div class="exsum-term-strip" id="exsumTermStrip">
+    <div class="exsum-term-title">Term Structure (IV across expiries)</div>
+    <div class="exsum-term-content" id="exsumTermContent">
+      <span class="exsum-term-verdict flat">—</span>
+      <span style="font-weight:600">Waiting for chain data across at least 2 expiries…</span>
+    </div>
+    <div class="exsum-term-meaning" id="exsumTermMeaning">
+      Once 2+ expiries have IV, this strip will show whether the curve is in <b>contango</b> (far IV &gt; near IV — normal, sellers love it) or <b>backwardation</b> (near IV &gt; far IV — stress, prefer far expiries or stand aside).
+    </div>
+  </div>
+
+  <div class="exsum-grid" id="exsumGrid">
+    <div class="exsum-empty">
+      <div class="exsum-empty-icon">⏳</div>
+      <div>Waiting for live option chain. Once <b>simState.chain</b> populates, you'll see one card per expiry.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   EXPIRY SUMMARY PANEL — render engine (lean version)
+   ─────────────────────────────────────────────────────────────
+   Shows ONLY structural facts that are deterministic from the
+   chain plus a real (not proxy) price trend on the .10Δ strikes,
+   built from internal rolling snapshots of mark prices.
+
+   Reads:
+     • window.simState.chain.expiries[label] = {calls:[], puts:[]}
+         each leg: {strike, mark, iv}     iv in % (e.g. 44.5)
+     • window.state.btcSpotLive / state.btcBase
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const RFR = 0.045;
+  const TARGET_DELTA = 0.10;
+  const REFRESH_MS = 3000;
+  const PRICE_HISTORY_MAX = 40;          // ~2 minutes of 3s polls
+  const PRICE_TREND_MIN_SAMPLES = 5;     // need ≥5 samples before showing trend
+  const PRICE_TREND_THRESHOLD_PCT = 1.5; // ±1.5% mark change to call up/down
+
+  // Internal rolling history of mark prices, keyed by "label|side|strike".
+  // We build this ourselves because nothing else in the page tracks per-strike marks.
+  const markHistory = new Map();
+
+  function ncdf(x){
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x<0?-1:1; x=Math.abs(x)/Math.sqrt(2);
+    const t=1/(1+p*x);
+    const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return 0.5*(1+sign*y);
+  }
+  function bsDelta(S,K,T,sigma,isCall){
+    if(T<=0||sigma<=0) return isCall?(S>K?1:0):(S<K?-1:0);
+    const d1=(Math.log(S/K)+(RFR+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+    return isCall ? ncdf(d1) : ncdf(d1)-1;
+  }
+
+  const $ = id => document.getElementById(id);
+  function fmt$(v){ return v==null||!isFinite(v)?'—':'$'+Math.round(v).toLocaleString('en-US'); }
+  function fmt$2(v){ return v==null||!isFinite(v)?'—':'$'+v.toFixed(2); }
+
+  function labelToDTE(label){
+    const M={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    const parts = String(label).split('-');
+    if(parts.length!==3 || M[parts[1]]==null) return null;
+    const expUTC = Date.UTC(2000+parseInt(parts[2],10), M[parts[1]], parseInt(parts[0],10), 12, 0, 0);
+    return Math.max(0,(expUTC - Date.now())/86400000);
+  }
+
+  function getSpot(){
+    if(typeof state!=='undefined'){
+      if(state.btcSpotLive>10000) return state.btcSpotLive;
+      if(state.btcBase>10000) return state.btcBase;
+    }
+    return 0;
+  }
+
+  function getChain(){
+    return (typeof window.simState!=='undefined' && window.simState && window.simState.chain) ? window.simState.chain : null;
+  }
+
+  function mean(arr){ return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
+  function stddev(arr){
+    if(arr.length<2) return 0;
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((s,v)=>s+(v-m)*(v-m),0)/arr.length);
+  }
+
+  function recordMark(label, side, strike, mark){
+    if(mark==null || !isFinite(mark) || mark<=0) return;
+    const key = `${label}|${side}|${strike}`;
+    let arr = markHistory.get(key);
+    if(!arr){ arr = []; markHistory.set(key, arr); }
+    arr.push({t: Date.now(), p: mark});
+    if(arr.length > PRICE_HISTORY_MAX) arr.shift();
+  }
+
+  function getMarkTrend(label, side, strike){
+    const key = `${label}|${side}|${strike}`;
+    const arr = markHistory.get(key) || [];
+    if(arr.length < PRICE_TREND_MIN_SAMPLES) return {dir:'flat', pctChg:0, samples:arr.length, ageS:0};
+    const oldest = arr[0], newest = arr[arr.length-1];
+    if(oldest.p<=0) return {dir:'flat', pctChg:0, samples:arr.length, ageS:0};
+    const pctChg = (newest.p - oldest.p)/oldest.p * 100;
+    const ageS = Math.round((newest.t - oldest.t)/1000);
+    let dir = 'flat';
+    if(pctChg >  PRICE_TREND_THRESHOLD_PCT) dir = 'up';
+    else if(pctChg < -PRICE_TREND_THRESHOLD_PCT) dir = 'dn';
+    return {dir, pctChg, samples:arr.length, ageS};
+  }
+
+  function analyzeExpiry(label, exData, S, dte){
+    const calls = (exData.calls||[]).filter(l => l && l.iv>5 && l.iv<300 && l.strike>0).slice().sort((a,b)=>a.strike-b.strike);
+    const puts  = (exData.puts ||[]).filter(l => l && l.iv>5 && l.iv<300 && l.strike>0).slice().sort((a,b)=>a.strike-b.strike);
+    const T = Math.max(dte/365, 0.5/365);
+    const sigmaFloor = 0.05, sigmaCap = 3.0;
+
+    const callsAug = calls.map(l => {
+      const sig = Math.min(Math.max(l.iv/100, sigmaFloor), sigmaCap);
+      return Object.assign({}, l, {bsDelta: bsDelta(S,l.strike,T,sig,true)});
+    });
+    const putsAug = puts.map(l => {
+      const sig = Math.min(Math.max(l.iv/100, sigmaFloor), sigmaCap);
+      return Object.assign({}, l, {bsDelta: bsDelta(S,l.strike,T,sig,false)});
+    });
+
+    const lastCallDelta = callsAug.length ? callsAug[callsAug.length-1].bsDelta : null;
+    const lastPutDelta  = putsAug.length  ? putsAug[0].bsDelta : null;
+    const lastCallStrike = callsAug.length ? callsAug[callsAug.length-1].strike : null;
+    const lastPutStrike  = putsAug.length  ? putsAug[0].strike  : null;
+
+    const allStrikes = Array.from(new Set([...calls.map(c=>c.strike), ...puts.map(p=>p.strike)])).sort((a,b)=>a-b);
+    let minGap=null, maxGap=null;
+    for(let i=1;i<allStrikes.length;i++){
+      const g = allStrikes[i]-allStrikes[i-1];
+      if(g<=0) continue;
+      if(minGap==null || g<minGap) minGap=g;
+      if(maxGap==null || g>maxGap) maxGap=g;
+    }
+    const evenSpacing = (minGap!=null && maxGap!=null && Math.abs(maxGap-minGap)<1);
+
+    function nearestTo(arr, target, key){
+      let best=null, bestD=Infinity;
+      for(const x of arr){ const d=Math.abs(x[key]-target); if(d<bestD){bestD=d;best=x;} }
+      return best;
+    }
+    const atmCall = nearestTo(callsAug,S,'strike');
+    const atmPut  = nearestTo(putsAug, S,'strike');
+    const atmIV = (atmCall && atmPut) ? (atmCall.iv + atmPut.iv)/2 : (atmCall?.iv ?? atmPut?.iv ?? null);
+
+    const window = 0.25;
+    const inWindow = l => l.strike >= S*(1-window) && l.strike <= S*(1+window);
+    const callIVs = callsAug.filter(inWindow).map(l => l.iv);
+    const putIVs  = putsAug.filter(inWindow).map(l => l.iv);
+    const allIVs  = [...callIVs, ...putIVs];
+    const ivStd   = stddev(allIVs);
+    let scatter = 'compact';
+    if(ivStd >= 8) scatter = 'scattered';
+    else if(ivStd >= 4) scatter = 'moderate';
+
+    const callAvg = mean(callIVs);
+    const putAvg  = mean(putIVs);
+    let sideBias = 'balanced';
+    let sideDelta = 0;
+    if(callAvg && putAvg){
+      sideDelta = callAvg - putAvg;
+      if(sideDelta > 3) sideBias = 'call-rich';
+      else if(sideDelta < -3) sideBias = 'put-rich';
+    }
+
+    function pickByDelta(arr, target){
+      if(!arr.length) return null;
+      let best=null, bestD=Infinity;
+      for(const l of arr){
+        const d = Math.abs(Math.abs(l.bsDelta) - target);
+        if(d<bestD){ bestD=d; best=l; }
+      }
+      return best;
+    }
+    const sugCall = pickByDelta(callsAug, TARGET_DELTA);
+    const sugPut  = pickByDelta(putsAug,  TARGET_DELTA);
+
+    if(sugCall && sugCall.mark>0) recordMark(label, 'C', sugCall.strike, sugCall.mark);
+    if(sugPut  && sugPut.mark>0)  recordMark(label, 'P', sugPut.strike,  sugPut.mark);
+
+    const callTrend = sugCall ? getMarkTrend(label, 'C', sugCall.strike) : {dir:'flat',pctChg:0,samples:0,ageS:0};
+    const putTrend  = sugPut  ? getMarkTrend(label, 'P', sugPut.strike)  : {dir:'flat',pctChg:0,samples:0,ageS:0};
+
+    const credit = (sugCall && sugPut && sugCall.mark>0 && sugPut.mark>0) ? (sugCall.mark + sugPut.mark) : null;
+    const beUpper = sugCall ? sugCall.strike + (credit||0) : null;
+    const beLower = sugPut  ? sugPut.strike  - (credit||0) : null;
+
+    return {
+      label, dte, S, atmIV,
+      ivStd, scatter, sideBias, sideDelta,
+      lastCallDelta, lastPutDelta, lastCallStrike, lastPutStrike,
+      minGap, maxGap, evenSpacing,
+      sugCall, sugPut, callTrend, putTrend,
+      credit, beUpper, beLower
+    };
+  }
+
+  function computeTermStructure(rows){
+    if(rows.length<2) return null;
+    const sorted = rows.slice().sort((a,b)=>a.dte-b.dte);
+    const xs = sorted.map(r=>r.dte);
+    const ys = sorted.map(r=>r.atmIV).filter(v=>v!=null);
+    if(ys.length<2 || xs.length !== ys.length) return null;
+    const xMean = mean(xs), yMean = mean(ys);
+    let num=0, den=0;
+    for(let i=0;i<xs.length;i++){ num += (xs[i]-xMean)*(ys[i]-yMean); den += (xs[i]-xMean)**2; }
+    const slope = den>0 ? num/den : 0;
+
+    let contangoPairs=0, backwPairs=0;
+    for(let i=1;i<sorted.length;i++){
+      const diff = sorted[i].atmIV - sorted[i-1].atmIV;
+      if(diff > 0.5) contangoPairs++;
+      else if(diff < -0.5) backwPairs++;
+    }
+
+    let kind, label, meaning;
+    if(slope > 0.05 || (contangoPairs >= sorted.length-1 && contangoPairs > backwPairs)){
+      kind = 'contango'; label = 'CONTANGO';
+      meaning = `Far-dated IVs are above near-dated IVs (slope +${slope.toFixed(3)}%/day). Healthy default — sellers benefit because near-expiry premium decays faster than far-dated. Prefer 14-30D expiries for entry.`;
+    } else if(slope < -0.05 || (backwPairs >= sorted.length-1 && backwPairs > contangoPairs)){
+      kind = 'backw'; label = 'BACKWARDATION';
+      meaning = `Near-dated IVs are above far-dated IVs (slope ${slope.toFixed(3)}%/day). Stress signal — market is pricing imminent risk. Avoid selling the near expiry; if existing near-dated short, tighten stops or roll out.`;
+    } else {
+      kind = 'flat'; label = 'FLAT';
+      meaning = `IV roughly equal across expiries (slope ${slope.toFixed(3)}%/day). Term-structure provides no edge — pick expiry on DTE/theta-decay grounds.`;
+    }
+    return {slope, contangoPairs, backwPairs, kind, label, meaning, near:sorted[0], far:sorted[sorted.length-1]};
+  }
+
+  function scatterMeaning(scatter, ivStd){
+    if(scatter==='compact')  return `Compact (σ=${ivStd.toFixed(1)}) — calm chain, both wings priced consistently.`;
+    if(scatter==='moderate') return `Moderate (σ=${ivStd.toFixed(1)}) — some skew building.`;
+    return `Scattered (σ=${ivStd.toFixed(1)}) — wild skew, one tail being priced for an event.`;
+  }
+
+  function sideMeaning(side, sideDelta){
+    if(side==='balanced')  return `Two-sided — call & put IVs balanced (Δ${sideDelta>=0?'+':''}${sideDelta.toFixed(1)}%).`;
+    if(side==='call-rich') return `One-sided / call-rich — calls ${sideDelta.toFixed(1)}% richer than puts. Bullish skew.`;
+    return `One-sided / put-rich — puts ${Math.abs(sideDelta).toFixed(1)}% richer than calls. Bearish skew.`;
+  }
+
+  function spacingMeaning(minGap, maxGap, even){
+    if(minGap==null) return 'No spacing data.';
+    if(even) return `Even ${minGap.toFixed(0)}-pt spacing — uniform, easy precise delta selection.`;
+    return `Uneven ${minGap.toFixed(0)}–${maxGap.toFixed(0)}pt. Lower gap = finer delta selection near ATM; higher gap = coarse far-OTM.`;
+  }
+
+  function reachMeaning(lastCallDelta, lastPutDelta){
+    const c = lastCallDelta!=null ? Math.abs(lastCallDelta) : null;
+    const p = lastPutDelta !=null ? Math.abs(lastPutDelta)  : null;
+    if(c==null && p==null) return 'No reach data.';
+    const parts = [];
+    if(c!=null){
+      if(c < 0.04) parts.push('deep call-side reach (ample wing room)');
+      else if(c > 0.20) parts.push('truncated call-side');
+      else parts.push('moderate call-side reach');
+    }
+    if(p!=null){
+      if(p < 0.04) parts.push('deep put-side reach');
+      else if(p > 0.20) parts.push('truncated put-side');
+      else parts.push('moderate put-side reach');
+    }
+    return parts.join('; ') + '.';
+  }
+
+  function renderTrend(trend){
+    if(trend.samples < PRICE_TREND_MIN_SAMPLES){
+      return `<span class="exsum-strikes-leg-trend flat" title="Need ${PRICE_TREND_MIN_SAMPLES} samples (${trend.samples} so far)">· building (${trend.samples}/${PRICE_TREND_MIN_SAMPLES})</span>`;
+    }
+    const arrow = trend.dir==='up'?'↑':trend.dir==='dn'?'↓':'→';
+    const sign = trend.pctChg>=0?'+':'';
+    const ageMin = (trend.ageS/60).toFixed(1);
+    return `<span class="exsum-strikes-leg-trend ${trend.dir}" title="${trend.samples} samples over ${ageMin}min">${arrow} ${sign}${trend.pctChg.toFixed(1)}%</span>`;
+  }
+
+  function renderTermStrip(ts){
+    const content = $('exsumTermContent');
+    const meaning = $('exsumTermMeaning');
+    if(!content || !meaning) return;
+    if(!ts){
+      content.innerHTML = `<span class="exsum-term-verdict flat">—</span><span style="font-weight:600">Need at least 2 expiries with valid IV.</span>`;
+      meaning.innerHTML = '';
+      return;
+    }
+    const nearIV = ts.near.atmIV?.toFixed(1) ?? '—';
+    const farIV  = ts.far.atmIV?.toFixed(1)  ?? '—';
+    content.innerHTML = `
+      <span class="exsum-term-verdict ${ts.kind}">${ts.label}</span>
+      <span style="font-weight:700">${ts.near.label}</span> <span style="color:var(--color-text-secondary)">(${ts.near.dte.toFixed(0)}D)</span> IV <b>${nearIV}%</b>
+      <span style="color:var(--color-text-secondary);margin:0 5px">→</span>
+      <span style="font-weight:700">${ts.far.label}</span> <span style="color:var(--color-text-secondary)">(${ts.far.dte.toFixed(0)}D)</span> IV <b>${farIV}%</b>
+      <span style="color:var(--color-text-secondary);margin-left:8px">· slope ${ts.slope>=0?'+':''}${ts.slope.toFixed(3)}%/day</span>
+    `;
+    meaning.innerHTML = ts.meaning;
+  }
+
+  function renderCard(r){
+    const scatterTagCls = r.scatter==='compact'?'good':r.scatter==='moderate'?'warn':'bad';
+    const sideTagCls = r.sideBias==='balanced'?'good':'info';
+
+    const lastReachStr = (r.lastCallDelta!=null && r.lastPutDelta!=null)
+      ? `Call ${r.lastCallStrike?.toFixed(0)} (Δ${r.lastCallDelta.toFixed(3)}) · Put ${r.lastPutStrike?.toFixed(0)} (Δ${r.lastPutDelta.toFixed(3)})`
+      : '—';
+
+    function legHTML(leg, side, trend){
+      const cls = side==='C' ? 'call' : 'put';
+      const lbl = side==='C' ? 'Short Call' : 'Short Put';
+      if(!leg) return `<div class="exsum-strikes-leg ${cls}">
+        <span class="exsum-strikes-leg-lbl">${lbl}</span>
+        <span class="exsum-strikes-leg-strike">—</span>
+        <span class="exsum-strikes-leg-meta">no .10Δ available</span>
+      </div>`;
+      return `<div class="exsum-strikes-leg ${cls}">
+        <span class="exsum-strikes-leg-lbl">${lbl} · Δ${leg.bsDelta.toFixed(2)}</span>
+        <span class="exsum-strikes-leg-strike">${leg.strike.toFixed(0)}</span>
+        <div class="exsum-strikes-leg-price">${fmt$2(leg.mark)} ${renderTrend(trend)}</div>
+        <span class="exsum-strikes-leg-meta">IV ${leg.iv.toFixed(1)}%</span>
+      </div>`;
+    }
+
+    const breakeven = (r.beLower!=null && r.beUpper!=null)
+      ? `BE ${fmt$(r.beLower)} ↔ ${fmt$(r.beUpper)}`
+      : '';
+    const credit = r.credit!=null ? `<b>${fmt$2(r.credit)}</b> total credit` : '';
+
+    return `
+      <div class="exsum-card">
+        <div class="exsum-card-head">
+          <div>
+            <span class="exsum-card-exp">${r.label}</span>
+            <span class="exsum-card-dte">${r.dte.toFixed(1)}D</span>
+          </div>
+          <span class="exsum-card-iv">ATM IV ${r.atmIV?.toFixed(1) ?? '—'}%</span>
+        </div>
+
+        <div class="exsum-row">
+          <div class="exsum-row-lbl">Premium</div>
+          <div class="exsum-row-val">
+            <span class="exsum-tag ${scatterTagCls}">${r.scatter.toUpperCase()}</span>
+            <span style="color:var(--color-text-secondary);font-weight:500">${scatterMeaning(r.scatter, r.ivStd)}</span>
+          </div>
+        </div>
+
+        <div class="exsum-row">
+          <div class="exsum-row-lbl">Sided</div>
+          <div class="exsum-row-val">
+            <span class="exsum-tag ${sideTagCls}">${r.sideBias.toUpperCase().replace('-',' ')}</span>
+            <span style="color:var(--color-text-secondary);font-weight:500">${sideMeaning(r.sideBias, r.sideDelta)}</span>
+          </div>
+        </div>
+
+        <div class="exsum-row">
+          <div class="exsum-row-lbl">Spacing</div>
+          <div class="exsum-row-val">
+            <span class="exsum-tag muted">${r.minGap?.toFixed(0) ?? '—'}–${r.maxGap?.toFixed(0) ?? '—'}pt</span>
+            <span style="color:var(--color-text-secondary);font-weight:500">${spacingMeaning(r.minGap, r.maxGap, r.evenSpacing)}</span>
+          </div>
+        </div>
+
+        <div class="exsum-row">
+          <div class="exsum-row-lbl">Reach</div>
+          <div class="exsum-row-val">
+            <span style="color:var(--color-text-secondary);font-weight:500">${lastReachStr}<br>${reachMeaning(r.lastCallDelta, r.lastPutDelta)}</span>
+          </div>
+        </div>
+
+        <div class="exsum-strikes">
+          <div class="exsum-strikes-title">📌 Suggested .10Δ Strangle — Live Mark &amp; Trend</div>
+          <div class="exsum-strikes-row">
+            ${legHTML(r.sugPut, 'P', r.putTrend)}
+            ${legHTML(r.sugCall, 'C', r.callTrend)}
+          </div>
+          ${credit ? `<div class="exsum-strikes-credit">${credit} ${breakeven?'· '+breakeven:''}</div>`:''}
+          <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:6px;text-align:center;font-weight:500">
+            Trend: <span style="color:#dc2626;font-weight:700">↑ red = mark rising (bad for short seller)</span> · <span style="color:#16a34a;font-weight:700">↓ green = mark falling (theta working)</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function render(){
+    const grid = $('exsumGrid');
+    const statusPill = $('exsumStatusPill');
+    const spotPill = $('exsumSpotPill');
+    if(!grid || !statusPill) return;
+
+    const chain = getChain();
+    const S = getSpot();
+
+    spotPill.textContent = S>0 ? `Spot $${Math.round(S).toLocaleString('en-US')}` : 'Spot —';
+
+    if(!chain || !chain.expiries || !S){
+      statusPill.textContent = 'Waiting for chain…';
+      statusPill.className = 'exsum-meta-pill stale';
+      grid.innerHTML = `<div class="exsum-empty"><div class="exsum-empty-icon">⏳</div><div>Waiting for live option chain.</div></div>`;
+      renderTermStrip(null);
+      return;
+    }
+
+    const rawLabels = Object.keys(chain.expiries);
+    const rows = [];
+    for(const label of rawLabels){
+      const dte = labelToDTE(label);
+      if(dte==null || dte<=0 || dte>120) continue;
+      const exData = chain.expiries[label];
+      if(!exData) continue;
+      try {
+        const r = analyzeExpiry(label, exData, S, dte);
+        if(r) rows.push(r);
+      } catch(e){
+        console.warn('[exsum] analyzeExpiry failed for', label, e);
+      }
+    }
+    rows.sort((a,b)=>a.dte-b.dte);
+
+    if(!rows.length){
+      statusPill.textContent = 'No active expiries';
+      statusPill.className = 'exsum-meta-pill stale';
+      grid.innerHTML = `<div class="exsum-empty"><div class="exsum-empty-icon">📭</div><div>No active expiries with valid chain data.</div></div>`;
+      renderTermStrip(null);
+      return;
+    }
+
+    statusPill.textContent = `${rows.length} expiries · live`;
+    statusPill.className = 'exsum-meta-pill live';
+
+    renderTermStrip(computeTermStructure(rows));
+    grid.innerHTML = rows.map(renderCard).join('');
+  }
+
+  function safeRender(){
+    try { render(); } catch(e){ console.warn('[exsum] render error', e); }
+  }
+  setTimeout(safeRender, 1500);
+  setInterval(safeRender, REFRESH_MS);
+
+  window.refreshExpirySummary = safeRender;
+})();
+</script>
 
 <div class="sim-desk" id="simDesk">
 
@@ -30304,133 +32986,6 @@ async function fetchBtcPerf(force){
 setTimeout(()=>{try{fetchBtcPerf(true);}catch(e){}},1800);
 setInterval(()=>{try{fetchBtcPerf(false);}catch(e){}},300000);
 
-/* ═══════════════════════════════════════════════════════════
-   🎯 BTC BIG MOVE RADAR ENGINE
-   ═══════════════════════════════════════════════════════════ */
-let _bmrChart=null,_bmrTs=0;
-const BMR_THRESH=4.0;
-
-function bmrTab(name){
-  document.querySelectorAll('.bmr-tab').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.bmr-tab-content').forEach(c=>c.classList.remove('active'));
-  document.querySelectorAll('.bmr-tab').forEach(b=>{
-    if((b.getAttribute('onclick')||'').includes("'"+name+"'"))b.classList.add('active');
-  });
-  const tc=document.getElementById('bmr-tab-'+name);
-  if(tc)tc.classList.add('active');
-}
-
-async function bmrFetch(force){
-  const now=Date.now();
-  if(!force&&now-_bmrTs<600000)return;
-  _bmrTs=now;
-  const $=id=>document.getElementById(id);
-  const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
-  const dt=$('bmrDecTitle');if(dt)dt.textContent='Fetching…';
-  try{
-    const res=await safeFetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=92', {}, 8000);
-    if(!res.ok)throw new Error('Binance '+res.status);
-    const raw=await res.json();
-    const days=raw.map(k=>({t:+k[0],date:new Date(+k[0]),o:+k[1],h:+k[2],l:+k[3],cl:+k[4],
-      pct:((+k[4]-+k[1])/(+k[1]))*100,range:((+k[2]-+k[3])/(+k[1]))*100}));
-    const bigs=days.filter(d=>Math.abs(d.pct)>=BMR_THRESH);
-    const last60=days.slice(-60),last30=days.slice(-30);
-    const big60=last60.filter(d=>Math.abs(d.pct)>=BMR_THRESH);
-    const lastBig=bigs.at(-1);
-    const daysSince=lastBig?Math.round((now-lastBig.t)/86400000):999;
-    const gaps=[];for(let i=1;i<bigs.length;i++)gaps.push(Math.round((bigs[i].t-bigs[i-1].t)/86400000));
-    const avgGap=gaps.length?Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length):14;
-    let calm=0;for(let i=days.length-1;i>=0;i--){if(Math.abs(days[i].pct)<3)calm++;else break;}
-    let biWeekOk=0;for(let i=13;i<days.length;i++){if(!days.slice(i-13,i+1).some(d=>Math.abs(d.pct)>=BMR_THRESH))biWeekOk++;}
-    let biMonthOk=0;for(let i=29;i<days.length;i++){if(!days.slice(i-29,i+1).some(d=>Math.abs(d.pct)>=BMR_THRESH))biMonthOk++;}
-    const avgRange=(last30.reduce((s,d)=>s+d.range,0)/last30.length).toFixed(1);
-
-    // Decision banner
-    const isSafe=daysSince>=7,isDanger=daysSince<3;
-    const bannerCls=isSafe?'bmr-dec-enter':isDanger?'bmr-dec-danger':'bmr-dec-wait';
-    const bannerIcon=isSafe?'\u2705':isDanger?'\ud83d\udea8':'\u26a0\ufe0f';
-    const bannerTitle=isSafe?'SAFE WINDOW \u2014 STRANGLE ENTRY OK':isDanger?'DANGER \u2014 BIG MOVE JUST OCCURRED':'CAUTION \u2014 MONITOR CLOSELY';
-    const bannerSub=isSafe?`${daysSince}d since last 4%+ move. Avg gap: ${avgGap}d. Deployment appropriate.`
-      :isDanger?`Only ${daysSince}d since last big move. Wait ${Math.max(0,avgGap-daysSince)}+ more days.`
-      :`${daysSince}d since last move. Approaching safe territory. Reduced size only.`;
-    const decEl=$('bmrDecIcon');if(decEl)decEl.textContent=bannerIcon;
-    if(dt)dt.textContent=bannerTitle;
-    const ds=$('bmrDecSub');if(ds)ds.textContent=bannerSub;
-    set('bmrDecDays',daysSince+'d');
-    const decDiv=decEl?.closest('.bmr-decision');if(decDiv)decDiv.className='bmr-decision '+bannerCls;
-
-    // KPIs
-    set('bmrCount60',big60.length);set('bmrFreq',avgGap+'d');
-    set('bmrBiWeekOk',biWeekOk);set('bmrBiMonthOk',biMonthOk);
-    set('bmrAvgRange',avgRange+'%');set('bmrCalmStreak',calm+'d');
-
-    // 60D chart
-    const canvas=$('btcMoveChart');
-    if(canvas&&window.Chart){
-      if(_bmrChart){try{_bmrChart.destroy();}catch(e){}}
-      _bmrChart=new Chart(canvas,{type:'bar',data:{
-        labels:last60.map(d=>d.date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})),
-        datasets:[{data:last60.map(d=>+d.pct.toFixed(2)),
-          backgroundColor:last60.map(d=>Math.abs(d.pct)>=BMR_THRESH?'rgba(239,68,68,.85)':d.pct>=0?'rgba(34,197,94,.5)':'rgba(59,130,246,.5)'),
-          borderRadius:2}]
-      },options:{responsive:true,maintainAspectRatio:false,animation:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>=0?'+':'')+c.raw+'%'}}},
-        scales:{x:{ticks:{font:{size:7},color:'#888',maxTicksLimit:10},grid:{display:false}},
-          y:{ticks:{font:{size:8},color:'#888',callback:v=>v+'%'},grid:{color:'rgba(128,128,128,.08)'}}}
-      }});
-    }
-
-    // Safe grid
-    const sg=$('bmrSafeGrid');
-    if(sg)sg.innerHTML=[
-      {cls:isSafe?'bmr-safe-green':'bmr-safe-yellow',icon:isSafe?'\ud83d\udfe2':'\ud83d\udfe1',name:isSafe?'SAFE \u2014 Deploy Strangle':'CAUTION \u2014 Wait',desc:isSafe?`${daysSince}d calm. Bi-weekly ok.`:`${Math.max(0,7-daysSince)}d until bi-weekly safe`},
-      {cls:big60.length<=3?'bmr-safe-green':'bmr-safe-red',icon:big60.length<=3?'\ud83d\udcc9':'\ud83d\udcc8',name:`${big60.length} Big Moves (60D)`,desc:big60.length<=3?'Low vol \u2014 sell edge exists':'High vol \u2014 reduce size or skip'},
-      {cls:'bmr-safe-yellow',icon:'\ud83d\udcc5',name:`Avg Cycle: ${avgGap}d`,desc:`Next event ~${Math.max(0,avgGap-daysSince)}d (${bigs.length} historical moves)`},
-    ].map(p=>`<div class="bmr-safe-pill ${p.cls}"><span class="bmr-safe-icon">${p.icon}</span><div class="bmr-safe-body"><div class="bmr-safe-name">${p.name}</div><div class="bmr-safe-desc">${p.desc}</div></div></div>`).join('');
-
-    // Deploy cadence
-    const biwSafe=daysSince>=5&&calm>=5,bimSafe=daysSince>=10&&big60.length<=4;
-    set('bcd-biw-cond',biwSafe?'\u2705 DEPLOY':'\u23f3 Wait');set('bcd-biw-days',daysSince+'d');set('bcd-biw-calm',calm+'d calm');set('bcd-biw-next',biwSafe?'Now':'In ~'+Math.max(0,5-daysSince)+'d');set('bcd-biw-win',biWeekOk+' windows');
-    const biwV=$('bcd-biw-verdict');if(biwV){biwV.textContent=biwSafe?'\u2705 ENTER 14DTE STRANGLE':'\u26d4 HOLD';biwV.style.cssText=biwSafe?'background:rgba(34,197,94,.15);color:#16a34a':'background:rgba(220,38,38,.1);color:#dc2626';}
-    set('bcd-bim-cond',bimSafe?'\u2705 DEPLOY':'\u23f3 Wait');set('bcd-bim-days',daysSince+'d');
-    set('bcd-bim-14d',days.slice(-14).filter(d=>Math.abs(d.pct)>=BMR_THRESH).length+' moves');
-    set('bcd-bim-next',bimSafe?'Now':'In ~'+Math.max(0,10-daysSince)+'d');set('bcd-bim-win',biMonthOk+' windows');
-    const bimV=$('bcd-bim-verdict');if(bimV){bimV.textContent=bimSafe?'\u2705 ENTER 30-45DTE STRANGLE':'\u26d4 HOLD';bimV.style.cssText=bimSafe?'background:rgba(34,197,94,.15);color:#16a34a':'background:rgba(220,38,38,.1);color:#dc2626';}
-
-    // Weekly heatmap
-    const wg=$('bmrWeekGrid');
-    if(wg){
-      const DAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const bd=Array.from({length:7},()=>({sum:0,big:0,n:0}));
-      days.slice(-90).forEach(d=>{const wd=d.date.getDay();bd[wd].sum+=d.pct;bd[wd].n++;if(Math.abs(d.pct)>=BMR_THRESH)bd[wd].big++;});
-      wg.innerHTML=DAY.map((nm,i)=>{
-        const{sum,big,n}=bd[i],avg=n?sum/n:0,bp=n?Math.round(big/n*100):0;
-        const bg=bp>30?'rgba(239,68,68,.2)':bp>15?'rgba(245,158,11,.2)':'rgba(34,197,94,.12)';
-        const col=bp>30?'#dc2626':bp>15?'#d97706':'#16a34a';
-        return `<div class="bmr-wday-col"><div class="bmr-wday-lbl">${nm}</div><div class="bmr-wday-tile" style="background:${bg};color:${col}">${bp}%</div><div style="font-size:7px;color:var(--color-text-secondary);margin-top:2px">${avg>=0?'+':''}${avg.toFixed(1)}%</div></div>`;
-      }).join('');
-    }
-
-    // Monthly history
-    const mr=$('bmrMonthRow');
-    if(mr){
-      const bm={};
-      days.forEach(d=>{const k=d.date.getFullYear()+'-'+(d.date.getMonth()+1);if(!bm[k])bm[k]={pcts:[],big:0,lbl:d.date.toLocaleDateString('en-IN',{month:'short',year:'2-digit'})};bm[k].pcts.push(d.pct);if(Math.abs(d.pct)>=BMR_THRESH)bm[k].big++;});
-      mr.innerHTML=Object.values(bm).slice(-6).map(m=>{
-        const tot=m.pcts.reduce((a,b)=>a+b,0),col=tot>=0?'#22c55e':'#ef4444';
-        return `<div class="bmr-month-tile"><div class="bmr-month-lbl">${m.lbl}</div><div class="bmr-month-ret" style="color:${col}">${tot>=0?'+':''}${tot.toFixed(1)}%</div><div class="bmr-month-big" style="color:${m.big>2?'#dc2626':m.big>0?'#d97706':'#16a34a'}">${m.big} big moves</div><div class="bmr-month-safe">${m.big===0?'\u2705 Safe':'\u26a0 Volatile'}</div><div class="bmr-month-bar" style="background:${col};opacity:.4"></div></div>`;
-      }).join('');
-    }
-    console.log('[BMR]',big60.length,'big moves 60d,',daysSince,'d since last, calm',calm,'d');
-  }catch(e){
-    console.warn('[BMR]',e.message);
-    const dt=$('bmrDecTitle');if(dt)dt.textContent='Data unavailable';
-    const ds=$('bmrDecSub');if(ds)ds.textContent=e.message;
-  }
-}
-
-setTimeout(()=>{try{bmrFetch(true);}catch(e){}},2200);
-setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
@@ -34987,7 +37542,6 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
   const ORDER = [
     'mpoPanel',        // 🔮 Market Pattern Observer (AI-POWERED)
     'amdPanel',        // 🏗️ AMD + Market Behaviour
-    'btcMovePanel',    // 🎯 BTC Big Move Radar
     'vapPanel',        // 🔬 IV·RV·HV Vol Analytics
     'vov2Panel',       // 🌊 VoV Stability Map (companion to RV/IV)
     'dvolLiveBlock',   // 📊 DVOL Live Chart + DVOL MPO
@@ -36297,7 +38851,6 @@ setInterval(()=>{try{bmrFetch(false);}catch(e){}},600000);
       panels: [
         { id:'mpoPanel',     name:'Market Pattern Observer' },
         { id:'amdPanel',     name:'AMD + Market Behaviour' },
-        { id:'btcMovePanel', name:'BTC Big Move Radar' },
         { id:'tvPanel',      name:'TradingView Live Analysis' },
       ]
     },
