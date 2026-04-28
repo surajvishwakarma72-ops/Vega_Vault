@@ -1978,6 +1978,100 @@ window._brahmastraADX = _ciComputeADX;
 .ckp-roadside.left{left:4%}
 .ckp-roadside.right{right:4%}
 
+/* ── ROAD VEHICLES ──────────────────────────────────────────────
+   News vans, IV-spike buses, big-candle trucks and emergency vehicles.
+   Each spawns at the right edge and travels left toward the player's
+   anchored car, simulating "oncoming traffic ahead". The CSS handles
+   the motion; JS just spawns elements with the right modifier class. */
+.ckp-vehicle{
+  position:absolute;
+  z-index:5;
+  pointer-events:auto;
+  cursor:help;
+  font-size:18px;
+  line-height:1;
+  text-shadow:0 1px 2px rgba(0,0,0,0.7);
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+  white-space:nowrap;
+  transform:translateX(0);
+  will-change:transform, left;
+  user-select:none;
+}
+/* Bottom of the road = nearest to camera. We park them at varying
+   bottoms so multiple vehicles don't overlap. */
+.ckp-vehicle.lane-1{bottom:14%}
+.ckp-vehicle.lane-2{bottom:22%}
+.ckp-vehicle.lane-3{bottom:30%}
+
+/* Each vehicle has a tiny label tag floating above */
+.ckp-vehicle-tag{
+  position:absolute;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:8px;
+  font-weight:800;
+  padding:1px 5px;
+  border-radius:3px;
+  background:rgba(15,23,42,0.92);
+  color:#f1f5f9;
+  white-space:nowrap;
+  letter-spacing:.04em;
+  border:0.5px solid rgba(99,102,241,0.4);
+  font-variant-numeric:tabular-nums;
+  pointer-events:none;
+  max-width:110px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Vehicle types — each tints the tag border and adds optional flashing */
+.ckp-vehicle.news      .ckp-vehicle-tag{border-color:#3b82f6;color:#93c5fd}
+.ckp-vehicle.iv-bus    .ckp-vehicle-tag{border-color:#a855f7;color:#d8b4fe}
+.ckp-vehicle.big-truck .ckp-vehicle-tag{border-color:#f59e0b;color:#fcd34d}
+.ckp-vehicle.ambulance .ckp-vehicle-tag{border-color:#ef4444;color:#fca5a5}
+.ckp-vehicle.police    .ckp-vehicle-tag{border-color:#0ea5e9;color:#7dd3fc}
+.ckp-vehicle.bike      .ckp-vehicle-tag{border-color:#22c55e;color:#86efac}
+
+.ckp-vehicle.ambulance, .ckp-vehicle.police{
+  animation:ckp-vehicle-flash 0.55s ease-in-out infinite;
+}
+@keyframes ckp-vehicle-flash{
+  0%,100%{filter:drop-shadow(0 0 4px rgba(239,68,68,0.4))}
+  50%    {filter:drop-shadow(0 0 14px rgba(239,68,68,0.95))}
+}
+.ckp-vehicle.police{
+  animation-name:ckp-vehicle-flash-blue;
+}
+@keyframes ckp-vehicle-flash-blue{
+  0%,100%{filter:drop-shadow(0 0 4px rgba(14,165,233,0.4))}
+  50%    {filter:drop-shadow(0 0 14px rgba(14,165,233,0.95))}
+}
+
+/* Big-candle truck — slight wobble simulates a heavy vehicle's load */
+@keyframes ckp-truck-wobble{
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  25%    {transform:translateY(-1px) rotate(-1deg)}
+  75%    {transform:translateY( 1px) rotate( 1deg)}
+}
+.ckp-vehicle.big-truck{
+  animation:ckp-truck-wobble 0.45s ease-in-out infinite;
+}
+
+/* News-van antenna twinkle */
+@keyframes ckp-news-twinkle{
+  0%,100%{filter:drop-shadow(0 0 3px rgba(59,130,246,0.4))}
+  50%    {filter:drop-shadow(0 0 9px rgba(59,130,246,0.85))}
+}
+.ckp-vehicle.news{
+  animation:ckp-news-twinkle 0.9s ease-in-out infinite;
+}
+
+/* Vehicle that's CLOSE to the player (last 3% before anchor) gets a red glow */
+.ckp-vehicle.near{
+  filter:drop-shadow(0 0 12px rgba(239,68,68,0.8));
+}
+
 /* Dashboard cluster (gauge tiles) */
 .ckp-cluster{
   display:grid;
@@ -2213,6 +2307,10 @@ window._brahmastraADX = _ciComputeADX;
     <div class="ckp-meta">
       <span class="ckp-meta-pill" id="ckpStatusPill">Booting…</span>
       <span class="ckp-meta-pill" id="ckpPositionPill">No position</span>
+      <button id="ckpTestAlertBtn"
+              onclick="window.__ckpTestAlert && window.__ckpTestAlert()"
+              title="Fire a test suspicious-activity alert: speaks in Hindi (or selected language) and sends a Telegram message if credentials are configured."
+              style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:6px;border:0.5px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.12);color:#dc2626;cursor:pointer;letter-spacing:.04em">🧪 TEST ALERT</button>
     </div>
   </div>
 
@@ -2251,6 +2349,13 @@ window._brahmastraADX = _ciComputeADX;
     <!-- Speed-breakers layer — populated by JS with upcoming obstacles -->
     <div id="ckpBreakers" style="position:absolute;left:0;right:0;bottom:0;height:55%;pointer-events:none;z-index:4">
       <!-- absolute-positioned .ckp-breaker children go here -->
+    </div>
+
+    <!-- Vehicles layer — incoming traffic (news vans, IV-spike buses,
+         big-candle trucks, ambulances). Each vehicle is a positioned span
+         that moves leftward via JS-driven left% transitions. -->
+    <div id="ckpVehicles" style="position:absolute;left:0;right:0;bottom:0;height:60%;pointer-events:none;z-index:5">
+      <!-- absolute-positioned .ckp-vehicle children go here -->
     </div>
 
     <div class="ckp-road">
@@ -2530,6 +2635,62 @@ window._brahmastraADX = _ciComputeADX;
     setTimeout(()=>{ el.style.outline = orig; }, 1400);
   };
 
+  // ── Test-alert button ─────────────────────────────────────────────
+  // Fires a synthetic "suspicious activity" alert through both channels
+  // (Hindi voice + Telegram) so the user can verify the wiring without
+  // having to wait for real market conditions to flip the signal red.
+  window.__ckpTestAlert = function(){
+    const btn = document.getElementById('ckpTestAlertBtn');
+    if(btn){
+      const orig = btn.textContent;
+      btn.textContent = '⏳ Sending…';
+      btn.disabled = true;
+      setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 3000);
+    }
+    // 1) Hindi voice (gated by ALERT_CFG.voiceOn — turn it on if user disabled)
+    try {
+      if(typeof speakAlert === 'function'){
+        speakAlert(
+          'सावधान! यह एक परीक्षण चेतावनी है। सड़क पर संदिग्ध गतिविधि की पहचान का सिस्टम सक्रिय है।',
+          'Caution! This is a test alert. The road suspicious-activity detection system is active.'
+        );
+      }
+    } catch(_e){}
+
+    // 2) Telegram
+    try {
+      if(typeof tgSend === 'function'){
+        const istNow = new Date().toLocaleTimeString('en-IN',{
+          hour:'2-digit',minute:'2-digit',second:'2-digit',
+          hour12:false,timeZone:'Asia/Kolkata'
+        });
+        tgSend(
+          '🧪 *Cockpit Test Alert*\n\n' +
+          'This is a manual test of the suspicious-activity alert pipeline.\n\n' +
+          '*Voice:* Hindi (or selected language)\n' +
+          '*Channel:* Telegram bot ✓\n' +
+          '*Trigger:* User-initiated test\n\n' +
+          '_If you see this message, your Telegram credentials are working._\n\n' +
+          `_${istNow} IST · BRAHMASTRA Cockpit_`,
+          { force: true }   // bypass dedupe so testing always fires
+        ).then(ok => {
+          if(btn){
+            btn.textContent = ok ? '✓ SENT' : '✗ FAILED';
+            setTimeout(()=>{ btn.textContent = '🧪 TEST ALERT'; }, 2500);
+          }
+        }).catch(()=>{
+          if(btn){
+            btn.textContent = '✗ FAILED';
+            setTimeout(()=>{ btn.textContent = '🧪 TEST ALERT'; }, 2500);
+          }
+        });
+      } else if(btn){
+        btn.textContent = '⚠ tgSend missing';
+        setTimeout(()=>{ btn.textContent = '🧪 TEST ALERT'; }, 2500);
+      }
+    } catch(_e){}
+  };
+
   // ── Helpers ────────────────────────────────────────────────────
   function setTile(id, val, sub, cls, fillPct){
     const valEl = $('ckp'+id+'Val');
@@ -2611,36 +2772,52 @@ window._brahmastraADX = _ciComputeADX;
     } catch(e){ return null; }
   }
   function getMpoRegime(){
-    // Inspect mpoState.patterns to derive a regime label
+    // Only count CONFIRMED, ACTIVE enemy or gamma signals. "forming" patterns
+    // and uncategorized confirmations no longer pile up as fake IV-risk —
+    // that was the root cause of the dashboard always showing "high risk".
     try {
-      if(typeof mpoState==='undefined' || !Array.isArray(mpoState.patterns)) return {label:'—', kind:'unk', counts:{iv:0,gamma:0}};
+      if(typeof mpoState==='undefined' || !Array.isArray(mpoState.patterns)) return {label:'—', kind:'unk', counts:{iv:0,gamma:0,forming:0}};
       const pats = mpoState.patterns;
-      let iv=0, gamma=0;
+      let iv=0, gamma=0, forming=0;
       for(const p of pats){
-        const state2 = p.state || p.status || '';
+        const state2 = (p.state || p.status || '').toLowerCase();
         const name = (p.name||'').toLowerCase();
         const cat  = (p.category||'').toLowerCase();
-        if(state2 === 'forming'){ iv++; continue; }
-        if(state2 !== 'confirmed') continue;
-        const isStruct = /bos|choch|hh|ll|hl|lh/.test(name) || cat==='structure';
-        const isImpulse= /impulse|wave [1-5]/.test(name) || cat==='elliott';
-        const isLiq    = /sweep|liquidity|stop hunt|grab/.test(name) || cat==='liquidity';
-        const hasBias  = p.bias==='bullish' || p.bias==='bearish';
-        if((isStruct&&hasBias) || isImpulse) gamma++;
-        else if(isLiq) iv++;
-        else if(p.isStrangleEnemy) iv++;
-        else if(hasBias) gamma++;
-        else iv++;
+        // Forming patterns are watched but DON'T count as risk yet
+        if(state2 === 'forming'){ forming++; continue; }
+        // Anything that isn't explicitly confirmed/active is ignored
+        if(state2 !== 'confirmed' && state2 !== 'active') continue;
+        const isStruct  = /bos|choch|hh|ll|hl|lh/.test(name) || cat==='structure';
+        const isImpulse = /impulse|wave [1-5]/.test(name) || cat==='elliott';
+        const isLiq     = /sweep|liquidity|stop hunt|grab/.test(name) || cat==='liquidity';
+        const isVolPat  = /vol|iv|squeeze|expansion/.test(name) || cat==='vol';
+        const hasBias   = p.bias==='bullish' || p.bias==='bearish';
+        const isEnemy   = p.isStrangleEnemy === true;
+        // Real strangle enemies → IV-risk bucket (vol-of-vol type events)
+        if(isEnemy)                                  { iv++; continue; }
+        // Confirmed structure/impulse with directional bias → gamma threat
+        if((isStruct && hasBias) || isImpulse)       { gamma++; continue; }
+        // Confirmed liquidity sweeps with bias → gamma (sharp moves)
+        if(isLiq && hasBias)                         { gamma++; continue; }
+        // Confirmed pure vol patterns → IV bucket
+        if(isVolPat)                                 { iv++; continue; }
+        // Anything else confirmed but uncategorized: don't count it.
+        // Previously this fell through to iv++, which made the gauge red
+        // even when nothing meaningful was happening.
       }
       let label, kind;
-      if(iv===0 && gamma===0){ label='QUIET'; kind='quiet'; }
-      else if(gamma===0)     { label=`IV·${iv}`; kind='iv'; }
-      else if(iv===0)        { label=`Γ·${gamma}`; kind='gamma'; }
-      else if(iv > gamma*2)  { label=`IV-LEAN ${iv}/${gamma}`; kind='iv'; }
-      else if(gamma > iv*2)  { label=`Γ-LEAN ${gamma}/${iv}`; kind='gamma'; }
-      else                   { label=`MIXED ${iv}/${gamma}`; kind='mixed'; }
-      return {label, kind, counts:{iv,gamma}};
-    } catch(e){ return {label:'—', kind:'unk', counts:{iv:0,gamma:0}}; }
+      // Require ≥2 of either bucket before we call it a real regime —
+      // a single isolated pattern shouldn't flip the dashboard to "risk".
+      const TOTAL = iv + gamma;
+      if(TOTAL === 0)          { label = forming ? `WATCHING (${forming})` : 'QUIET'; kind='quiet'; }
+      else if(TOTAL === 1)     { label = gamma ? `Γ·1` : `IV·1`; kind='quiet'; } // 1 signal = still quiet-ish
+      else if(gamma === 0)     { label = `IV·${iv}`; kind='iv'; }
+      else if(iv === 0)        { label = `Γ·${gamma}`; kind='gamma'; }
+      else if(iv > gamma*2)    { label = `IV-LEAN ${iv}/${gamma}`; kind='iv'; }
+      else if(gamma > iv*2)    { label = `Γ-LEAN ${gamma}/${iv}`; kind='gamma'; }
+      else                     { label = `MIXED ${iv}/${gamma}`; kind='mixed'; }
+      return {label, kind, counts:{iv,gamma,forming}};
+    } catch(e){ return {label:'—', kind:'unk', counts:{iv:0,gamma:0,forming:0}}; }
   }
   function getNextNewsEvent(){
     try {
@@ -2656,24 +2833,40 @@ window._brahmastraADX = _ciComputeADX;
     } catch(e){ return null; }
   }
   function getMaxPain(){
-    // Try DOM-based read from pvs panel (it computes this internally)
+    // Read from pvs panel — actual ID is pvsMaxPain (legacy id pvsMaxPainStrike kept as fallback)
     try {
-      const el = document.getElementById('pvsMaxPainStrike');
+      const el = document.getElementById('pvsMaxPain') || document.getElementById('pvsMaxPainStrike');
       if(el && el.textContent) {
+        // Strip commas and any non-numeric characters except dot
         const v = parseFloat(el.textContent.replace(/[^0-9.]/g,''));
-        return isFinite(v) ? v : null;
+        if(isFinite(v) && v > 1000) return v;  // BTC strikes are always >$1k
       }
     } catch(e){}
     return null;
   }
   function getDealerGEX(){
-    // Read from PVS DOM if available
+    // Real PVS DOM element is pvsTotalGex (value) + pvsGexTitle (verdict text).
     try {
-      const el = document.getElementById('pvsGexDollarVal') || document.getElementById('pvsGEX');
-      if(el && el.textContent){
-        const txt = el.textContent;
-        if(/long|positive|\+/i.test(txt)) return {sign:'+', label:'long'};
-        if(/short|negative|−|-/i.test(txt)) return {sign:'-', label:'short'};
+      const titleEl = document.getElementById('pvsGexTitle');
+      const valEl   = document.getElementById('pvsTotalGex');
+      const txt = (titleEl?.textContent || '') + ' ' + (valEl?.textContent || '');
+      // Parse the GEX dollar value (e.g. "+$12.3M" or "-$5.4M")
+      let gexVal = null;
+      if(valEl && valEl.textContent){
+        const raw = valEl.textContent.trim();
+        const num = parseFloat(raw.replace(/[^\-0-9.]/g,''));
+        if(isFinite(num)){
+          const isNeg = /-|short|negative/i.test(raw) || num < 0;
+          gexVal = isNeg ? -Math.abs(num) : Math.abs(num);
+        }
+      }
+      // Heuristics from the verdict title
+      if(/long\s*gamma|positive\s*gamma|net\s*long|range[- ]bound/i.test(txt))
+        return {sign:'+', label:'long', val:gexVal};
+      if(/short\s*gamma|negative\s*gamma|net\s*short|trend|chase/i.test(txt))
+        return {sign:'-', label:'short', val:gexVal};
+      if(gexVal != null){
+        return gexVal >= 0 ? {sign:'+', label:'long', val:gexVal} : {sign:'-', label:'short', val:gexVal};
       }
     } catch(e){}
     return null;
@@ -2797,14 +2990,41 @@ window._brahmastraADX = _ciComputeADX;
       const wrap = document.getElementById('relPanel');
       if(!wrap) return null;
       const ts = readText('relTs', 30);
-      // Try to find a verdict-class element inside relPanel
-      const vEl = wrap.querySelector('.rel-verdict, .rel-status, .rel-headline');
-      const status = vEl ? vEl.textContent.trim().slice(0,40) : null;
-      // Look for any prominent number/score
-      const numEl = wrap.querySelector('.rel-score-num, .rel-score, .rel-conf');
-      const score = numEl ? parseFloat((numEl.textContent||'').replace(/[^\-0-9.]/g,'')) : null;
-      if(!status && (score == null || !isFinite(score))) return null;
-      return { status, score: isFinite(score) ? score : null, ts };
+      // Real DOM uses .rel-final-title (the big verdict) + .rel-final-badge
+      const titleEl = wrap.querySelector('.rel-final-title');
+      const badgeEl = wrap.querySelector('.rel-final-badge');
+      // Parse numeric score from the timestamp (which gets stamped with "score/100"
+      // by relCompute() — see line ~18533) or from the .rel-score-val cells.
+      let score = null;
+      if(ts){
+        const m = ts.match(/(\d+)\s*\/\s*100/);
+        if(m) score = parseFloat(m[1]);
+      }
+      if(score == null){
+        // Fall back to "Combined Edge" score in the rel-score-row cells
+        const rows = wrap.querySelectorAll('.rel-score-row');
+        if(rows.length){
+          // The 3rd row is Combined Edge in current layout
+          const last = rows[rows.length-1];
+          const valEl = last.querySelector('.rel-score-val');
+          if(valEl){
+            const v = parseFloat((valEl.textContent||'').replace(/[^\-0-9.]/g,''));
+            if(isFinite(v)) score = v;
+          }
+        }
+      }
+      const status = titleEl ? titleEl.textContent.trim().slice(0,40) : null;
+      const badge  = badgeEl ? badgeEl.textContent.trim().slice(0,16) : null;
+      // Verdict class: green if SELL ALIGNED, red if AVOID/HIGH RISK, amber if WAIT
+      const finalEl = wrap.querySelector('.rel-final');
+      let cls = '';
+      if(finalEl){
+        if(finalEl.classList.contains('rf-sell') || finalEl.classList.contains('rf-sell2')) cls = 'green';
+        else if(finalEl.classList.contains('rf-avoid')) cls = 'red';
+        else if(finalEl.classList.contains('rf-wait'))  cls = 'amber';
+      }
+      if(!status && score == null && !badge) return null;
+      return { status, score, ts, badge, cls };
     } catch(e){ return null; }
   }
 
@@ -2828,22 +3048,42 @@ window._brahmastraADX = _ciComputeADX;
     return { rate: f, rate24h: f24, basis };
   }
 
-  // DVOL Market Pattern Observer — different from spot MPO
+  // DVOL Market Pattern Observer — different from spot MPO. Real DOM IDs:
+  // dmpoWarnTitle, dmpoWarnVerdict, dmpoStatDvol, dmpoStatTrend, dmpoStatRisk,
+  // dmpoStatConf, plus #dmpoGrid containing pattern cards.
   function getDvolMpo(){
     try {
       const wrap = document.getElementById('dvolMPOPanel');
       if(!wrap) return null;
-      // Pull whatever pattern-count or active-regime text the panel shows
-      const mainEl = wrap.querySelector('.mpo-main, .mpo-regime, [class*="dominant"]');
-      const txt = mainEl ? mainEl.textContent.trim().slice(0,28) : null;
-      const countEls = wrap.querySelectorAll('[class*="count"]');
-      let total = 0;
-      countEls.forEach(e => {
-        const v = parseInt((e.textContent||'').replace(/[^0-9]/g,''),10);
-        if(isFinite(v)) total += v;
+      const verdict   = readText('dmpoWarnVerdict', 16);
+      const titleTxt  = readText('dmpoWarnTitle', 40);
+      const dvolVal   = readNum('dmpoStatDvol');
+      const trendTxt  = readText('dmpoStatTrend', 16);
+      const riskTxt   = readText('dmpoStatRisk', 24);
+      const confTxt   = readText('dmpoStatConf', 16);
+      // Count active pattern cards (anything that isn't a "loading" card)
+      const cards = wrap.querySelectorAll('#dmpoGrid .mpo-card');
+      let count = 0;
+      cards.forEach(c => {
+        const name = c.querySelector('.mpo-card-name')?.textContent || '';
+        if(!/scanning|loading|wait/i.test(name)) count++;
       });
-      if(!txt && !total) return null;
-      return { regime: txt, count: total };
+      // Quick severity hint from the warn verdict text
+      let kind = 'neutral';
+      if(/sell|favourable|favorable|good/i.test(verdict || titleTxt || ''))   kind = 'sell';
+      else if(/avoid|danger|enemy|high\s*risk/i.test(verdict || titleTxt || riskTxt || '')) kind = 'avoid';
+      else if(/watch|wait|caution/i.test(verdict || titleTxt || ''))          kind = 'wait';
+      if(!verdict && !titleTxt && !dvolVal && !count) return null;
+      return {
+        regime: titleTxt || verdict || '',
+        verdict: verdict || '',
+        kind,
+        count,
+        dvol: dvolVal,
+        trend: trendTxt,
+        risk: riskTxt,
+        conf: confTxt,
+      };
     } catch(e){ return null; }
   }
 
@@ -3078,14 +3318,22 @@ window._brahmastraADX = _ciComputeADX;
     // ── Hazards (MPO) ──
     if(mpo){
       let cls = '', flash = '';
-      if(mpo.kind==='quiet'){ cls='green'; }
-      else if(mpo.kind==='iv'){ cls='purple'; flash='flash-warn'; }
-      else if(mpo.kind==='gamma'){ cls='red'; flash='flash-danger'; }
-      else if(mpo.kind==='mixed'){ cls='amber'; flash='flash-warn'; }
-      const sub = mpo.kind==='quiet' ? 'no patterns' :
-                  mpo.kind==='iv' ? 'IV-driven (vol up, price slow)' :
-                  mpo.kind==='gamma' ? 'gamma-driven (sharp price)' :
-                  'mixed regime';
+      if(mpo.kind==='quiet')      { cls='green'; }
+      else if(mpo.kind==='iv')    { cls='purple'; flash = mpo.counts.iv >= 3 ? 'flash-warn' : ''; }
+      else if(mpo.kind==='gamma') { cls='red';    flash = mpo.counts.gamma >= 3 ? 'flash-danger' : 'flash-warn'; }
+      else if(mpo.kind==='mixed') { cls='amber';  flash='flash-warn'; }
+      let sub;
+      if(mpo.kind==='quiet'){
+        sub = mpo.counts.forming
+          ? `${mpo.counts.forming} forming · clear road`
+          : 'no patterns · clear road';
+      } else if(mpo.kind==='iv') {
+        sub = `${mpo.counts.iv} IV-driven · vol up, price slow`;
+      } else if(mpo.kind==='gamma') {
+        sub = `${mpo.counts.gamma} gamma-driven · sharp price`;
+      } else {
+        sub = `${mpo.counts.iv} IV / ${mpo.counts.gamma} Γ · mixed`;
+      }
       setTile('Hazard', mpo.label, sub, (cls+(flash?' '+flash:'')).trim(), 0);
     } else {
       setTile('Hazard', '—', 'awaiting MPO', '', 0);
@@ -3185,7 +3433,11 @@ window._brahmastraADX = _ciComputeADX;
     if(rel){
       const valTxt = rel.score != null ? rel.score.toFixed(0) : (rel.status ? rel.status.split(/\s/)[0].slice(0,10) : '—');
       const subTxt = rel.status ? rel.status.toLowerCase() : 'cross-signal live';
-      const cls = (rel.score != null) ? (rel.score >= 70 ? 'red' : rel.score >= 40 ? 'amber' : 'green') : '';
+      // Use the panel's own verdict class — green = SELL ALIGNED (low cross-traffic),
+      // red = AVOID (heavy cross-traffic = enemy patterns), amber = WAIT.
+      // Fall back to score-based banding when class is missing.
+      const cls = rel.cls
+        || ((rel.score != null) ? (rel.score >= 65 ? 'green' : rel.score >= 40 ? 'amber' : 'red') : '');
       setTile('Cross', valTxt, subTxt, cls, Math.min(100, rel.score || 0));
     } else {
       setTile('Cross', '—', 'awaiting cross-signal', '', 0);
@@ -3542,6 +3794,95 @@ window._brahmastraADX = _ciComputeADX;
           : 'No alerts — clear road ahead.';
         trafficWrap.title = 'Traffic signal — upcoming-road alerts:\n' + lines;
       }
+
+      // ── SUSPICIOUS ACTIVITY ALERTS ──────────────────────────────────
+      // When the traffic signal flips to RED (or sustains AMBER on a high-
+      // priority alarm), announce it in Hindi (or whatever language is set
+      // in VOICE_CFG) AND push a Telegram notification. Both channels are
+      // de-duplicated so the user doesn't get spammed with the same alert
+      // every 3-second render cycle.
+      try {
+        // Stable signature for this alarm set (sorted reasons + tier)
+        const alarmSig = tier + '|' + alarms
+          .filter(a => a.tier === tier)
+          .map(a => a.why).sort().join(';');
+        if(!window.__ckpAlertState){
+          window.__ckpAlertState = { lastSig: '', lastSentTs: 0, lastTier: 'green' };
+        }
+        const st = window.__ckpAlertState;
+        const tierEscalated = (st.lastTier !== 'red' && tier === 'red') ||
+                              (st.lastTier === 'green' && tier === 'amber');
+        const sigChanged    = (alarmSig !== st.lastSig);
+        const cooldownOver  = (Date.now() - st.lastSentTs) > 5*60*1000; // 5-minute floor
+        // Fire only on red; OR amber with significant alarms (>=2); OR escalation
+        const shouldFire = tier === 'red'
+          || (tier === 'amber' && alarms.filter(a => a.tier === 'amber').length >= 2);
+
+        if(shouldFire && (tierEscalated || (sigChanged && cooldownOver))){
+          // Pick the most severe alarm to announce
+          const worst = alarms.find(a => a.tier === tier) || alarms[0];
+          const reasonText = (worst?.why) || 'sensor warning';
+
+          // ── Hindi translations for the most common alarms ──
+          // We map known why-strings to natural Hindi phrasings; everything
+          // else falls back to a generic "kuch sandigdh hai" warning.
+          function alarmToHindi(why){
+            if(!why) return 'सावधान — सड़क पर कुछ संदिग्ध गतिविधि है।';
+            if(/Macro event/i.test(why))   return 'सावधान! एक घंटे के अंदर बड़ा समाचार आ रहा है। पोज़ीशन कम कीजिए।';
+            if(/News in/i.test(why))       return `सावधान! कुछ घंटों में मैक्रो इवेंट है — ${why}।`;
+            if(/Settle <30m/i.test(why))   return 'सावधान! तीस मिनट में सेटलमेंट है। तुरंत निर्णय लीजिए।';
+            if(/Settle/i.test(why))        return `सेटलमेंट करीब है — ${why}। तैयार रहिए।`;
+            if(/RV \d+/i.test(why))        return `रियलाइज़्ड वोलैटिलिटी बहुत ऊंची है — ${why}। सड़क बहुत बम्पी है।`;
+            if(/IV \+/i.test(why))         return `आईवी में अचानक उछाल — ${why}। एक्सीडेंट का खतरा।`;
+            if(/VoV /i.test(why))          return `वोल-ऑफ-वोल बहुत ज़्यादा — ${why}। तूफान आ रहा है।`;
+            if(/Gamma regime/i.test(why))  return 'गामा-ड्रिवन रेजीम — तेज़ मूव का खतरा। पोज़ीशन छोटी रखिए।';
+            if(/regime/i.test(why))        return `मार्केट रेजीम बदल रहा है — ${why}। ध्यान दीजिए।`;
+            return `सावधान — ${why}। सड़क पर कुछ संदिग्ध है।`;
+          }
+          function alarmToEnglish(why){
+            if(!why) return 'Caution — suspicious activity detected on the road.';
+            return `Caution! ${why}. Reduce position size or stay flat.`;
+          }
+
+          const hi = alarmToHindi(reasonText);
+          const en = alarmToEnglish(reasonText);
+
+          // 1) Hindi voice announcement (uses existing speakAlert from VOICE_CFG).
+          //    speakAlert is gated by ALERT_CFG.voiceOn so users can mute it.
+          if(typeof speakAlert === 'function'){
+            try { speakAlert(hi, en); } catch(e){ /* ignore */ }
+          }
+
+          // 2) Telegram notification with full context
+          if(typeof tgSend === 'function'){
+            const tierIcon = tier === 'red' ? '🚨' : '⚠️';
+            const tierLabel = tier === 'red' ? 'RED — STOP' : 'AMBER — CAUTION';
+            const allAlarmsStr = alarms.length
+              ? alarms.slice(0,5).map(a => `• [${a.tier.toUpperCase()}] ${a.why}`).join('\n')
+              : '• No specific alarm';
+            const spotStr = (typeof spot === 'number' && spot > 1000)
+              ? `$${Math.round(spot).toLocaleString('en-US')}` : '—';
+            const verdictStr = (tier === 'red' ? 'BRAKE / STAY FLAT' :
+                                tier === 'amber' ? 'SLOW DOWN / REDUCE SIZE' : 'PROCEED');
+            const istNow = new Date().toLocaleTimeString('en-IN',{
+              hour:'2-digit',minute:'2-digit',second:'2-digit',
+              hour12:false,timeZone:'Asia/Kolkata'
+            });
+            const msg =
+              `${tierIcon} *Cockpit Car Alert · ${tierLabel}*\n\n` +
+              `*Trigger:* ${reasonText}\n` +
+              `*BTC Spot:* ${spotStr}\n` +
+              `*Action:* ${verdictStr}\n\n` +
+              `*All active alarms:*\n${allAlarmsStr}\n\n` +
+              `_${istNow} IST · BRAHMASTRA Cockpit_`;
+            tgSend(msg).catch(()=>{});
+          }
+
+          st.lastSentTs = Date.now();
+        }
+        st.lastSig = alarmSig;
+        st.lastTier = tier;
+      } catch(_e){ /* alert subsystem must never break the render */ }
     } catch(e){ /* never break the dashboard for an alert subsystem */ }
 
     // ── Speed breakers — visible obstacles ON THE UPCOMING ROAD ──
@@ -3554,31 +3895,14 @@ window._brahmastraADX = _ciComputeADX;
         breakersEl.innerHTML = '';
         const list = [];
 
-        // 1. Upcoming news event (if within 18h)
-        if(nextNewsHrs != null && nextNewsHrs > 0 && nextNewsHrs <= FUTURE_HOURS){
-          const sev = nextNewsHrs < 1 ? 'stop' : nextNewsHrs < 4 ? 'bump' : 'cone';
-          const ttl = (news?.title||'Macro event').replace(/^🏛️\s*/,'').slice(0,28);
-          list.push({
-            hrs: nextNewsHrs, kind: sev,
-            label: '📰 ' + ttl,
-            tip: 'NEWS in ' + nextNewsHrs.toFixed(1) + 'h: ' + ttl
-          });
-        }
+        // The vehicle layer (rendered later) carries the headline alarms:
+        // news, IV-spike, settlement, big-candle, expiry. Breakers here
+        // are lighter — kill-zones, ambient cones, and minor RV bumps —
+        // so the road doesn't visually double-stack the same warning.
 
-        // 2. Daily settlement (Delta India 17:30 IST)
-        if(settleHrs != null && settleHrs > 0 && settleHrs <= FUTURE_HOURS){
-          const sev = settleHrs < 0.5 ? 'stop' : settleHrs < 2 ? 'bump' : 'cone';
-          list.push({
-            hrs: settleHrs, kind: sev,
-            label: '🏁 Settle',
-            tip: 'Delta India settlement in ' + (settleHrs<1 ? Math.round(settleMs/60000)+'m' : settleHrs.toFixed(1)+'h')
-          });
-        }
-
-        // 3. Upcoming kill zones (NY entry = STOP, others = caution)
+        // 1. Upcoming kill zones (NY entry = STOP, others = caution)
         const nextKZ = getNextKZ(FUTURE_HOURS);
         if(nextKZ){
-          // NY KZ is "no new entries" per existing dashboard logic
           const isNy = (nextKZ.kz.key === 'ny');
           list.push({
             hrs: nextKZ.hrs,
@@ -3590,40 +3914,41 @@ window._brahmastraADX = _ciComputeADX;
           });
         }
 
-        // 4. IV spike — if IV has risen sharply in the last 10 min,
-        //    place a "live" breaker right at the car (hrs=0.05). This
-        //    shows the driver they JUST hit a bump even though it's not
-        //    truly "ahead". Only when the spike is fresh.
-        if(ivSpikePts >= 2){
+        // 2. Realised vol elevated (medium) → small cone marker. The full
+        //    police-car vehicle handles RV > 90%; here we just place a soft
+        //    bump for the 70-90% middle band so the driver knows the road
+        //    is bumpier than usual.
+        if(rv != null && rv > 70 && rv <= 90){
           list.push({
-            hrs: 0.05,
-            kind: ivSpikePts >= 5 ? 'stop' : 'bump',
-            label: '⚡ IV +' + ivSpikePts.toFixed(1) + 'pt',
-            tip: 'IV jumped ' + ivSpikePts.toFixed(1) + ' points in the last 10m'
-          });
-        }
-
-        // 5. Realized vol still elevated → wavy road ahead
-        if(rv != null && rv > 70){
-          list.push({
-            hrs: 0.5,
-            kind: rv > 90 ? 'stop' : 'bump',
+            hrs: 1.5,
+            kind: 'cone',
             label: '💨 RV ' + rv.toFixed(0) + '%',
-            tip: 'Realized vol is ' + rv.toFixed(0) + '% — ride is bumpy'
+            tip: 'Realised vol elevated at ' + rv.toFixed(0) + '% — road is bumpy'
           });
         }
 
-        // 6. Approaching low-DTE expiry boundary (gamma cliff)
-        if(dteRemain != null && dteRemain > 0 && dteRemain <= 3){
+        // 3. Settlement at distance (>30m) — small cone. The ambulance
+        //    handles the <30m case as a vehicle.
+        if(settleHrs != null && settleHrs >= 0.5 && settleHrs <= 4){
+          list.push({
+            hrs: settleHrs,
+            kind: 'cone',
+            label: '🏁 Settle',
+            tip: 'Delta India settlement in ' + settleHrs.toFixed(1) + 'h'
+          });
+        }
+
+        // 4. DTE 1-3d → cone marker (≤1d is handled by an ambulance vehicle)
+        if(dteRemain != null && dteRemain > 1 && dteRemain <= 3){
           list.push({
             hrs: dteRemain * 24,
-            kind: dteRemain < 1 ? 'stop' : 'bump',
+            kind: 'cone',
             label: '🧨 ' + dteRemain.toFixed(1) + 'd expiry',
             tip: 'Position expires in ' + dteRemain.toFixed(1) + ' days — gamma cliff approaching'
           });
         }
 
-        // 7. CLEAN-ROAD warning — if the trader sees nothing ahead but
+        // 5. CLEAN-ROAD warning — if the trader sees nothing ahead but
         //    the dashboard isn't fully loaded, show a soft cone hint so
         //    they don't assume "all clear" when really we just don't
         //    know yet. This covers the user's "if road looks clean" ask.
@@ -3660,6 +3985,178 @@ window._brahmastraADX = _ciComputeADX;
         });
       }
     } catch(e){ /* breakers are decorative — never block render */ }
+
+    // ── ROAD VEHICLES — incoming traffic ahead ────────────────────────
+    // We render a small fleet of vehicles on the upcoming road that VISUALLY
+    // represent the same alarms the breakers do, but as moving traffic the
+    // driver can "see coming". Each vehicle is anchored by its hours-ahead
+    // value just like a breaker, but with a vehicle SVG/emoji and a label.
+    //
+    // Vehicle types and triggers:
+    //   📰 News van    — pending high-impact macro event in next 18h
+    //   🚌 IV-spike bus — IV jumped sharply in the last ~10 min
+    //   🚛 Big-candle truck — last 1h candle exceeded a body threshold
+    //   🚑 Ambulance   — settlement within 30 min OR DTE <= 1d
+    //   🚓 Police car  — gamma-driven MPO regime with ≥3 confirmed signals
+    //   🏍 Bike        — IV is rich (vol-of-vol low) — easy traffic to navigate
+    //
+    // The vehicles are re-rendered each tick (3s); we don't try to animate
+    // smooth motion, but the staggered hours-ahead positioning + per-tile
+    // animations (ckp-truck-wobble, ckp-vehicle-flash) give the impression
+    // of moving traffic.
+    try {
+      const vehiclesEl = $('ckpVehicles');
+      if(vehiclesEl){
+        vehiclesEl.innerHTML = '';
+
+        // Compute big-candle status — the user's "big candle detection"
+        // request maps to either a sharp 1h move or a high-RV reading.
+        const bigCandleAbs = move1h != null ? Math.abs(move1h) : 0;
+        const isBigCandle  = bigCandleAbs >= 1.5 || (rv != null && rv > 90);
+        const isHugeCandle = bigCandleAbs >= 2.5 || (rv != null && rv > 110);
+
+        const fleet = [];
+
+        // 1. News van — for upcoming news event
+        if(nextNewsHrs != null && nextNewsHrs > 0 && nextNewsHrs <= FUTURE_HOURS){
+          const ttl = (news?.title||'Macro event').replace(/^🏛️\s*/,'').slice(0,22);
+          fleet.push({
+            hrs: nextNewsHrs,
+            type: 'news', lane: 2,
+            emoji: '📰',
+            label: 'NEWS · ' + (nextNewsHrs<1 ? Math.round(nextNewsHrs*60)+'m' : nextNewsHrs.toFixed(1)+'h'),
+            tip: `News van approaching: ${ttl} in ${nextNewsHrs<1 ? Math.round(nextNewsHrs*60)+'m' : nextNewsHrs.toFixed(1)+'h'}`,
+          });
+        }
+
+        // 2. IV-spike bus — fresh IV jump in the last few minutes
+        if(ivSpikePts >= 2){
+          fleet.push({
+            hrs: 0.4,   // very close — already on top of us
+            type: 'iv-bus', lane: 1,
+            emoji: '🚌',
+            label: '⚡ IV +' + ivSpikePts.toFixed(1) + 'pt',
+            tip: `IV-spike bus passing now — IV jumped ${ivSpikePts.toFixed(1)} points`,
+          });
+        }
+
+        // 3. Big-candle truck — last 1h candle had a large body
+        if(isBigCandle){
+          const dir = move1h > 0 ? '↑' : '↓';
+          fleet.push({
+            hrs: 0.15,   // RIGHT next to the car
+            type: 'big-truck', lane: 3,
+            emoji: '🚛',
+            label: `${dir} ${bigCandleAbs.toFixed(1)}% candle`,
+            tip: `Big-candle truck: last 1h candle moved ${move1h>0?'+':''}${move1h?.toFixed(2)}% — heavy load`,
+          });
+          // Add a second truck if the move is huge
+          if(isHugeCandle){
+            fleet.push({
+              hrs: 1.2,
+              type: 'big-truck', lane: 2,
+              emoji: '🚛',
+              label: 'CONVOY',
+              tip: `Trucks in convoy — RV ${rv?.toFixed(0)}% · 1h move ${move1h?.toFixed(2)}%`,
+            });
+          }
+        }
+
+        // 4. Ambulance — settlement within 30 min OR DTE ≤ 1 day
+        if(settleHrs != null && settleHrs > 0 && settleHrs < 0.5){
+          fleet.push({
+            hrs: settleHrs,
+            type: 'ambulance', lane: 1,
+            emoji: '🚑',
+            label: 'SETTLE ' + Math.round(settleMs/60000) + 'm',
+            tip: `Settlement ambulance approaching — Delta India settles in ${Math.round(settleMs/60000)}m`,
+          });
+        }
+        if(dteRemain != null && dteRemain > 0 && dteRemain <= 1){
+          fleet.push({
+            hrs: Math.min(dteRemain * 24, FUTURE_HOURS - 0.5),
+            type: 'ambulance', lane: 2,
+            emoji: '🚑',
+            label: 'EXPIRY ' + dteRemain.toFixed(1) + 'd',
+            tip: `Expiry ambulance — position expires in ${dteRemain.toFixed(2)} days, gamma cliff approaching`,
+          });
+        }
+
+        // 5. Police car — gamma-driven regime with ≥3 confirmed signals,
+        //    OR realised vol very high (over-speeding the road)
+        if(mpo && mpo.kind === 'gamma' && mpo.counts.gamma >= 3){
+          fleet.push({
+            hrs: 0.8,
+            type: 'police', lane: 2,
+            emoji: '🚓',
+            label: 'γ POLICE',
+            tip: `Police car — gamma-driven regime active (${mpo.counts.gamma} confirmed). Slow down, avoid new entries.`,
+          });
+        }
+        if(rv != null && rv > 90){
+          fleet.push({
+            hrs: 0.6,
+            type: 'police', lane: 1,
+            emoji: '🚓',
+            label: 'OVER-SPEED',
+            tip: `Police car — realised vol ${rv.toFixed(0)}% is over the limit. Reduce size.`,
+          });
+        }
+
+        // 6. Bike — IV percentile rich = light, easy traffic (good news for sellers)
+        const ivpForBike = (typeof ivp === 'number') ? ivp : (typeof getIvp === 'function' ? getIvp() : null);
+        if(ivpForBike != null && ivpForBike >= 75 && (vov == null || vov < 8)){
+          fleet.push({
+            hrs: 4,
+            type: 'bike', lane: 3,
+            emoji: '🏍',
+            label: 'IVP ' + ivpForBike.toFixed(0) + '%',
+            tip: `Friendly biker — IV percentile ${ivpForBike.toFixed(0)}% is rich, road is sellable`,
+          });
+        }
+
+        // 7. Decorative ambient traffic — when nothing dramatic is happening
+        //    we still spawn one slow car at +8h so the road never looks empty.
+        //    This was the user's "road structure not attractive" complaint.
+        if(fleet.length === 0){
+          fleet.push({
+            hrs: 8,
+            type: 'bike', lane: 3,
+            emoji: '🚙',
+            label: 'CLEAR',
+            tip: 'Light traffic ahead — clear road for short strangles',
+          });
+          fleet.push({
+            hrs: 12,
+            type: 'bike', lane: 2,
+            emoji: '🚐',
+            label: 'CALM',
+            tip: 'Calm road — low volatility, theta-friendly',
+          });
+        }
+
+        // Sort so closer vehicles paint last (z-stack = closest on top)
+        fleet.sort((a,b) => b.hrs - a.hrs);
+        fleet.forEach(v => {
+          const leftPct = CAR_ANCHOR_PCT + v.hrs * PCT_PER_HOUR;
+          if(leftPct < CAR_ANCHOR_PCT - 0.5 || leftPct > 100) return; // off-screen
+          const el = document.createElement('div');
+          el.className = 'ckp-vehicle ' + v.type + ' lane-' + (v.lane||2);
+          // Mark vehicles that are very close to the player (within 1h)
+          if(v.hrs <= 1) el.classList.add('near');
+          el.style.left = leftPct + '%';
+          el.title = v.tip;
+          el.textContent = v.emoji;
+          if(v.label){
+            const tag = document.createElement('div');
+            tag.className = 'ckp-vehicle-tag';
+            tag.textContent = v.label;
+            el.appendChild(tag);
+          }
+          vehiclesEl.appendChild(el);
+        });
+      }
+    } catch(e){ /* vehicles are decorative — never block render */ }
 
     // ── Verdict ribbon ──
     const verdict = deriveVerdict({
@@ -4090,6 +4587,21 @@ window._brahmastraADX = _ciComputeADX;
   </div>
   <div class="wa-fields">
     <div class="wa-field">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);margin-bottom:6px;padding-top:6px;border-top:0.5px solid var(--color-border-tertiary);margin-top:6px">📡 Telegram Notifications · Cockpit Car Alerts</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+        <input type="text" id="tgBotToken"
+               placeholder="Bot token (123456:ABC-DEF…)"
+               style="font-size:10px;padding:6px 8px;border-radius:5px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);width:100%;box-sizing:border-box">
+        <input type="text" id="tgChatId"
+               placeholder="Chat ID (e.g. 123456789)"
+               style="font-size:10px;padding:6px 8px;border-radius:5px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);color:var(--color-text-primary);width:100%;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button onclick="saveTG()" style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:5px;border:none;background:#3b82f6;color:#fff;cursor:pointer">💾 Save</button>
+        <button onclick="testTG()" style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:5px;border:none;background:#10b981;color:#fff;cursor:pointer">📤 Test Send</button>
+        <span style="font-size:9px;color:var(--color-text-secondary)">Get token from @BotFather · Chat ID from @userinfobot</span>
+      </div>
+    </div>
   </div>
   <div id="waStatus" class="wa-status"></div>
 
@@ -19615,6 +20127,9 @@ setTimeout(()=>{
     <span class="sim-status-pill" id="simIVStatus">ATM IV: —</span>
     <span class="sim-status-pill" id="simADXStatus">ADX: —</span>
     <span class="sim-status-pill" id="simRegimeStatus">Regime: —</span>
+    <span class="sim-status-pill" id="simWallClock" style="background:rgba(59,130,246,0.12);color:#3b82f6;font-weight:700;font-variant-numeric:tabular-nums" title="Live IST wall clock">🕐 —</span>
+    <span class="sim-status-pill" id="simHeldClock" style="display:none;background:rgba(124,58,237,0.12);color:#7c3aed;font-weight:700;font-variant-numeric:tabular-nums" title="Time since position was opened (live ticker, updates every second)">⏱ —</span>
+    <span class="sim-status-pill" id="simDTEClock" style="display:none;background:rgba(245,158,11,0.12);color:#d97706;font-weight:700;font-variant-numeric:tabular-nums" title="Time remaining until expiry settlement (17:30 IST on expiry date)">⏳ —</span>
   </div>
 
   <!-- Tabs -->
@@ -24518,6 +25033,100 @@ setTimeout(()=>{
     fetchUpcomingEvents();
     // Persist sdpAutoLog occasionally so it survives reload
     setInterval(() => { simDBSave().catch(()=>{}); }, 60000);
+
+    // ── Simulation Timing Ticker — runs every 1 second ───────────────
+    // This is a lightweight clock-only tick. It updates the wall-clock
+    // pill, the "time since open" duration for the active position, and
+    // the precise time-to-expiry countdown. None of these depend on
+    // Black-Scholes or chain refresh, so it's safe to run at 1Hz.
+    setInterval(() => {
+      try {
+        const now = Date.now();
+        // Wall clock (IST)
+        const wallEl = document.getElementById('simWallClock');
+        if(wallEl){
+          wallEl.textContent = '🕐 ' + new Date(now).toLocaleTimeString('en-IN', {
+            hour:'2-digit', minute:'2-digit', second:'2-digit',
+            hour12:false, timeZone:'Asia/Kolkata'
+          }) + ' IST';
+        }
+        // Also keep the older simClock element in sync (in case something else reads it)
+        const oldClock = document.getElementById('simClock');
+        if(oldClock){
+          oldClock.textContent = new Date(now).toLocaleTimeString('en-IN', {
+            hour:'2-digit', minute:'2-digit', second:'2-digit',
+            hour12:false, timeZone:'Asia/Kolkata'
+          }) + ' IST';
+        }
+
+        // Active-position held duration + DTE countdown
+        const heldEl = document.getElementById('simHeldClock');
+        const dteEl  = document.getElementById('simDTEClock');
+        const pos    = simState && simState.position;
+        if(pos && pos.entryTs){
+          const heldMs  = now - pos.entryTs;
+          const heldSec = Math.floor(heldMs / 1000);
+          const d  = Math.floor(heldSec / 86400);
+          const h  = Math.floor((heldSec % 86400) / 3600);
+          const m  = Math.floor((heldSec % 3600) / 60);
+          const s  = heldSec % 60;
+          let heldStr;
+          if(d > 0)      heldStr = `${d}d ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m`;
+          else if(h > 0) heldStr = `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+          else           heldStr = `${m}m ${String(s).padStart(2,'0')}s`;
+          if(heldEl){
+            heldEl.style.display = '';
+            heldEl.textContent = '⏱ Held ' + heldStr;
+          }
+
+          // DTE countdown — to settlement (12:00 UTC = 17:30 IST on expiry date)
+          if(pos.expiry && dteEl){
+            try {
+              const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+              const [dd,mo,yy] = pos.expiry.split('-');
+              const expMs = Date.UTC(2000+parseInt(yy), months[mo], parseInt(dd), 12, 0, 0);
+              const remMs = expMs - now;
+              if(remMs <= 0){
+                dteEl.style.display = '';
+                dteEl.textContent = '⏳ EXPIRED';
+                dteEl.style.color = '#dc2626';
+                dteEl.style.background = 'rgba(220,38,38,0.18)';
+              } else {
+                const remSec = Math.floor(remMs / 1000);
+                const rd = Math.floor(remSec / 86400);
+                const rh = Math.floor((remSec % 86400) / 3600);
+                const rm = Math.floor((remSec % 3600) / 60);
+                const rs = remSec % 60;
+                let dteStr;
+                if(rd > 0)      dteStr = `${rd}d ${rh}h ${String(rm).padStart(2,'0')}m`;
+                else if(rh > 0) dteStr = `${rh}h ${String(rm).padStart(2,'0')}m ${String(rs).padStart(2,'0')}s`;
+                else            dteStr = `${rm}m ${String(rs).padStart(2,'0')}s`;
+                dteEl.style.display = '';
+                dteEl.textContent = '⏳ ' + dteStr + ' to expiry';
+                // Color-code by urgency
+                if(remMs < 1*3600*1000){
+                  dteEl.style.color = '#dc2626';
+                  dteEl.style.background = 'rgba(220,38,38,0.18)';
+                } else if(remMs < 24*3600*1000){
+                  dteEl.style.color = '#d97706';
+                  dteEl.style.background = 'rgba(245,158,11,0.18)';
+                } else {
+                  dteEl.style.color = '#d97706';
+                  dteEl.style.background = 'rgba(245,158,11,0.12)';
+                }
+              }
+            } catch(_e) {
+              if(dteEl) dteEl.style.display = 'none';
+            }
+          } else if(dteEl) {
+            dteEl.style.display = 'none';
+          }
+        } else {
+          if(heldEl) heldEl.style.display = 'none';
+          if(dteEl)  dteEl.style.display  = 'none';
+        }
+      } catch(_e){ /* ticker must never throw */ }
+    }, 1000);
   }, 3000);
 
 })();
@@ -25770,6 +26379,101 @@ function toggleVoice(){
   if(b) b.className='vtoggle '+(ALERT_CFG.voiceOn?'on':'off');
   if(l){ l.textContent=ALERT_CFG.voiceOn?'ON':'OFF'; l.style.color=ALERT_CFG.voiceOn?'#22c55e':'#ef4444'; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   TELEGRAM BOT INTEGRATION
+   tgSend(message, opts)  — POST to api.telegram.org sendMessage
+   saveTG()               — read inputs, persist to localStorage
+   testTG()               — fire a test message
+   ───────────────────────────────────────────────────────────── */
+function saveTG(){
+  const tokenEl  = document.getElementById('tgBotToken');
+  const chatIdEl = document.getElementById('tgChatId');
+  const token  = (tokenEl?.value || '').trim();
+  const chatId = (chatIdEl?.value || '').trim();
+  localStorage.setItem('brahma_tgToken',  token);
+  localStorage.setItem('brahma_tgChatId', chatId);
+  ALERT_CFG.tgToken  = token;
+  ALERT_CFG.tgChatId = chatId;
+  showWAStatus(token && chatId ? '✓ Telegram credentials saved' : 'Saved (empty — alerts disabled)', token && chatId ? 'success' : 'warn');
+}
+
+async function testTG(){
+  if(!ALERT_CFG.tgToken || !ALERT_CFG.tgChatId){
+    showWAStatus('⚠ Enter token + chat ID first, then Save', 'error');
+    return;
+  }
+  showWAStatus('📤 Sending test…', 'info');
+  const ok = await tgSend(
+    '🚗 *BRAHMASTRA Cockpit Test*\n\n' +
+    'Telegram alerts are connected. You will receive notifications here when:\n' +
+    '• 🚨 Suspicious activity detected on the road\n' +
+    '• ⚡ IV spike or volatility surge\n' +
+    '• 📰 High-impact news event approaching\n' +
+    '• 🏁 Settlement countdown crosses critical threshold\n\n' +
+    `_Test sent at ${new Date().toLocaleTimeString('en-IN',{hour12:false,timeZone:'Asia/Kolkata'})} IST_`
+  );
+  showWAStatus(ok ? '✓ Test sent — check your Telegram' : '✗ Failed — check token/chat ID', ok ? 'success' : 'error');
+}
+
+/* tgSend(message, opts)  → returns Promise<boolean>
+   • Uses Markdown by default. Pass {parseMode:'HTML'} or 'plain' to override.
+   • Silent retries the call once if the first attempt fails (network glitch).
+   • Throttled — same exact message won't be re-sent within 30s. */
+const _tgRecentMsgs = new Map();   // text → lastSentTs
+async function tgSend(message, opts){
+  opts = opts || {};
+  const token  = ALERT_CFG.tgToken  || localStorage.getItem('brahma_tgToken')  || '';
+  const chatId = ALERT_CFG.tgChatId || localStorage.getItem('brahma_tgChatId') || '';
+  if(!token || !chatId){
+    console.warn('[tgSend] No credentials — skipping send');
+    return false;
+  }
+  // De-dupe: same text within 30s = skip
+  if(!opts.force){
+    const prevTs = _tgRecentMsgs.get(message);
+    if(prevTs && (Date.now() - prevTs) < 30000) return true;
+  }
+  _tgRecentMsgs.set(message, Date.now());
+  // Garbage collect stale entries
+  if(_tgRecentMsgs.size > 100){
+    const cutoff = Date.now() - 60000;
+    for(const [k,v] of _tgRecentMsgs){ if(v < cutoff) _tgRecentMsgs.delete(k); }
+  }
+
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const body = {
+    chat_id: chatId,
+    text: message,
+    disable_web_page_preview: true,
+  };
+  const pm = opts.parseMode === 'plain' ? null : (opts.parseMode || 'Markdown');
+  if(pm) body.parse_mode = pm;
+  if(opts.silent) body.disable_notification = true;
+
+  for(let attempt = 0; attempt < 2; attempt++){
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if(res.ok){
+        const data = await res.json();
+        if(data && data.ok) return true;
+        console.warn('[tgSend] API rejected:', data);
+        return false;
+      }
+    } catch(e){
+      console.warn(`[tgSend] attempt ${attempt+1} failed:`, e.message);
+      if(attempt === 0) await new Promise(r => setTimeout(r, 800));
+    }
+  }
+  return false;
+}
+window.tgSend = tgSend;
+window.saveTG = saveTG;
+window.testTG = testTG;
 
 /* ═══════════════════════════════════════════════════════════════
    BACKGROUND NOTIFICATION ENGINE
