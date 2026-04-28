@@ -1270,8 +1270,9 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 .amdsc-foe-score-fill{height:100%;border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1)}
 
 /* Breakdown grid - 4 inputs */
-.amdsc-foe-bd{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}
-@media (max-width:680px){.amdsc-foe-bd{grid-template-columns:repeat(2,1fr)}}
+.amdsc-foe-bd{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:10px}
+@media (max-width:880px){.amdsc-foe-bd{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:560px){.amdsc-foe-bd{grid-template-columns:repeat(2,1fr)}}
 .amdsc-foe-bd-item{
   background:var(--color-background-primary);
   border:1px solid var(--color-border-tertiary);
@@ -1281,10 +1282,14 @@ body{font-family:var(--font-sans,sans-serif);background:var(--color-background-s
 .amdsc-foe-bd-item.good{border-color:rgba(22,163,74,.35);background:color-mix(in srgb,#16a34a 4%, var(--color-background-primary))}
 .amdsc-foe-bd-item.bad{border-color:rgba(220,38,38,.35);background:color-mix(in srgb,#dc2626 4%, var(--color-background-primary))}
 .amdsc-foe-bd-item.neutral{border-color:var(--color-border-tertiary)}
+.amdsc-foe-bd-item.iv{border-color:rgba(124,58,237,.45);background:color-mix(in srgb,#7c3aed 5%, var(--color-background-primary))}
+.amdsc-foe-bd-item.event{border-color:rgba(245,158,11,.45);background:color-mix(in srgb,#f59e0b 5%, var(--color-background-primary))}
 .amdsc-foe-bd-lbl{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary)}
 .amdsc-foe-bd-val{font-size:13px;font-weight:900;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.1}
 .amdsc-foe-bd-item.good .amdsc-foe-bd-val{color:#16a34a}
-.amdsc-foe-bd-item.bad .amdsc-foe-bd-val{color:#dc2626}
+.amdsc-foe-bd-item.bad  .amdsc-foe-bd-val{color:#dc2626}
+.amdsc-foe-bd-item.iv   .amdsc-foe-bd-val{color:#7c3aed}
+.amdsc-foe-bd-item.event .amdsc-foe-bd-val{color:#d97706}
 .amdsc-foe-bd-item.neutral .amdsc-foe-bd-val{color:var(--color-text-secondary)}
 .amdsc-foe-bd-detail{font-size:8px;color:var(--color-text-secondary);line-height:1.3;margin-top:1px}
 
@@ -2072,6 +2077,129 @@ window._brahmastraADX = _ciComputeADX;
   filter:drop-shadow(0 0 12px rgba(239,68,68,0.8));
 }
 
+/* ── TRAFFIC HAVALDAR (police officer at accident zone) ────────────
+   The havaldar stands on the road at any "accident zone" — a stretch
+   ahead where a hard alarm has been raised. He waves a red flag and
+   blows his whistle (audio fires every ~8s when he's visible). */
+.ckp-havaldar{
+  position:absolute;
+  bottom:18%;
+  font-size:22px;
+  z-index:6;
+  pointer-events:auto;
+  cursor:help;
+  filter:drop-shadow(0 0 6px rgba(239,68,68,0.7));
+  animation:ckp-havaldar-wave 0.75s ease-in-out infinite alternate;
+  text-shadow:0 1px 2px rgba(0,0,0,0.8);
+}
+@keyframes ckp-havaldar-wave{
+  0%   {transform:translateX(-1px) rotate(-4deg)}
+  100% {transform:translateX( 1px) rotate( 4deg)}
+}
+.ckp-havaldar-flag{
+  position:absolute;
+  bottom:30px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:14px;
+  animation:ckp-flag-wave 0.45s ease-in-out infinite alternate;
+}
+@keyframes ckp-flag-wave{
+  0%   {transform:translateX(-50%) rotate(-15deg)}
+  100% {transform:translateX(-50%) rotate( 15deg)}
+}
+.ckp-havaldar-tag{
+  position:absolute;
+  bottom:28px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:8px;
+  font-weight:800;
+  padding:1px 6px;
+  border-radius:3px;
+  background:rgba(220,38,38,0.95);
+  color:#fff;
+  white-space:nowrap;
+  letter-spacing:.05em;
+  border:0.5px solid #fff;
+  box-shadow:0 0 8px rgba(220,38,38,0.6);
+  animation:ckp-havaldar-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ckp-havaldar-pulse{
+  0%,100%{box-shadow:0 0 6px rgba(220,38,38,0.5)}
+  50%    {box-shadow:0 0 14px rgba(220,38,38,0.95)}
+}
+
+/* ── ACCIDENT / RED-FLAG ZONES — coloured road-strip overlays ──────
+   Painted across the road at the hours-ahead position of any RED-tier
+   alarm. Red-striped barricade pattern + "FLAG" text. The car visibly
+   sees the danger zone approaching long before it gets there. */
+.ckp-flag-zone{
+  position:absolute;
+  top:0; bottom:0;
+  z-index:2;
+  pointer-events:auto;
+  cursor:help;
+  background:repeating-linear-gradient(
+    -45deg,
+    rgba(220,38,38,0.32) 0px,
+    rgba(220,38,38,0.32) 8px,
+    rgba(15,23,42,0.0)   8px,
+    rgba(15,23,42,0.0)   16px
+  );
+  border-left:2px solid rgba(220,38,38,0.85);
+  border-right:2px solid rgba(220,38,38,0.85);
+  box-shadow:inset 0 0 12px rgba(220,38,38,0.35);
+  animation:ckp-flag-zone-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ckp-flag-zone-pulse{
+  0%,100%{opacity:0.55}
+  50%    {opacity:1.0}
+}
+.ckp-flag-zone-label{
+  position:absolute;
+  top:6px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:9px;
+  font-weight:900;
+  padding:2px 7px;
+  border-radius:4px;
+  background:rgba(220,38,38,0.95);
+  color:#fff;
+  white-space:nowrap;
+  letter-spacing:.06em;
+  border:0.5px solid #fff;
+  text-transform:uppercase;
+  font-family:system-ui,sans-serif;
+}
+.ckp-flag-zone-icon{
+  position:absolute;
+  bottom:8px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:18px;
+  filter:drop-shadow(0 0 8px rgba(220,38,38,0.8));
+}
+
+/* AMBER (caution) zones — yellow-striped, less intense */
+.ckp-flag-zone.amber{
+  background:repeating-linear-gradient(
+    -45deg,
+    rgba(245,158,11,0.30) 0px,
+    rgba(245,158,11,0.30) 8px,
+    rgba(15,23,42,0.0)   8px,
+    rgba(15,23,42,0.0)   16px
+  );
+  border-left-color:rgba(245,158,11,0.85);
+  border-right-color:rgba(245,158,11,0.85);
+  box-shadow:inset 0 0 10px rgba(245,158,11,0.30);
+}
+.ckp-flag-zone.amber .ckp-flag-zone-label{
+  background:rgba(245,158,11,0.95);
+  color:#0f172a;
+}
+
 /* Dashboard cluster (gauge tiles) */
 .ckp-cluster{
   display:grid;
@@ -2358,6 +2486,19 @@ window._brahmastraADX = _ciComputeADX;
       <!-- absolute-positioned .ckp-vehicle children go here -->
     </div>
 
+    <!-- Flag-zones layer — coloured striped strips painted across the
+         road at upcoming red/amber alarm positions. Sits below vehicles
+         (z-index:2) so vehicles appear on top of the zone they're guarding. -->
+    <div id="ckpFlagZones" style="position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;z-index:2">
+      <!-- absolute-positioned .ckp-flag-zone children go here -->
+    </div>
+
+    <!-- Havaldar layer — traffic policeman who stands at any active
+         accident zone, waving a red flag and blowing his whistle. -->
+    <div id="ckpHavaldars" style="position:absolute;left:0;right:0;bottom:0;height:55%;pointer-events:none;z-index:6">
+      <!-- absolute-positioned .ckp-havaldar children go here -->
+    </div>
+
     <div class="ckp-road">
       <div class="ckp-lane-mark"></div>
     </div>
@@ -2598,10 +2739,59 @@ window._brahmastraADX = _ciComputeADX;
     <!-- Auto-discovered tiles will be appended here by ckpAutoDiscover() -->
   </div>
 
+  <!-- Multi-Timeframe RV Framework strip — four RV windows with decision use -->
+  <div id="ckpRvMtfStrip"
+       title="Multi-Timeframe RV Framework — four annualised RV windows. Ultra-short (1h, 12×5m bars) for real-time regime detection / exit signals. Short (4h, 48×5m bars) for confirming regime shifts / adjustment timing. Medium (24h, 288×5m bars) for session character / entry-skip decisions. Long (7-day rolling) for baseline regime context / strike selection (IV/RV ratio). All values are annualised standard deviation of close-to-close log returns, in % per year."
+       style="margin-top:10px;padding:8px 10px;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(15,23,42,0.0) 100%);font-size:10.5px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+      <span style="font-weight:800;color:var(--color-text-secondary);font-size:9px;text-transform:uppercase;letter-spacing:.06em">Multi-Timeframe RV</span>
+      <span id="ckpRvMtfRegime" style="font-weight:700;font-size:9px;padding:2px 7px;border-radius:4px;background:#475569;color:#fff;letter-spacing:.04em">…</span>
+      <span style="font-size:9px;color:var(--color-text-secondary);margin-left:auto" id="ckpRvMtfSrc">awaiting candles…</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div class="ckp-rvmtf-cell" data-w="ultraShort" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">⚡ Ultra-short · 1h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvUS">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">12 × 5m bars · exit signals</div>
+        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvUSVerdict">—</div>
+      </div>
+      <div class="ckp-rvmtf-cell" data-w="short" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🔄 Short · 4h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvS">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">48 × 5m bars · adjust timing</div>
+        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvSVerdict">—</div>
+      </div>
+      <div class="ckp-rvmtf-cell" data-w="medium" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🌅 Medium · 24h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvM">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">288 × 5m bars · entry/skip</div>
+        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvMVerdict">—</div>
+      </div>
+      <div class="ckp-rvmtf-cell" data-w="long" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🏛 Long · 7d</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvL">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">7d rolling · strike selection</div>
+        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvLVerdict">—</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Verdict ribbon — synthesises everything into one driving instruction -->
   <div class="ckp-verdict" id="ckpVerdictWrap">
     <span class="ckp-verdict-pill park" id="ckpVerdictPill">PARK</span>
     <span id="ckpVerdictText">Cockpit booting — once the rest of the page lights up, this strip will tell you whether to drive (sell strangle), slow down (reduce size), brake (close), or park (stay flat) based on every gauge above.</span>
+  </div>
+
+  <!-- ΔIV × ΔRV regime strip (Sinclair / Augen 2×2 classifier) -->
+  <div id="ckpRegimeStrip"
+       title="ΔIV × ΔRV regime classifier (Sinclair / Augen). Slopes are computed over a rolling 8-tick window from vapState.ivHistory and vapState.rv5History. ±1% relative change is the dead-band — anything inside reports as 'flat'."
+       style="margin-top:8px;padding:8px 12px;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px">
+    <span style="font-weight:700;color:var(--color-text-secondary);font-size:9px;text-transform:uppercase;letter-spacing:.06em">ΔIV × ΔRV Regime</span>
+    <span id="ckpRegimeBadge"
+          style="font-weight:800;padding:3px 10px;border-radius:5px;background:#475569;color:#fff;font-size:10px;letter-spacing:.04em">…</span>
+    <span id="ckpRegimeLabel" style="color:var(--color-text-primary);font-weight:600">Building IV/RV history…</span>
+    <span id="ckpRegimeArrows" style="margin-left:auto;color:var(--color-text-secondary);font-variant-numeric:tabular-nums;font-size:10px">—</span>
+    <span id="ckpRegimeAction" style="font-weight:700;font-size:10px;padding:2px 8px;border-radius:4px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary)">…</span>
   </div>
 </div>
 
@@ -2619,6 +2809,235 @@ window._brahmastraADX = _ciComputeADX;
 
   const $ = id => document.getElementById(id);
   const REFRESH_MS = 3000;
+
+  /* ════════════════════════════════════════════════════════════════════
+     COCKPIT AUDIO ENGINE
+     ────────────────────────────────────────────────────────────────────
+     All sounds are synthesised on the fly through Web Audio API — no
+     external files. Each clip is a small composition of oscillators +
+     gain envelopes. Sounds are debounced (per-type cooldown) so a
+     persistent red signal doesn't spam the speakers.
+
+     Sounds:
+       crash      — collision burst (descending tones + noise, 1.2s)
+       siren      — police two-tone (~6 cycles, 3s)
+       ambulance  — wail (continuous frequency sweep, 3s)
+       whistle    — havaldar's metal whistle (3 sharp tweets)
+       horn       — quick alert (3 short beeps)
+       skid       — tire screech (filtered noise burst)
+
+     Each accepts an optional volume override (0..1). Master mute follows
+     ALERT_CFG.voiceOn so users have a single switch to disable all audio.
+     ──────────────────────────────────────────────────────────────────── */
+  const ckpAudio = (function(){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx = null;
+    const _lastPlayed = new Map();   // type → timestamp (cooldown)
+
+    function ensureCtx(){
+      try {
+        if(!AC) return null;
+        if(!ctx) ctx = new AC();
+        // Resume if browser auto-suspended (autoplay policy)
+        if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+        return ctx;
+      } catch(_e){ return null; }
+    }
+
+    function isMuted(){
+      try { return typeof ALERT_CFG !== 'undefined' && ALERT_CFG.voiceOn === false; }
+      catch(_e){ return false; }
+    }
+
+    // Cooldown gate — prevents the same sound firing more than once per
+    // window. Crash has the longest cooldown (don't re-shake the user every
+    // 3s). Sirens loop because the source vehicle is on screen for a while.
+    const COOLDOWN_MS = {
+      crash:     20000,
+      siren:     12000,
+      ambulance: 12000,
+      whistle:    8000,
+      horn:       5000,
+      skid:       6000,
+    };
+    function shouldPlay(type){
+      const now = Date.now();
+      const last = _lastPlayed.get(type) || 0;
+      if(now - last < (COOLDOWN_MS[type] || 3000)) return false;
+      _lastPlayed.set(type, now);
+      return true;
+    }
+
+    // ── Tone helper ── plays a frequency-modulated sine for `dur` ms
+    function tone(c, freq, startOff, dur, vol=0.18, type='sine'){
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, c.currentTime + startOff);
+      o.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(0.001, c.currentTime + startOff);
+      g.gain.linearRampToValueAtTime(vol, c.currentTime + startOff + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + startOff + dur/1000);
+      o.start(c.currentTime + startOff);
+      o.stop(c.currentTime + startOff + dur/1000 + 0.05);
+    }
+
+    // ── Frequency-sweep helper (for sirens/wails)
+    function sweep(c, fStart, fEnd, startOff, dur, vol=0.18, type='sawtooth'){
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type;
+      const t0 = c.currentTime + startOff;
+      o.frequency.setValueAtTime(fStart, t0);
+      o.frequency.linearRampToValueAtTime(fEnd, t0 + dur/1000);
+      o.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+      g.gain.linearRampToValueAtTime(vol, t0 + dur/1000 - 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur/1000);
+      o.start(t0);
+      o.stop(t0 + dur/1000 + 0.05);
+    }
+
+    // ── Filtered white-noise burst (crash impact, tire screech)
+    function noiseBurst(c, startOff, dur, vol=0.25, freqHz=800, q=8){
+      const bufSize = Math.max(1, Math.floor(c.sampleRate * dur/1000));
+      const buf = c.createBuffer(1, bufSize, c.sampleRate);
+      const data = buf.getChannelData(0);
+      for(let i=0;i<bufSize;i++) data[i] = Math.random()*2 - 1;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const filt = c.createBiquadFilter();
+      filt.type = 'bandpass';
+      filt.frequency.value = freqHz;
+      filt.Q.value = q;
+      const g = c.createGain();
+      const t0 = c.currentTime + startOff;
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur/1000);
+      src.connect(filt); filt.connect(g); g.connect(c.destination);
+      src.start(t0);
+      src.stop(t0 + dur/1000 + 0.05);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // PUBLIC SOUND CLIPS
+    // ────────────────────────────────────────────────────────────────
+
+    // CRASH — heavy collision: low-frequency thump + glass-shatter noise
+    function crash(opts){
+      if(isMuted() || !shouldPlay('crash')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.35);
+      // Bass thump
+      tone(c, 110, 0,    180, v*0.9, 'sawtooth');
+      tone(c,  70, 0.05, 250, v*0.7, 'sawtooth');
+      tone(c,  55, 0.18, 350, v*0.6, 'square');
+      // Glass-shatter (high-frequency noise burst)
+      noiseBurst(c, 0,    180, v*0.5, 4000, 4);
+      noiseBurst(c, 0.08, 220, v*0.4, 3200, 5);
+      // Metal-crumple decay
+      noiseBurst(c, 0.20, 600, v*0.3, 800, 2);
+    }
+
+    // SIREN — police two-tone (alternating low/high)
+    function siren(opts){
+      if(isMuted() || !shouldPlay('siren')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.18);
+      const cycles = 5;
+      for(let i=0; i<cycles; i++){
+        tone(c, 650,  i*0.55,        260, v, 'square');
+        tone(c, 950,  i*0.55 + 0.28, 260, v, 'square');
+      }
+    }
+
+    // AMBULANCE — continuous wail (rising-falling sweep)
+    function ambulance(opts){
+      if(isMuted() || !shouldPlay('ambulance')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.18);
+      const cycles = 4;
+      for(let i=0; i<cycles; i++){
+        sweep(c, 700, 1100, i*0.7,        350, v, 'sawtooth');
+        sweep(c, 1100, 700, i*0.7 + 0.36, 350, v, 'sawtooth');
+      }
+    }
+
+    // WHISTLE — havaldar's sharp metal whistle (3 tweets)
+    function whistle(opts){
+      if(isMuted() || !shouldPlay('whistle')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.20);
+      // High-pitched tweets at ~2400 Hz with slight chirp
+      for(let i=0; i<3; i++){
+        sweep(c, 2400, 2700, i*0.32, 180, v, 'sine');
+      }
+    }
+
+    // HORN — quick attention beep (3 short)
+    function horn(opts){
+      if(isMuted() || !shouldPlay('horn')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.20);
+      tone(c, 440, 0,    140, v, 'square');
+      tone(c, 440, 0.18, 140, v, 'square');
+      tone(c, 440, 0.36, 220, v, 'square');
+    }
+
+    // SKID — tire screech (used as crash precursor)
+    function skid(opts){
+      if(isMuted() || !shouldPlay('skid')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.22);
+      noiseBurst(c, 0,    280, v,    1800, 12);
+      noiseBurst(c, 0.10, 220, v*0.7, 2200, 10);
+    }
+
+    // Force play (bypass cooldown) — used by the test-alert button
+    function force(name, opts){
+      const fn = api[name];
+      if(typeof fn !== 'function') return;
+      _lastPlayed.delete(name);   // clear cooldown
+      fn(opts);
+    }
+
+    const api = { crash, siren, ambulance, whistle, horn, skid, force, ensureCtx };
+    return api;
+  })();
+
+  // Expose to window so the test-alert button + other panels can use it
+  window.ckpAudio = ckpAudio;
+
+  // ── One-time AudioContext unlock on first user gesture ────────────
+  // Browsers (especially Safari/iOS and Chrome's autoplay policy) block
+  // AudioContext until a user gesture. We attach a one-shot listener to
+  // the document that creates and resumes the context on the first click
+  // or touch, then removes itself. After this, all sirens/crashes/horns
+  // will play immediately when triggered by render logic.
+  (function unlockAudioOnce(){
+    let unlocked = false;
+    const handler = () => {
+      if(unlocked) return;
+      unlocked = true;
+      try {
+        ckpAudio.ensureCtx();
+        // Play a near-silent test tone to fully wake up the context
+        const ctx = ckpAudio.ensureCtx();
+        if(ctx){
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          g.gain.value = 0.0001;
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = 440;
+          o.start(); o.stop(ctx.currentTime + 0.01);
+        }
+      } catch(_e){}
+      document.removeEventListener('click', handler);
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('keydown', handler);
+    };
+    document.addEventListener('click',      handler, { once:false, passive:true });
+    document.addEventListener('touchstart', handler, { once:false, passive:true });
+    document.addEventListener('keydown',    handler, { once:false, passive:true });
+  })();
 
   // ── DOM jump helper (clicking a tile scrolls to its source panel) ──
   window.__ckpJump = function(tileEl){
@@ -2645,8 +3064,20 @@ window._brahmastraADX = _ciComputeADX;
       const orig = btn.textContent;
       btn.textContent = '⏳ Sending…';
       btn.disabled = true;
-      setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 3000);
+      setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 5500);
     }
+
+    // 0) Audio sequence — verify all four cockpit sounds.
+    //    Use force() to bypass cooldowns since this is a manual test.
+    try {
+      ckpAudio.ensureCtx();   // unlock the AudioContext on user gesture
+      setTimeout(()=>ckpAudio.force('whistle',  {volume:0.22}), 0);
+      setTimeout(()=>ckpAudio.force('siren',    {volume:0.18}), 1500);
+      setTimeout(()=>ckpAudio.force('ambulance',{volume:0.18}), 4500);
+      // Crash optional — only fire it on demand to avoid startling the user
+      // setTimeout(()=>ckpAudio.force('crash', {volume:0.30}), 7500);
+    } catch(_e){}
+
     // 1) Hindi voice (gated by ALERT_CFG.voiceOn — turn it on if user disabled)
     try {
       if(typeof speakAlert === 'function'){
@@ -2717,8 +3148,45 @@ window._brahmastraADX = _ciComputeADX;
   }
   function getHV30(){ try { return state.hv30; } catch(e){ return null; } }
   function getDvol(){ try { return state.dvolBase; } catch(e){ return null; } }
+
+  // ── Active-position expiry resolution ─────────────────────────────
+  // The cockpit's "near" expiry is now driven by whichever trade is
+  // actually open in the simulation. This makes RPM (IV), Fuel (DTE),
+  // and the entire ΔIV slope in the regime classifier track the user's
+  // real position rather than an arbitrary "2nd-nearest weekly".
+  //
+  // Resolution order:
+  //   1. If a live simulation position exists, use its `expiry` label
+  //      and find the matching index in EXPIRIES.
+  //   2. Otherwise, return the genuine front-week (first non-expired)
+  //      so the cockpit reflects the closest live weekly.
+  //
+  // This replaces the older `i>0` filter that skipped the front weekly.
+  // The skip was a heuristic for "front-week is too gamma-noisy", but
+  // when the user actually HAS a position on the front week, that's
+  // exactly what they want to see.
+  function getActivePosExpiryIdx(){
+    try {
+      const pos = (window.simState?.positions || []).filter(p => p && p.call && p.put);
+      if(!pos.length) return -1;
+      // Pick the most recently opened active position
+      const active = pos.sort((a,b) => (b.entryTs||0)-(a.entryTs||0))[0];
+      if(!active.expiry) return -1;
+      const idx = EXPIRIES.findIndex(e => e.label === active.expiry);
+      // Only use if non-expired
+      if(idx >= 0 && !EXPIRIES[idx].expired) return idx;
+      return -1;
+    } catch(e){ return -1; }
+  }
+
   function getNearIdx(){
-    try { return EXPIRIES.findIndex((e,i) => !e.expired && i>0); } catch(e){ return -1; }
+    try {
+      // 1. Prefer the active position's expiry
+      const posIdx = getActivePosExpiryIdx();
+      if(posIdx >= 0) return posIdx;
+      // 2. Otherwise, the genuine front-week (first non-expired)
+      return EXPIRIES.findIndex(e => !e.expired);
+    } catch(e){ return -1; }
   }
   function getNearIV(){
     try {
@@ -2733,6 +3201,19 @@ window._brahmastraADX = _ciComputeADX;
     try { const idx = getNearIdx(); return idx>=0 ? EXPIRIES[idx].dte : null; }
     catch(e){ return null; }
   }
+
+  // Returns the label/source of whatever expiry is currently driving
+  // the IV pipeline — used to label the cockpit so the user can see
+  // which expiry is in scope ("Front weekly" vs "Active trade · 8-May").
+  function getNearLabel(){
+    try {
+      const idx = getNearIdx();
+      if(idx < 0) return null;
+      const lbl = EXPIRIES[idx]?.label;
+      const fromPos = (getActivePosExpiryIdx() === idx);
+      return { label: lbl, idx, fromPos };
+    } catch(e){ return null; }
+  }
   function getOpenPosition(){
     try {
       if(typeof window.simState === 'undefined' || !Array.isArray(window.simState.positions)) return null;
@@ -2741,11 +3222,21 @@ window._brahmastraADX = _ciComputeADX;
       return positions.sort((a,b) => (b.entryTs||0)-(a.entryTs||0))[0];
     } catch(e){ return null; }
   }
-  // Sample BTC realized vol from recent 1h candles in mpoState
+  // Sample BTC realised vol from the Multi-Timeframe RV Framework. The
+  // user's spec maps the 1h rolling window (12 × 5min bars) to "real-time
+  // regime detection / exit signals" — exactly what the cockpit Speed
+  // gauge needs. We use that window. The legacy 24h-of-1h derivation is
+  // kept as a fallback for the brief boot window before 5m candles load.
   function get1hRV(){
     try {
+      // Primary: ultra-short from the MTF framework
+      if(window.rvMtf && typeof window.rvMtf.compute === 'function'){
+        const snap = window.rvMtf.compute();
+        if(snap && snap.ultraShort != null) return snap.ultraShort;
+      }
+      // Fallback: legacy 24h-of-1h calc
       if(typeof mpoState==='undefined' || !mpoState.candles1h || mpoState.candles1h.length<10) return null;
-      const c = mpoState.candles1h.slice(-24);   // last 24h
+      const c = mpoState.candles1h.slice(-24);
       const rets = [];
       for(let i=1;i<c.length;i++){
         if(c[i-1].c>0) rets.push(Math.log(c[i].c/c[i-1].c));
@@ -2753,7 +3244,6 @@ window._brahmastraADX = _ciComputeADX;
       if(rets.length<5) return null;
       const m = rets.reduce((s,v)=>s+v,0)/rets.length;
       const v = rets.reduce((s,r)=>s+(r-m)*(r-m),0)/rets.length;
-      // annualise: hourly stddev × √(24*365)
       return Math.sqrt(v) * Math.sqrt(24*365) * 100;
     } catch(e){ return null; }
   }
@@ -2771,6 +3261,146 @@ window._brahmastraADX = _ciComputeADX;
       return (arr && arr.length) ? arr[arr.length-1] : null;
     } catch(e){ return null; }
   }
+
+  // ── ΔIV × ΔRV REGIME CLASSIFIER ─────────────────────────────────────
+  // Implements the classic Sinclair / Augen 2×2 regime matrix that the
+  // user specified:
+  //
+  //   ΔIV       ΔRV       Regime                            Action
+  //   ─────────────────────────────────────────────────────────────────
+  //   Falling   Rising    Gamma-driven trend                Stand down / exit
+  //   Rising    Falling   IV-driven (vol premium expanding) Best entry
+  //   Rising    Rising    Event-driven, ambiguous           Wait for resolution
+  //   Falling   Falling   Vol crush, premium gone           Avoid new entries
+  //
+  // Slopes are computed over a rolling window. We use a relative-change
+  // threshold of ~1% per step to avoid classifying noise as a trend.
+  // Sources:
+  //   IV → vapState.ivHistory  (one push per VAP tick, ATM IV %)
+  //   RV → vapState.rv5History (one push per VAP tick, RV5 %)
+  // Fallback to state.ivHistory[nearIdx] + 1h-RV if vapState isn't ready.
+  function getIvRvRegime(){
+    try {
+      // ── Pull IV slope ──
+      let ivSeries = (typeof vapState !== 'undefined' && Array.isArray(vapState.ivHistory))
+        ? vapState.ivHistory.slice() : [];
+      if(ivSeries.length < 4){
+        // Fallback to per-expiry IV history
+        const idx = getNearIdx();
+        if(idx >= 0 && state.ivHistory && state.ivHistory[idx] && state.ivHistory[idx].length >= 4){
+          ivSeries = state.ivHistory[idx].slice();
+        }
+      }
+      if(ivSeries.length < 3) return null;
+
+      // ── IV slope: same approach as before (8-tick window, mean of first
+      //    half = reference). Robust to single-tick spikes.
+      const ivWin  = ivSeries.slice(-Math.min(8, ivSeries.length));
+      const ivRef  = mean(ivWin.slice(0, Math.max(2, Math.floor(ivWin.length/2))));
+      const ivLast = ivWin[ivWin.length-1];
+      if(!isFinite(ivRef) || ivRef <= 0) return null;
+      const dIvPct = (ivLast - ivRef) / ivRef * 100;
+
+      // ── RV slope: PRIMARY source is the Multi-Timeframe RV Framework.
+      //    The spec maps ultra-short (12 × 5m = 1h) to "real-time regime
+      //    detection" and short (48 × 5m = 4h) to "confirm regime shift".
+      //    Their ratio IS the RV slope: ultra-short > short ⇒ RV rising,
+      //    ultra-short < short ⇒ RV falling. This is more responsive and
+      //    less noisy than waiting for VAP-tick history to accumulate.
+      let rvRef  = null;
+      let rvLast = null;
+      let rvSource = 'mtf';
+      if(window.rvMtf && typeof window.rvMtf.compute === 'function'){
+        const snap = window.rvMtf.compute();
+        if(snap && snap.ultraShort != null && snap.short != null){
+          rvLast = snap.ultraShort;   // most recent (1h rolling)
+          rvRef  = snap.short;        // baseline (4h rolling)
+        }
+      }
+      // Fallback path: vapState.rv5History tick series
+      if(rvRef == null || rvLast == null){
+        rvSource = 'vap-history';
+        let rvSeries = (typeof vapState !== 'undefined' && Array.isArray(vapState.rv5History))
+          ? vapState.rv5History.slice() : [];
+        if(rvSeries.length < 4 && typeof mpoState !== 'undefined' && mpoState.candles1h?.length >= 8){
+          // Derive 3 short-horizon RV samples from last 8 × 1h candles
+          const c = mpoState.candles1h;
+          const samp = [];
+          for(let endIdx = c.length-1; endIdx >= c.length-3 && endIdx >= 6; endIdx--){
+            const wn = c.slice(endIdx-5, endIdx+1);
+            const rets = [];
+            for(let i=1;i<wn.length;i++){
+              if(wn[i-1].c>0) rets.push(Math.log(wn[i].c/wn[i-1].c));
+            }
+            if(rets.length<3) continue;
+            const m = rets.reduce((s,v)=>s+v,0)/rets.length;
+            const v = rets.reduce((s,r)=>s+(r-m)*(r-m),0)/rets.length;
+            samp.unshift(Math.sqrt(v) * Math.sqrt(24*365) * 100);
+          }
+          if(samp.length >= 3) rvSeries = samp;
+        }
+        if(rvSeries.length < 3) return null;
+        const rvWin = rvSeries.slice(-Math.min(8, rvSeries.length));
+        rvRef  = mean(rvWin.slice(0, Math.max(2, Math.floor(rvWin.length/2))));
+        rvLast = rvWin[rvWin.length-1];
+      }
+      if(!isFinite(rvRef) || !isFinite(rvLast) || rvRef <= 0) return null;
+      const dRvPct = (rvLast - rvRef) / rvRef * 100;
+
+      // ── Threshold: ±1% of relative change counts as direction.
+      //   Inside the dead-band we report "flat" (regime unchanged).
+      const TH = 1.0;
+      const ivDir = dIvPct > TH ? 'rising' : dIvPct < -TH ? 'falling' : 'flat';
+      const rvDir = dRvPct > TH ? 'rising' : dRvPct < -TH ? 'falling' : 'flat';
+
+      // ── Classify per the matrix ──
+      let regime, kind, action, actionShort;
+      if(ivDir === 'falling' && rvDir === 'rising'){
+        regime      = 'Gamma-driven trend';
+        kind        = 'gamma';
+        action      = 'Stand down / exit';
+        actionShort = 'EXIT';
+      } else if(ivDir === 'rising' && rvDir === 'falling'){
+        regime      = 'IV-driven (vol premium expanding)';
+        kind        = 'iv';
+        action      = 'Best entry';
+        actionShort = 'BEST ENTRY';
+      } else if(ivDir === 'rising' && rvDir === 'rising'){
+        regime      = 'Event-driven, ambiguous';
+        kind        = 'event';
+        action      = 'Wait for resolution';
+        actionShort = 'WAIT';
+      } else if(ivDir === 'falling' && rvDir === 'falling'){
+        regime      = 'Vol crush, premium gone';
+        kind        = 'crush';
+        action      = 'Avoid new entries';
+        actionShort = 'AVOID';
+      } else {
+        // At least one axis is flat — call it neutral
+        regime      = 'Neutral · within dead-band';
+        kind        = 'neutral';
+        action      = 'Hold / monitor';
+        actionShort = 'HOLD';
+      }
+      return {
+        regime, kind, action, actionShort,
+        dIvPct, dRvPct,
+        ivDir, rvDir,
+        ivRef, ivLast, rvRef, rvLast,
+        rvSource,   // 'mtf' (preferred) or 'vap-history' (fallback)
+        samples: { iv: ivSeries.length },
+      };
+    } catch(e){ return null; }
+  }
+
+  // Simple mean helper
+  function mean(arr){
+    if(!arr || !arr.length) return NaN;
+    let s = 0;
+    for(const v of arr){ if(isFinite(v)) s += v; }
+    return s / arr.length;
+  }
+
   function getMpoRegime(){
     // Only count CONFIRMED, ACTIVE enemy or gamma signals. "forming" patterns
     // and uncategorized confirmations no longer pile up as fake IV-risk —
@@ -3153,6 +3783,26 @@ window._brahmastraADX = _ciComputeADX;
     if(ctx.dteRemain != null && ctx.dteRemain < 2){
       return {pill:'brake', text:`<b>BRAKE.</b> DTE ${ctx.dteRemain.toFixed(1)}d — gamma risk dominates. Close any open strangle; do not open new ones at this DTE.`};
     }
+
+    // ── ΔIV × ΔRV regime override (Sinclair / Augen) ────────────────
+    // The slope-classifier is the most decisive signal we have. When it
+    // fires hard, it overrides the score-based verdict.
+    if(ctx.ivRvKind === 'gamma'){
+      // Falling IV + Rising RV = realised vol blowing through option premium
+      return {pill:'brake', text:`<b>STAND DOWN.</b> ΔIV ↓ / ΔRV ↑ — gamma-driven trend. Realised vol is consuming premium faster than it's being sold. Close existing shorts.`};
+    }
+    if(ctx.ivRvKind === 'crush'){
+      return {pill:'park', text:`<b>AVOID NEW ENTRIES.</b> ΔIV ↓ / ΔRV ↓ — vol crush, premium gone. Existing positions can run on theta but no fresh edge.`};
+    }
+    if(ctx.ivRvKind === 'event'){
+      return {pill:'slow', text:`<b>WAIT FOR RESOLUTION.</b> ΔIV ↑ / ΔRV ↑ — event-driven, ambiguous. Hold off on sizing up until one of the two slopes resolves.`};
+    }
+    if(ctx.ivRvKind === 'iv'){
+      // Rising IV + Falling RV = the textbook short-strangle setup. Big +.
+      reasons.push('ΔIV ↑ / ΔRV ↓ — vol premium expanding (best entry regime)');
+      score += 4;
+    }
+
     if(ctx.mpoKind === 'gamma'){
       reasons.push('MPO confirms gamma-driven thrust');
       score -= 2;
@@ -3215,6 +3865,7 @@ window._brahmastraADX = _ciComputeADX;
     const move1h = get1hMovePct();
     const vov = getVov();
     const mpo = getMpoRegime();
+    const ivRvReg = getIvRvRegime();   // Sinclair/Augen ΔIV × ΔRV classifier
     const news = getNextNewsEvent();
     const term = getTermStructure();
     const pos = getOpenPosition();
@@ -3253,8 +3904,27 @@ window._brahmastraADX = _ciComputeADX;
     if(nearIV != null){
       const cls = nearIV > 70 ? 'red' : nearIV > 50 ? 'amber' : 'green';
       const ivOverHv = (hv30!=null) ? (nearIV - hv30) : null;
-      const sub = ivOverHv != null ? `vs HV30 ${(ivOverHv>=0?'+':'')+ivOverHv.toFixed(1)}` : 'engine revs';
+      // Show which expiry the IV came from. When a sim trade is open,
+      // we lock onto its expiry — otherwise we use the genuine front-week.
+      const nl = (typeof getNearLabel === 'function') ? getNearLabel() : null;
+      let sub;
+      if(nl && nl.fromPos){
+        // Active trade — show expiry label so the user knows IV is locked to their position
+        sub = `${nl.label} · trade IV` + (ivOverHv!=null ? ` · vs HV30 ${(ivOverHv>=0?'+':'')+ivOverHv.toFixed(1)}` : '');
+      } else if(nl){
+        sub = `${nl.label}` + (ivOverHv!=null ? ` · vs HV30 ${(ivOverHv>=0?'+':'')+ivOverHv.toFixed(1)}` : '');
+      } else {
+        sub = ivOverHv != null ? `vs HV30 ${(ivOverHv>=0?'+':'')+ivOverHv.toFixed(1)}` : 'engine revs';
+      }
       setTile('Rpm', nearIV.toFixed(1)+'%', sub, cls, Math.min(100, nearIV));
+      // Rich hover tooltip — names the source so the user can audit
+      const rpmTile = $('ckpTileRpm');
+      if(rpmTile){
+        const dteStr = (nl && EXPIRIES[nl.idx]) ? `${EXPIRIES[nl.idx].dte}d DTE` : '';
+        rpmTile.title = nl
+          ? `ATM IV for ${nl.label} (${dteStr})${nl.fromPos ? ' — locked to active simulation trade' : ' — front weekly (no live trade)'}`
+          : 'ATM IV (source unknown)';
+      }
     } else {
       setTile('Rpm', '—', 'awaiting IV', '', 0);
     }
@@ -3286,12 +3956,78 @@ window._brahmastraADX = _ciComputeADX;
     }
 
     // ── Steering (delta) ──
-    if(greeks){
+    // Position drift relative to the safe zone between call and put strikes.
+    // 0% = perfectly centered between strikes; 100% = at one of the strikes
+    // (about to start losing the wing). Direction arrow shows which strike
+    // is being tested. This is far more useful than raw dollar-delta which
+    // is always tiny for a balanced strangle.
+    if(greeks && greeks.callK && greeks.putK){
+      const callK = greeks.callK;
+      const putK  = greeks.putK;
+      const mid   = (callK + putK) / 2;
+      const halfWidth = (callK - putK) / 2;   // distance from center to either strike
+      const offset   = spot - mid;
+      const offsetPctRaw = halfWidth > 0 ? (offset / halfWidth) * 100 : 0;
+      const offsetPct = Math.max(-150, Math.min(150, offsetPctRaw));   // clamp
+      const absPct = Math.abs(offsetPct);
+
+      // Color tier — green well-centered, amber drifting, red close to/past strike
+      const cls = absPct >= 90 ? 'red' : absPct >= 60 ? 'amber' : 'green';
+
+      // Direction & label
+      let dir, valTxt;
+      if(absPct < 8){
+        dir = 'centered';
+        valTxt = 'CENTERED';
+      } else if(offsetPct > 0){
+        dir = `→ call $${callK.toLocaleString('en-US')} tested`;
+        valTxt = `→ ${offsetPct.toFixed(0)}%`;
+      } else {
+        dir = `← put $${putK.toLocaleString('en-US')} tested`;
+        valTxt = `← ${Math.abs(offsetPct).toFixed(0)}%`;
+      }
+      // Bar fill — convert -100..+100% to 0..100 fill (% of half-width consumed)
+      const fillPct = Math.min(100, absPct);
+
+      // Crash trigger — past the strike (>100% means spot has CROSSED)
+      // signals a leg has been breached. Trigger crash audio + visual.
+      if(absPct >= 100 && !window.__ckpCrashFlagged){
+        window.__ckpCrashFlagged = true;
+        try { ckpAudio.skid({volume:0.25}); } catch(_e){}
+        setTimeout(()=>{ try { ckpAudio.crash({volume:0.4}); } catch(_e){} }, 280);
+        // Spin the car briefly
+        const carWrap = document.querySelector('.ckp-car-wrap');
+        if(carWrap){
+          carWrap.classList.add('spinning');
+          setTimeout(()=>carWrap.classList.remove('spinning'), 1400);
+        }
+      } else if(absPct < 80){
+        // Reset the crash flag once we're back inside the safe zone
+        window.__ckpCrashFlagged = false;
+      }
+
+      setTile('Steer', valTxt, dir, cls, fillPct);
+      // Rich tooltip with raw numbers
+      const stTile = $('ckpTileSteer');
+      if(stTile){
+        stTile.title =
+          `Position drift toward ${offset>=0?'call':'put'} strike\n\n` +
+          `Spot: $${Math.round(spot).toLocaleString('en-US')}\n` +
+          `Put strike (← short put): $${putK.toLocaleString('en-US')}\n` +
+          `Mid-strike: $${Math.round(mid).toLocaleString('en-US')}\n` +
+          `Call strike (→ short call): $${callK.toLocaleString('en-US')}\n\n` +
+          `Drift: ${offsetPct>=0?'+':''}${offsetPct.toFixed(1)}% of half-width\n` +
+          `Half-width: $${Math.round(halfWidth).toLocaleString('en-US')}\n\n` +
+          `Net Δ: ${greeks.delta>=0?'+':''}${(greeks.delta).toFixed(4)} BTC\n` +
+          `Δ-equivalent dollar exposure: $${(greeks.delta * spot).toFixed(2)}`;
+      }
+    } else if(greeks){
+      // Fallback when strikes aren't available — show the old dollar-delta
       const dollarDelta = greeks.delta * spot;
       const absD = Math.abs(dollarDelta);
       const cls = absD > 200 ? 'red' : absD > 100 ? 'amber' : 'green';
       const dir = greeks.delta > 0.001 ? '→ call-tested' : greeks.delta < -0.001 ? '← put-tested' : 'centered';
-      const pct = Math.min(100, absD/4); // 0..400$ → 0..100
+      const pct = Math.min(100, absD/4);
       setTile('Steer', '$'+dollarDelta.toFixed(0), dir, cls, pct);
     } else {
       setTile('Steer', 'CENTERED', 'no position open', 'green', 0);
@@ -3315,28 +4051,62 @@ window._brahmastraADX = _ciComputeADX;
       setTile('Weather', '—', 'awaiting VoV', '', 0);
     }
 
-    // ── Hazards (MPO) ──
-    if(mpo){
+    // ── Hazards · ΔIV × ΔRV regime (Sinclair / Augen model) ──────────
+    // The ΔIV/ΔRV slope classifier is the PRIMARY signal here because it
+    // tells the seller WHETHER they're in a strangle-friendly regime
+    // (rising IV / falling RV = best entry) or a strangle-killer regime
+    // (falling IV / rising RV = gamma trend, exit). The MPO pattern count
+    // adds supporting context but no longer overrides the headline.
+    if(ivRvReg){
+      let cls, flash = '';
+      switch(ivRvReg.kind){
+        case 'iv':      cls = 'green';  flash = ''; break;             // BEST ENTRY
+        case 'gamma':   cls = 'red';    flash = 'flash-danger'; break; // EXIT
+        case 'event':   cls = 'amber';  flash = 'flash-warn'; break;   // WAIT
+        case 'crush':   cls = 'red';    flash = 'flash-warn'; break;   // AVOID
+        case 'neutral': cls = 'amber';  flash = ''; break;             // HOLD
+        default:        cls = '';
+      }
+      // Tile value = the action verdict ("BEST ENTRY", "EXIT", etc).
+      // Sub line = ΔIV / ΔRV directional readout + MPO pattern count.
+      const arrow = (d) => d>1 ? '↑' : d<-1 ? '↓' : '→';
+      const ivArr = arrow(ivRvReg.dIvPct);
+      const rvArr = arrow(ivRvReg.dRvPct);
+      const mpoNote = mpo
+        ? (mpo.counts.iv + mpo.counts.gamma > 0
+            ? ` · ${mpo.counts.iv}IV/${mpo.counts.gamma}Γ patterns`
+            : '')
+        : '';
+      const sub = `IV ${ivArr}${ivRvReg.dIvPct>=0?'+':''}${ivRvReg.dIvPct.toFixed(1)}% · ` +
+                  `RV ${rvArr}${ivRvReg.dRvPct>=0?'+':''}${ivRvReg.dRvPct.toFixed(1)}%${mpoNote}`;
+      setTile('Hazard', ivRvReg.actionShort, sub, (cls+(flash?' '+flash:'')).trim(), 0);
+      // Set a richer hover-tooltip on the tile so the trader can see the
+      // full regime label and action by hovering.
+      const hazTile = $('ckpTileHazard');
+      if(hazTile){
+        hazTile.title =
+          `Regime: ${ivRvReg.regime}\n` +
+          `Action: ${ivRvReg.action}\n\n` +
+          `ΔIV: ${ivRvReg.ivDir} (${ivRvReg.dIvPct.toFixed(2)}%)  |  ` +
+          `ΔRV: ${ivRvReg.rvDir} (${ivRvReg.dRvPct.toFixed(2)}%)\n` +
+          `IV ${ivRvReg.ivRef.toFixed(1)}% → ${ivRvReg.ivLast.toFixed(1)}%  |  ` +
+          `RV ${ivRvReg.rvRef.toFixed(1)}% → ${ivRvReg.rvLast.toFixed(1)}%\n\n` +
+          `Sinclair / Augen ΔIV × ΔRV classifier · ` +
+          `${ivRvReg.samples.iv} IV samples · RV from ${ivRvReg.rvSource === 'mtf' ? 'MTF framework (1h vs 4h)' : 'vap tick history'}` +
+          (mpo ? `\n\nMPO patterns: ${mpo.label} (${mpo.counts.forming} forming)` : '');
+      }
+    } else if(mpo){
+      // ΔIV/ΔRV not yet available (still building history) — fall back to
+      // the older MPO-only label so the tile isn't blank during boot.
       let cls = '', flash = '';
       if(mpo.kind==='quiet')      { cls='green'; }
       else if(mpo.kind==='iv')    { cls='purple'; flash = mpo.counts.iv >= 3 ? 'flash-warn' : ''; }
       else if(mpo.kind==='gamma') { cls='red';    flash = mpo.counts.gamma >= 3 ? 'flash-danger' : 'flash-warn'; }
       else if(mpo.kind==='mixed') { cls='amber';  flash='flash-warn'; }
-      let sub;
-      if(mpo.kind==='quiet'){
-        sub = mpo.counts.forming
-          ? `${mpo.counts.forming} forming · clear road`
-          : 'no patterns · clear road';
-      } else if(mpo.kind==='iv') {
-        sub = `${mpo.counts.iv} IV-driven · vol up, price slow`;
-      } else if(mpo.kind==='gamma') {
-        sub = `${mpo.counts.gamma} gamma-driven · sharp price`;
-      } else {
-        sub = `${mpo.counts.iv} IV / ${mpo.counts.gamma} Γ · mixed`;
-      }
-      setTile('Hazard', mpo.label, sub, (cls+(flash?' '+flash:'')).trim(), 0);
+      const sub = `building IV/RV history · ${mpo.label}`;
+      setTile('Hazard', '…', sub, (cls+(flash?' '+flash:'')).trim(), 0);
     } else {
-      setTile('Hazard', '—', 'awaiting MPO', '', 0);
+      setTile('Hazard', '—', 'awaiting data', '', 0);
     }
 
     // ── Headlights (next news) ──
@@ -3763,6 +4533,40 @@ window._brahmastraADX = _ciComputeADX;
       if(mpo && mpo.kind === 'gamma' && mpo.counts.gamma >= 3) alarms.push({tier:'red',   why:'Gamma regime'});
       else if(mpo && (mpo.kind === 'iv' || mpo.kind === 'mixed')) alarms.push({tier:'amber', why:`${mpo.kind.toUpperCase()} regime`});
 
+      // ── ΔIV × ΔRV slope alarms (Sinclair / Augen) ──
+      if(ivRvReg){
+        if(ivRvReg.kind === 'gamma'){
+          alarms.push({tier:'red', why:`ΔIV↓ ΔRV↑ — gamma-driven trend (stand down)`});
+        } else if(ivRvReg.kind === 'crush'){
+          alarms.push({tier:'red', why:`ΔIV↓ ΔRV↓ — vol crush (no new entries)`});
+        } else if(ivRvReg.kind === 'event'){
+          alarms.push({tier:'amber', why:`ΔIV↑ ΔRV↑ — event-driven (wait)`});
+        }
+        // 'iv' (best entry) and 'neutral' do NOT alarm — they're fine for sellers
+      }
+
+      // ── Multi-Timeframe RV alarms ──
+      // The user's spec maps each window to a specific decision use:
+      //   Ultra-short = exit signal · Short = adjustment timing
+      //   Medium = entry/skip · Long = strike/baseline context
+      // We trigger alarms that match those decision uses.
+      try {
+        const mtf = window.rvMtf?.lastSnapshot;
+        if(mtf && mtf.ultraShort != null && mtf.long != null){
+          const rUSL = mtf.ultraShort / mtf.long;
+          if(rUSL > 1.50)      alarms.push({tier:'red',   why:`RV1h ${(rUSL).toFixed(1)}× baseline — exit`});
+          else if(rUSL > 1.20) alarms.push({tier:'amber', why:`RV1h ${(rUSL).toFixed(1)}× baseline — watch`});
+        }
+        if(mtf && mtf.short != null && mtf.medium != null){
+          const rSM = mtf.short / mtf.medium;
+          if(rSM > 1.30)       alarms.push({tier:'amber', why:`RV4h ${rSM.toFixed(1)}× session — adjust`});
+        }
+        if(mtf && mtf.medium != null && mtf.long != null){
+          const rML = mtf.medium / mtf.long;
+          if(rML > 1.30)       alarms.push({tier:'amber', why:`RV24h ${rML.toFixed(1)}× baseline — skip new entries`});
+        }
+      } catch(_e){}
+
       // Resolve worst tier
       let tier = 'green', why = 'All clear ahead';
       if(alarms.some(a => a.tier === 'red')){
@@ -3828,15 +4632,22 @@ window._brahmastraADX = _ciComputeADX;
           // else falls back to a generic "kuch sandigdh hai" warning.
           function alarmToHindi(why){
             if(!why) return 'सावधान — सड़क पर कुछ संदिग्ध गतिविधि है।';
-            if(/Macro event/i.test(why))   return 'सावधान! एक घंटे के अंदर बड़ा समाचार आ रहा है। पोज़ीशन कम कीजिए।';
-            if(/News in/i.test(why))       return `सावधान! कुछ घंटों में मैक्रो इवेंट है — ${why}।`;
-            if(/Settle <30m/i.test(why))   return 'सावधान! तीस मिनट में सेटलमेंट है। तुरंत निर्णय लीजिए।';
-            if(/Settle/i.test(why))        return `सेटलमेंट करीब है — ${why}। तैयार रहिए।`;
-            if(/RV \d+/i.test(why))        return `रियलाइज़्ड वोलैटिलिटी बहुत ऊंची है — ${why}। सड़क बहुत बम्पी है।`;
-            if(/IV \+/i.test(why))         return `आईवी में अचानक उछाल — ${why}। एक्सीडेंट का खतरा।`;
-            if(/VoV /i.test(why))          return `वोल-ऑफ-वोल बहुत ज़्यादा — ${why}। तूफान आ रहा है।`;
-            if(/Gamma regime/i.test(why))  return 'गामा-ड्रिवन रेजीम — तेज़ मूव का खतरा। पोज़ीशन छोटी रखिए।';
-            if(/regime/i.test(why))        return `मार्केट रेजीम बदल रहा है — ${why}। ध्यान दीजिए।`;
+            if(/Macro event/i.test(why))         return 'सावधान! एक घंटे के अंदर बड़ा समाचार आ रहा है। पोज़ीशन कम कीजिए।';
+            if(/News in/i.test(why))             return `सावधान! कुछ घंटों में मैक्रो इवेंट है — ${why}।`;
+            if(/Settle <30m/i.test(why))         return 'सावधान! तीस मिनट में सेटलमेंट है। तुरंत निर्णय लीजिए।';
+            if(/Settle/i.test(why))              return `सेटलमेंट करीब है — ${why}। तैयार रहिए।`;
+            if(/RV1h .* baseline — exit/i.test(why)) return 'सावधान! एक घंटे की रियलाइज़्ड वोल बेसलाइन से बहुत ऊंची हो गई है। तुरंत बाहर निकलिए।';
+            if(/RV1h .* baseline — watch/i.test(why)) return 'सावधान! एक घंटे की रियलाइज़्ड वोल बेसलाइन से ऊंची है। ध्यान से देखिए।';
+            if(/RV4h .* session — adjust/i.test(why)) return 'सावधान! चार घंटे की वोल सेशन से अलग है। पोज़ीशन एडजस्ट कीजिए।';
+            if(/RV24h .* baseline — skip/i.test(why)) return 'सावधान! दिन भर की वोल बेसलाइन से बहुत ऊंची है। नई एंट्री से बचिए।';
+            if(/RV \d+/i.test(why))              return `रियलाइज़्ड वोलैटिलिटी बहुत ऊंची है — ${why}। सड़क बहुत बम्पी है।`;
+            if(/IV \+/i.test(why))               return `आईवी में अचानक उछाल — ${why}। एक्सीडेंट का खतरा।`;
+            if(/VoV /i.test(why))                return `वोल-ऑफ-वोल बहुत ज़्यादा — ${why}। तूफान आ रहा है।`;
+            if(/gamma-driven trend/i.test(why))  return 'सावधान! आईवी गिर रही है और रियलाइज़्ड वोल बढ़ रही है। यह गामा-ड्रिवन ट्रेंड है — तुरंत बाहर निकलिए।';
+            if(/vol crush/i.test(why))           return 'वोल क्रैश हो गया है — प्रीमियम खत्म। नई पोज़ीशन मत खोलिए।';
+            if(/event-driven/i.test(why))        return 'इवेंट-ड्रिवन मार्केट — आईवी और आरवी दोनों बढ़ रहे हैं। रिज़ोल्यूशन का इंतज़ार कीजिए।';
+            if(/Gamma regime/i.test(why))        return 'गामा-ड्रिवन रेजीम — तेज़ मूव का खतरा। पोज़ीशन छोटी रखिए।';
+            if(/regime/i.test(why))              return `मार्केट रेजीम बदल रहा है — ${why}। ध्यान दीजिए।`;
             return `सावधान — ${why}। सड़क पर कुछ संदिग्ध है।`;
           }
           function alarmToEnglish(why){
@@ -4115,6 +4926,56 @@ window._brahmastraADX = _ciComputeADX;
           });
         }
 
+        // 6b. ΔIV × ΔRV regime vehicle — visualises the Sinclair/Augen
+        //     classifier as a literal traffic element. Each regime gets a
+        //     distinct vehicle so the trader can recognise it at a glance.
+        if(ivRvReg){
+          if(ivRvReg.kind === 'gamma'){
+            // Falling IV / Rising RV → oncoming heavy convoy = strangle killer
+            fleet.push({
+              hrs: 0.3,
+              type: 'big-truck', lane: 1,
+              emoji: '🚛',
+              label: 'Γ TREND',
+              tip: `Gamma-driven trend: ΔIV ${ivRvReg.dIvPct.toFixed(1)}% / ΔRV +${ivRvReg.dRvPct.toFixed(1)}% — strangle killer regime, stand down`,
+            });
+            fleet.push({
+              hrs: 1.0,
+              type: 'big-truck', lane: 2,
+              emoji: '🚛',
+              label: 'CONVOY',
+              tip: `Gamma convoy following — RV is consuming premium faster than it's being sold`,
+            });
+          } else if(ivRvReg.kind === 'iv'){
+            // Rising IV / Falling RV → green-flag pace car = best entry
+            fleet.push({
+              hrs: 2.5,
+              type: 'bike', lane: 2,
+              emoji: '🏁',
+              label: 'BEST ENTRY',
+              tip: `Best-entry regime: ΔIV +${ivRvReg.dIvPct.toFixed(1)}% / ΔRV ${ivRvReg.dRvPct.toFixed(1)}% — vol premium expanding while realised vol cools`,
+            });
+          } else if(ivRvReg.kind === 'crush'){
+            // Falling IV / Falling RV → broken-down car = avoid new entries
+            fleet.push({
+              hrs: 0.5,
+              type: 'iv-bus', lane: 3,
+              emoji: '🚧',
+              label: 'CRUSH',
+              tip: `Vol-crush regime: ΔIV ${ivRvReg.dIvPct.toFixed(1)}% / ΔRV ${ivRvReg.dRvPct.toFixed(1)}% — premium gone, theta-only ride`,
+            });
+          } else if(ivRvReg.kind === 'event'){
+            // Rising IV / Rising RV → warning sign / police = wait for resolution
+            fleet.push({
+              hrs: 0.8,
+              type: 'police', lane: 2,
+              emoji: '🚓',
+              label: 'EVENT',
+              tip: `Event-driven regime: ΔIV +${ivRvReg.dIvPct.toFixed(1)}% / ΔRV +${ivRvReg.dRvPct.toFixed(1)}% — both vols rising, resolution unclear`,
+            });
+          }
+        }
+
         // 7. Decorative ambient traffic — when nothing dramatic is happening
         //    we still spawn one slow car at +8h so the road never looks empty.
         //    This was the user's "road structure not attractive" complaint.
@@ -4137,13 +4998,20 @@ window._brahmastraADX = _ciComputeADX;
 
         // Sort so closer vehicles paint last (z-stack = closest on top)
         fleet.sort((a,b) => b.hrs - a.hrs);
+        let _hasNearPolice    = false;
+        let _hasNearAmbulance = false;
         fleet.forEach(v => {
           const leftPct = CAR_ANCHOR_PCT + v.hrs * PCT_PER_HOUR;
           if(leftPct < CAR_ANCHOR_PCT - 0.5 || leftPct > 100) return; // off-screen
           const el = document.createElement('div');
           el.className = 'ckp-vehicle ' + v.type + ' lane-' + (v.lane||2);
           // Mark vehicles that are very close to the player (within 1h)
-          if(v.hrs <= 1) el.classList.add('near');
+          if(v.hrs <= 1){
+            el.classList.add('near');
+            // Track emergency vehicles for audio
+            if(v.type === 'police')    _hasNearPolice = true;
+            if(v.type === 'ambulance') _hasNearAmbulance = true;
+          }
           el.style.left = leftPct + '%';
           el.title = v.tip;
           el.textContent = v.emoji;
@@ -4155,12 +5023,158 @@ window._brahmastraADX = _ciComputeADX;
           }
           vehiclesEl.appendChild(el);
         });
+        // Fire sirens when emergency vehicles are close. The audio engine
+        // has its own cooldown so it won't loop every render tick.
+        if(_hasNearPolice)    { try { ckpAudio.siren(); }     catch(_e){} }
+        if(_hasNearAmbulance) { try { ckpAudio.ambulance(); } catch(_e){} }
       }
     } catch(e){ /* vehicles are decorative — never block render */ }
 
+    // ── Flag zones + Traffic Havaldars on accident-zone stretches ─────
+    // For each upcoming hard alarm with a known hours-ahead position,
+    // we paint a coloured striped zone on the road and (for red alarms)
+    // station a havaldar with a red flag at the entry to the zone.
+    // The havaldar's whistle fires whenever a fresh red zone appears
+    // close to the car (within 2h).
+    try {
+      const flagsEl     = $('ckpFlagZones');
+      const havaldarsEl = $('ckpHavaldars');
+      if(flagsEl && havaldarsEl){
+        flagsEl.innerHTML = '';
+        havaldarsEl.innerHTML = '';
+
+        // Build the list of zones from current alarms. Each zone has
+        // {hrs, width, tier, label, icon}. For known-hour alarms we
+        // know exactly where to place them; for live alarms (RV spike,
+        // IV spike) we place them right at the car (hrs=0.1).
+        const zones = [];
+        if(nextNewsHrs != null && nextNewsHrs > 0 && nextNewsHrs <= FUTURE_HOURS){
+          const tier = nextNewsHrs < 1 ? 'red' : nextNewsHrs < 4 ? 'amber' : null;
+          if(tier){
+            zones.push({
+              hrs: nextNewsHrs,
+              width: 0.4,   // 24 minutes wide
+              tier,
+              label: nextNewsHrs < 1 ? '⚠ NEWS ZONE' : 'NEWS APPROACHING',
+              icon: '📰',
+              tip: `News event in ${nextNewsHrs.toFixed(1)}h — high IV risk window`,
+            });
+          }
+        }
+        if(settleHrs != null && settleHrs > 0 && settleHrs <= 2){
+          const tier = settleHrs < 0.5 ? 'red' : 'amber';
+          zones.push({
+            hrs: settleHrs,
+            width: 0.3,
+            tier,
+            label: settleHrs < 0.5 ? '⚠ SETTLE ZONE' : 'SETTLE NEAR',
+            icon: '🏁',
+            tip: `Delta India settlement in ${settleHrs<1 ? Math.round(settleHrs*60)+'m' : settleHrs.toFixed(1)+'h'} — pin risk`,
+          });
+        }
+        if(rv != null && rv > 70){
+          zones.push({
+            hrs: 0.1,
+            width: 1.5,
+            tier: rv > 90 ? 'red' : 'amber',
+            label: rv > 90 ? '⚠ RV CRISIS' : 'BUMPY ROAD',
+            icon: '💨',
+            tip: `Realised vol ${rv.toFixed(0)}% — bumpy road ahead`,
+          });
+        }
+        if(ivSpikePts >= 2){
+          zones.push({
+            hrs: 0.05,
+            width: 0.3,
+            tier: ivSpikePts >= 5 ? 'red' : 'amber',
+            label: ivSpikePts >= 5 ? '⚠ IV SPIKE' : 'IV BUMP',
+            icon: '⚡',
+            tip: `IV jumped +${ivSpikePts.toFixed(1)}pt in last 10m`,
+          });
+        }
+        if(dteRemain != null && dteRemain > 0 && dteRemain <= 1){
+          zones.push({
+            hrs: Math.min(dteRemain * 24, FUTURE_HOURS - 0.5),
+            width: 0.5,
+            tier: 'red',
+            label: '⚠ EXPIRY CLIFF',
+            icon: '🧨',
+            tip: `Position expires in ${dteRemain.toFixed(2)}d — gamma cliff`,
+          });
+        }
+        if(ivRvReg && ivRvReg.kind === 'gamma'){
+          // Gamma trend = ongoing accident — paint a wide red zone right at the car
+          zones.push({
+            hrs: 0.1,
+            width: 2.5,
+            tier: 'red',
+            label: '⚠ GAMMA-DRIVEN',
+            icon: '🚨',
+            tip: `ΔIV↓ ΔRV↑ — gamma-driven trend, strangle killer regime`,
+          });
+        }
+
+        // Paint each zone
+        zones.forEach(z => {
+          const startPct = CAR_ANCHOR_PCT + z.hrs * PCT_PER_HOUR;
+          const endPct   = CAR_ANCHOR_PCT + (z.hrs + z.width) * PCT_PER_HOUR;
+          const left  = Math.max(CAR_ANCHOR_PCT - 1, startPct);
+          const right = Math.min(100, endPct);
+          if(right <= left) return;
+          const zone = document.createElement('div');
+          zone.className = 'ckp-flag-zone' + (z.tier === 'amber' ? ' amber' : '');
+          zone.style.left  = left + '%';
+          zone.style.right = (100 - right) + '%';
+          zone.title = z.tip;
+          zone.style.pointerEvents = 'auto';
+          const lbl = document.createElement('div');
+          lbl.className = 'ckp-flag-zone-label';
+          lbl.textContent = z.label;
+          zone.appendChild(lbl);
+          const ico = document.createElement('div');
+          ico.className = 'ckp-flag-zone-icon';
+          ico.textContent = z.icon;
+          zone.appendChild(ico);
+          flagsEl.appendChild(zone);
+        });
+
+        // Spawn a havaldar at the start of each RED zone
+        let hadCloseRedZone = false;
+        zones.filter(z => z.tier === 'red').forEach(z => {
+          const leftPct = CAR_ANCHOR_PCT + z.hrs * PCT_PER_HOUR;
+          if(leftPct < CAR_ANCHOR_PCT - 0.5 || leftPct > 100) return;
+          if(z.hrs <= 2) hadCloseRedZone = true;
+          const h = document.createElement('div');
+          h.className = 'ckp-havaldar';
+          h.style.left = leftPct + '%';
+          h.style.pointerEvents = 'auto';
+          h.textContent = '👮';
+          h.title = `Traffic havaldar — STOPPING you at ${z.label.replace(/^⚠\s*/,'')}: ${z.tip}`;
+          // Red flag waving above
+          const flag = document.createElement('div');
+          flag.className = 'ckp-havaldar-flag';
+          flag.textContent = '🚩';
+          h.appendChild(flag);
+          // STOP tag
+          const tag = document.createElement('div');
+          tag.className = 'ckp-havaldar-tag';
+          tag.textContent = 'STOP';
+          h.appendChild(tag);
+          havaldarsEl.appendChild(h);
+        });
+
+        // Whistle audio when there's a close red zone (havaldar's whistle).
+        // The audio engine has its own cooldown, so this won't spam.
+        if(hadCloseRedZone){
+          try { ckpAudio.whistle(); } catch(_e){}
+        }
+      }
+    } catch(_e){ /* zone overlay is decorative — never block render */ }
+
     // ── Verdict ribbon ──
     const verdict = deriveVerdict({
-      dteRemain, mpoKind: mpo.kind, term, nextNewsHrs, ivOverHv
+      dteRemain, mpoKind: mpo.kind, term, nextNewsHrs, ivOverHv,
+      ivRvKind: ivRvReg ? ivRvReg.kind : null,
     });
     const pill = $('ckpVerdictPill');
     const text = $('ckpVerdictText');
@@ -4171,6 +5185,129 @@ window._brahmastraADX = _ciComputeADX;
                          verdict.pill === 'brake' ? 'BRAKE' : 'PARK';
     }
     if(text) text.innerHTML = verdict.text;
+
+    // ── ΔIV × ΔRV regime strip ─────────────────────────────────
+    const rgBadge  = $('ckpRegimeBadge');
+    const rgLabel  = $('ckpRegimeLabel');
+    const rgArrows = $('ckpRegimeArrows');
+    const rgAction = $('ckpRegimeAction');
+    if(rgBadge && rgLabel && rgArrows && rgAction){
+      if(ivRvReg){
+        // Map kind → badge color + label
+        const kindMap = {
+          gamma:   { bg:'#dc2626', text:'GAMMA TREND' },
+          iv:      { bg:'#16a34a', text:'IV-DRIVEN'   },
+          event:   { bg:'#f59e0b', text:'EVENT-DRIVEN'},
+          crush:   { bg:'#7c3aed', text:'VOL CRUSH'   },
+          neutral: { bg:'#475569', text:'NEUTRAL'     },
+        };
+        const m = kindMap[ivRvReg.kind] || kindMap.neutral;
+        rgBadge.style.background = m.bg;
+        rgBadge.textContent = m.text;
+        // Append the IV source so user knows which expiry the slope came from
+        const _nl = (typeof getNearLabel === 'function') ? getNearLabel() : null;
+        const srcSuffix = _nl
+          ? (_nl.fromPos
+              ? ` · 🎯 ${_nl.label} (active trade)`
+              : ` · ${_nl.label} (front weekly)`)
+          : '';
+        rgLabel.textContent = ivRvReg.regime + srcSuffix;
+
+        // Directional arrows + numbers
+        const dArr = (d) => d > 1 ? '↑' : d < -1 ? '↓' : '→';
+        const dCol = (d) => d > 1 ? '#16a34a' : d < -1 ? '#dc2626' : '#94a3b8';
+        const ivArr = dArr(ivRvReg.dIvPct), rvArr = dArr(ivRvReg.dRvPct);
+        rgArrows.innerHTML =
+          `IV <b style="color:${dCol(ivRvReg.dIvPct)}">${ivArr} ${ivRvReg.dIvPct>=0?'+':''}${ivRvReg.dIvPct.toFixed(1)}%</b> · ` +
+          `RV <b style="color:${dCol(ivRvReg.dRvPct)}">${rvArr} ${ivRvReg.dRvPct>=0?'+':''}${ivRvReg.dRvPct.toFixed(1)}%</b>`;
+
+        // Action pill — color matches kind
+        rgAction.textContent = ivRvReg.action;
+        rgAction.style.color = m.bg;
+        rgAction.style.borderColor = m.bg;
+      } else {
+        rgBadge.style.background = '#475569';
+        rgBadge.textContent = '…';
+        rgLabel.textContent = 'Building IV/RV history (need ≥3 ticks each)';
+        rgArrows.innerHTML = '—';
+        rgAction.textContent = '…';
+        rgAction.style.color = 'var(--color-text-secondary)';
+        rgAction.style.borderColor = 'var(--color-border-tertiary)';
+      }
+    }
+
+    // ── Multi-Timeframe RV Framework strip ────────────────────────
+    try {
+      const mtf = (window.rvMtf && typeof window.rvMtf.compute === 'function')
+        ? window.rvMtf.compute() : null;
+      if(mtf){
+        const fmt = v => v != null ? v.toFixed(1) + '%' : '—';
+        const setVal = (id, v) => { const el = $(id); if(el) el.textContent = fmt(v); };
+        setVal('ckpRvUS', mtf.ultraShort);
+        setVal('ckpRvS',  mtf.short);
+        setVal('ckpRvM',  mtf.medium);
+        setVal('ckpRvL',  mtf.long);
+
+        // Color each window by how it compares to long (baseline). >120% =
+        // amber, >150% = red, <80% = green (cooling), within band = neutral.
+        const colorByLong = (v) => {
+          if(v == null || mtf.long == null) return null;
+          const r = v / mtf.long;
+          if(r > 1.50) return '#dc2626';
+          if(r > 1.20) return '#f59e0b';
+          if(r < 0.80) return '#16a34a';
+          return null;
+        };
+        ['US','S','M','L'].forEach(suffix => {
+          const el = document.getElementById('ckpRv' + suffix);
+          if(!el) return;
+          const v = suffix === 'US' ? mtf.ultraShort
+                  : suffix === 'S'  ? mtf.short
+                  : suffix === 'M'  ? mtf.medium
+                  : mtf.long;
+          const col = colorByLong(v);
+          el.style.color = col || 'var(--color-text-primary)';
+        });
+
+        // Verdicts — color by tone (EXIT/SKIP = red, ADJUST = amber,
+        // ENTER/CALM = green, NEUTRAL/STABLE/NORMAL = neutral)
+        const setVerdict = (id, txt) => {
+          const el = document.getElementById(id);
+          if(!el) return;
+          if(!txt){ el.textContent = '—'; el.style.background='transparent'; el.style.color='var(--color-text-secondary)'; return; }
+          el.textContent = txt;
+          if(/EXIT|SKIP|^WIDE/i.test(txt))               { el.style.background='rgba(220,38,38,0.18)'; el.style.color='#dc2626'; }
+          else if(/ADJUST|WATCH|TIGHT/i.test(txt))        { el.style.background='rgba(245,158,11,0.18)'; el.style.color='#d97706'; }
+          else if(/ENTER|CALM/i.test(txt))                { el.style.background='rgba(22,163,74,0.18)';  el.style.color='#16a34a'; }
+          else                                            { el.style.background='var(--color-background-primary)'; el.style.color='var(--color-text-secondary)'; }
+        };
+        setVerdict('ckpRvUSVerdict', mtf.verdicts.ultraShort);
+        setVerdict('ckpRvSVerdict',  mtf.verdicts.short);
+        setVerdict('ckpRvMVerdict',  mtf.verdicts.medium);
+        setVerdict('ckpRvLVerdict',  mtf.verdicts.long);
+
+        // Term-structure regime badge
+        const regimeMap = {
+          'expanding':         { bg:'#dc2626', text:'EXPANDING' },
+          'contracting':       { bg:'#16a34a', text:'CONTRACTING' },
+          'stable':            { bg:'#475569', text:'STABLE' },
+          'session-elevated':  { bg:'#f59e0b', text:'SESSION HOT' },
+          'session-quiet':     { bg:'#0ea5e9', text:'SESSION QUIET' },
+          'mixed':             { bg:'#7c3aed', text:'MIXED' },
+          'unknown':           { bg:'#475569', text:'…' },
+        };
+        const rb = $('ckpRvMtfRegime');
+        if(rb){
+          const r = regimeMap[mtf.termStructure] || regimeMap.unknown;
+          rb.style.background = r.bg;
+          rb.textContent = r.text;
+        }
+        const srcEl = $('ckpRvMtfSrc');
+        if(srcEl){
+          srcEl.textContent = `5m:${mtf.sources.c5m} · 1h:${mtf.sources.c1h} · 1d:${mtf.sources.c1d}`;
+        }
+      }
+    } catch(_e){ /* MTF strip is decorative, never break render */ }
   }
 
   function safeRender(){
@@ -4219,6 +5356,14 @@ window._brahmastraADX = _ciComputeADX;
   // Clock + session + day-progress ticks every second
   setInterval(tickClockOnly, 1000);
   window.refreshCockpit = safeRender;
+
+  // ── Expose regime classifiers for cross-panel consumption ─────────
+  // The AMD Friend/Enemy panel and other consumers can read the same
+  // Sinclair/Augen ΔIV × ΔRV classifier the cockpit uses, instead of
+  // duplicating the logic. Returns the same shape as getIvRvRegime
+  // (kind, regime, action, dIvPct, dRvPct, …) or null when not ready.
+  window.getIvRvRegime = getIvRvRegime;
+  window.getMpoRegime  = getMpoRegime;
 
   /* ═══════════════════════════════════════════════════════════════════════
      SAME-WEEKDAY HISTORY STRIP
@@ -13344,6 +14489,74 @@ function _amdscFriendOrEnemy(controller, sessions, b){
     }
   }
 
+  /* F. ΔIV × ΔRV regime (Sinclair / Augen) — adds the 2×2 regime concept
+     directly into the Friend/Enemy panel. The classifier is sourced from
+     the cockpit (window.getIvRvRegime). When unavailable we fall back to
+     a session-level proxy: combine the dominant IV direction with the
+     dominant gamma direction — gamma trending up + IV down ≈ gamma-driven,
+     IV up + gamma stable ≈ IV-driven, both up ≈ event-driven, etc.
+
+     Weight: ±20 points (heaviest single input). Reasoning: the user's
+     working model says this is THE decisive matrix for short-strangle
+     sellers. A clean IV-driven regime should be able to flip a borderline
+     score into FRIEND territory; a gamma-driven trend should pull a
+     borderline score into ENEMY. */
+  let regimeInfo = null;
+  try {
+    if(typeof window.getIvRvRegime === 'function'){
+      regimeInfo = window.getIvRvRegime();
+    }
+  } catch(_e){}
+
+  // Fallback: derive regime from session-level signals when the cockpit
+  // classifier isn't ready yet (boot phase). This only uses what THIS
+  // panel already has, so it always returns something usable.
+  if(!regimeInfo && (dominantIvDir || dominantGammaPct)){
+    const ivD = dominantIvDir ? dominantIvDir.val : 0;
+    const gD  = dominantGammaPct ? dominantGammaPct.val : 0;
+    // ivD: % change in IV across the session (>0 rising, <0 falling)
+    // gD:  % change in gamma — proxy for RV (rising gamma ≈ rising RV
+    //      because both spike when realised price moves accelerate)
+    const TH = 1.0;
+    const ivDir = ivD > TH ? 'rising' : ivD < -TH ? 'falling' : 'flat';
+    const rvDir = gD > TH ? 'rising' : gD < -TH ? 'falling' : 'flat';
+    let kind, regime, action, actionShort;
+    if(ivDir === 'falling' && rvDir === 'rising'){ kind='gamma'; regime='Gamma-driven trend';            action='Stand down / exit';                 actionShort='EXIT'; }
+    else if(ivDir==='rising' && rvDir==='falling'){ kind='iv';    regime='IV-driven (premium expanding)'; action='Best entry';                        actionShort='BEST ENTRY'; }
+    else if(ivDir==='rising' && rvDir==='rising') { kind='event'; regime='Event-driven, ambiguous';       action='Wait for resolution';               actionShort='WAIT'; }
+    else if(ivDir==='falling' && rvDir==='falling'){ kind='crush'; regime='Vol crush, premium gone';      action='Avoid new entries';                 actionShort='AVOID'; }
+    else                                          { kind='neutral'; regime='Neutral · flat slopes';      action='Hold / monitor';                    actionShort='HOLD'; }
+    regimeInfo = { kind, regime, action, actionShort,
+                   dIvPct: ivD, dRvPct: gD, ivDir, rvDir,
+                   ivRef:null, ivLast:null, rvRef:null, rvLast:null,
+                   _fallback: true };
+  }
+
+  if(regimeInfo){
+    // Per-kind tone, value, detail, score delta, and reason text
+    const map = {
+      iv:      { tone:'iv',      val:'IV-DRIVEN',    detail:'ΔIV↑ ΔRV↓ · best entry',                    delta: +20, reason:'IV-driven regime — vol premium expanding while realised vol cools (vega tailwind, low γ risk)' },
+      gamma:   { tone:'bad',     val:'Γ-DRIVEN',     detail:'ΔIV↓ ΔRV↑ · stand down',                    delta: -20, reason:'Gamma-driven trend — realised vol consuming premium faster than it\'s being sold' },
+      event:   { tone:'event',   val:'EVENT-DRIVEN', detail:'ΔIV↑ ΔRV↑ · wait for resolution',           delta: -8,  reason:'Event-driven regime — both IV and RV rising, resolution unclear' },
+      crush:   { tone:'bad',     val:'VOL CRUSH',    detail:'ΔIV↓ ΔRV↓ · premium gone',                  delta: -10, reason:'Vol-crush regime — premium has decayed, no fresh edge for new entries' },
+      neutral: { tone:'neutral', val:'NEUTRAL',      detail:'slopes flat · regime unchanged',            delta: 0,   reason:null },
+    };
+    const m = map[regimeInfo.kind] || map.neutral;
+    score += m.delta;
+    breakdown.push({
+      key:    'regime',
+      label:  'Regime',
+      val:    m.val,
+      tone:   m.tone,
+      detail: m.detail + (regimeInfo._fallback ? ' (session-derived)' : ''),
+    });
+    if(m.reason){
+      reasons.push({ tone: (m.delta > 0 ? 'good' : m.delta < 0 ? 'bad' : 'neutral'), txt: m.reason });
+    }
+  } else {
+    breakdown.push({ key:'regime', label:'Regime', val:'—', tone:'neutral', detail:'building IV/RV history' });
+  }
+
   /* Controller bonus/malus on tail */
   if(controller === 'IV') score = Math.min(100, score + 5);
   else if(controller === 'GAMMA') score = Math.max(0, score - 8);
@@ -13386,7 +14599,29 @@ function _amdscFriendOrEnemy(controller, sessions, b){
       : 'Hostile regime. Reduce size 50% immediately or hedge tested leg with long-vega debit spread.';
   }
 
-  return { score, verdict, reasons, breakdown, action, controller };
+  /* Regime override — the ΔIV × ΔRV classifier maps each cell directly
+     to a decision use (Sinclair / Augen). When it fires hard, it tailors
+     the action narrative regardless of the score-based default, because
+     the regime is more decisive than any individual breakdown component. */
+  if(regimeInfo){
+    if(regimeInfo.kind === 'gamma'){
+      action = 'STAND DOWN. ΔIV↓ × ΔRV↑ = gamma-driven trend. Realised vol is consuming premium faster than it\'s being sold. Close the strangle now — do NOT roll, do NOT hedge. Sit flat until either IV reflates or RV cools.';
+    } else if(regimeInfo.kind === 'iv'){
+      // Only override when the score isn't already FRIEND — don't downgrade a clean theta window
+      if(verdict !== 'FRIEND'){
+        action = 'BEST-ENTRY REGIME. ΔIV↑ × ΔRV↓ = vol premium expanding while realised vol cools. This is the textbook short-strangle window. Hold existing position, and consider adding size if other gauges (DTE, IV percentile) align.';
+      }
+    } else if(regimeInfo.kind === 'event'){
+      action = 'WAIT FOR RESOLUTION. ΔIV↑ × ΔRV↑ = event-driven, ambiguous. Both vols rising means the market hasn\'t decided yet. Hold what you have, do not size up, set tight stops on both legs until one slope resolves.';
+    } else if(regimeInfo.kind === 'crush'){
+      action = 'AVOID NEW ENTRIES. ΔIV↓ × ΔRV↓ = vol crush, premium gone. Existing positions can run on theta but no fresh edge. Let current strangles decay; do not open new ones at this premium level.';
+    }
+  }
+
+  // Re-clamp score after regime adjustment
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  return { score, verdict, reasons, breakdown, action, controller, regimeInfo };
 }
 
 /* ─── Renderers (per-session card, sweep diagram, CME ribbon, banner) ─── */
@@ -14581,6 +15816,19 @@ function vapSwitchTab(name){
 
 /* ── Compute RV5 (Parkinson 5-day from OHLC candle data) ── */
 function vapComputeRV5(){
+  // PRIMARY: Multi-Timeframe RV Framework's "long" window (7-day rolling
+  // from daily candles, matching the user's spec for baseline regime
+  // context). This is more stable than the 5-day Parkinson estimate.
+  if(window.rvMtf && typeof window.rvMtf.compute === 'function'){
+    try {
+      const snap = window.rvMtf.compute();
+      if(snap && snap.long != null && isFinite(snap.long) && snap.long > 1 && snap.long < 300){
+        return parseFloat(snap.long.toFixed(2));
+      }
+    } catch(_e){}
+  }
+
+  // Fallback: original Parkinson estimator from ohlcState.
   // Prefer daily-resolution candles stored in ohlcState.dailyCandles (added below).
   // Falls back to 1-min candles only when we have enough of them to span ~5 days (7200 mins).
   // NEVER use a random multiplier — that injects artificial noise into every VRP calculation.
@@ -32948,12 +34196,190 @@ setInterval(() => { try { fetchMCNews(false); } catch(e) {} }, 8 * 60 * 1000);
    ═══════════════════════════════════════════════════════════════════ */
 
 const mpoState = {
-  candles1h: [], candles4h: [], candles1d: [],
+  candles5m: [], candles1h: [], candles4h: [], candles1d: [],
   lastFetch: 0, ttl: 60000,
   patterns: [], severity: 'neutral',
   sentAlerts: new Set(), // track sent Telegram alerts
   activeCategory: 'all',
 };
+
+/* ════════════════════════════════════════════════════════════════════
+   MULTI-TIMEFRAME RV FRAMEWORK
+   ────────────────────────────────────────────────────────────────────
+   Implements the four-window framework:
+
+     Window       Lookback                   Purpose                    Decision use
+     ──────────── ────────────────────────── ────────────────────────── ────────────────────
+     Ultra-short  1-hour rolling (12 × 5m)   Real-time regime detection Exit signals
+     Short        4-hour rolling (48 × 5m)   Confirm regime shift       Adjustment timing
+     Medium       24-hour rolling (288 × 5m) Session character          Entry / skip decision
+     Long         7-day rolling              Baseline regime context    Strike selection, IV/RV ratio
+
+   All values returned as ANNUALISED percent (% sigma per year), so they
+   are directly comparable to ATM IV. Annualisation factor for 5m bars:
+       sqrt(365 days × 24h × 12 bars/h) = sqrt(105,120) ≈ 324.22
+   For daily bars:
+       sqrt(365) ≈ 19.10
+
+   Every consumer uses the SAME estimator (close-to-close log-return std),
+   so cross-window comparisons are apples-to-apples. The Long window uses
+   daily candles when available (more stable than 2016 × 5m), falling back
+   to the existing Parkinson estimate (vapComputeRV5) when daily candles
+   are short.
+
+   Public API:
+     window.rvMtf.compute()           → {ultraShort, short, medium, long, …}
+     window.rvMtf.regime(values)      → 'expanding'|'contracting'|'stable'
+     window.rvMtf.lastSnapshot        → cached last result
+
+   Refresh cadence: re-computed on every cockpit render (every 3s) and
+   every cockpit 1s tick. Computation is cheap (one std-dev per window).
+   ──────────────────────────────────────────────────────────────────── */
+(function(){
+  'use strict';
+
+  // Annualisation factors — bars per year for each candle resolution.
+  // For crypto we use 365 (24/7 markets), not 252 (equities).
+  const ANN_5M = Math.sqrt(365 * 24 * 12);   // ≈ 324.22
+  const ANN_1H = Math.sqrt(365 * 24);        // ≈ 93.4
+  const ANN_1D = Math.sqrt(365);             // ≈ 19.10
+
+  /** Close-to-close annualised vol for the last `n` bars at given annualisation. */
+  function ccVol(candles, n, annFactor){
+    if(!Array.isArray(candles) || candles.length < n + 1) return null;
+    const slice = candles.slice(-(n+1));   // need n+1 closes for n returns
+    const rets = [];
+    for(let i = 1; i < slice.length; i++){
+      const a = slice[i-1].c, b = slice[i].c;
+      if(a > 0 && b > 0) rets.push(Math.log(b/a));
+    }
+    if(rets.length < Math.max(3, Math.floor(n/3))) return null;
+    const m = rets.reduce((s,v)=>s+v, 0) / rets.length;
+    let varSum = 0;
+    for(const r of rets) varSum += (r - m) * (r - m);
+    const std = Math.sqrt(varSum / Math.max(1, rets.length - 1));   // sample std
+    const ann = std * annFactor * 100;
+    if(!isFinite(ann) || ann <= 0 || ann > 500) return null;
+    return parseFloat(ann.toFixed(2));
+  }
+
+  function compute(){
+    // Source: mpoState.candles5m (5-min bars, ~5 days deep). Falls back to
+    // 1h candles aggregated when 5m source isn't ready yet (boot phase).
+    const c5  = (typeof mpoState !== 'undefined' && Array.isArray(mpoState.candles5m)) ? mpoState.candles5m : [];
+    const c1h = (typeof mpoState !== 'undefined' && Array.isArray(mpoState.candles1h)) ? mpoState.candles1h : [];
+    const c1d = (typeof mpoState !== 'undefined' && Array.isArray(mpoState.candles1d)) ? mpoState.candles1d : [];
+
+    // Ultra-short: 12 × 5m bars = 1h rolling
+    let ultraShort = ccVol(c5, 12, ANN_5M);
+    // Short: 48 × 5m bars = 4h rolling
+    let short      = ccVol(c5, 48, ANN_5M);
+    // Medium: 288 × 5m bars = 24h rolling
+    let medium     = ccVol(c5, 288, ANN_5M);
+    // Long: 7-day rolling — prefer daily candles, fall back to HV30 baseline.
+    // We deliberately do NOT call vapComputeRV5 here — that function now
+    // consumes the MTF framework, so calling it would infinite-loop.
+    let long       = null;
+    if(c1d.length >= 8) long = ccVol(c1d, 7, ANN_1D);
+    if(long == null && typeof state !== 'undefined' && state.hv30 > 0) long = state.hv30;
+
+    // Boot fallbacks — if 5m candles haven't loaded yet, derive ultra-short
+    // and short from 1h candles so the cockpit isn't blank during warmup.
+    if(ultraShort == null && c1h.length >= 2)  ultraShort = ccVol(c1h, 1, ANN_1H);   // last 1h candle
+    if(short      == null && c1h.length >= 5)  short      = ccVol(c1h, 4, ANN_1H);   // last 4h
+    if(medium     == null && c1h.length >= 25) medium     = ccVol(c1h, 24, ANN_1H);  // last 24h
+
+    // Cross-window relationships ── these tell the trader what the RV term
+    // structure is doing right now. Sellers want medium ≈ long (stable
+    // baseline) with ultra-short << short << medium (calming intraday).
+    let termStructure = 'unknown';
+    if(ultraShort != null && short != null && medium != null && long != null){
+      // "Expanding" = vol building up from short → long. "Contracting" =
+      // ultra-short already below medium, calm session ahead.
+      const ratioUSvsM = ultraShort / medium;
+      const ratioSvsM  = short      / medium;
+      const ratioMvsL  = medium     / long;
+      if(ratioUSvsM > 1.20 && ratioSvsM > 1.10) termStructure = 'expanding';
+      else if(ratioUSvsM < 0.85 && ratioSvsM < 0.95) termStructure = 'contracting';
+      else if(Math.abs(ratioMvsL - 1.0) < 0.10) termStructure = 'stable';
+      else if(ratioMvsL > 1.10) termStructure = 'session-elevated';
+      else if(ratioMvsL < 0.90) termStructure = 'session-quiet';
+      else termStructure = 'mixed';
+    }
+
+    // Decision verdicts for each window — the user's spec maps each window
+    // directly to a decision use, so we surface those as ready-to-display strings.
+    const verdicts = {
+      ultraShort: null,   // exit-signal verdict
+      short:      null,   // adjustment-timing verdict
+      medium:     null,   // entry/skip verdict
+      long:       null,   // strike-selection verdict
+    };
+
+    if(ultraShort != null && long != null){
+      const r = ultraShort / long;
+      if(r > 1.50)      verdicts.ultraShort = 'EXIT — RV1h ≫ baseline';
+      else if(r > 1.20) verdicts.ultraShort = 'WATCH — RV1h elevated';
+      else if(r < 0.70) verdicts.ultraShort = 'CALM — RV1h cooling';
+      else              verdicts.ultraShort = 'NORMAL';
+    }
+    if(short != null && medium != null){
+      const r = short / medium;
+      if(r > 1.30)      verdicts.short = 'ADJUST — 4h regime shift up';
+      else if(r < 0.75) verdicts.short = 'ADJUST — 4h regime shift down';
+      else              verdicts.short = 'STABLE';
+    }
+    if(medium != null && long != null){
+      const r = medium / long;
+      if(r > 1.20)      verdicts.medium = 'SKIP — session hot';
+      else if(r < 0.85) verdicts.medium = 'ENTER — session quiet';
+      else              verdicts.medium = 'NEUTRAL — typical session';
+    }
+    if(long != null && typeof state !== 'undefined'){
+      // IV/RV ratio decides strike width. Use near-expiry IV.
+      let iv = null;
+      try {
+        const idx = (typeof EXPIRIES !== 'undefined') ? EXPIRIES.findIndex((e,i)=>!e.expired && i>0) : -1;
+        if(idx >= 0 && state.ivHistory?.[idx]?.length){
+          iv = state.ivHistory[idx].at(-1);
+        }
+      } catch(_e){}
+      if(iv != null){
+        const ratio = iv / long;
+        if(ratio > 1.30)      verdicts.long = `WIDE strikes — IV/RV ${ratio.toFixed(2)} (premium rich)`;
+        else if(ratio > 1.10) verdicts.long = `STANDARD strikes — IV/RV ${ratio.toFixed(2)}`;
+        else if(ratio > 0.95) verdicts.long = `TIGHT strikes — IV/RV ${ratio.toFixed(2)} (thin edge)`;
+        else                  verdicts.long = `SKIP — IV/RV ${ratio.toFixed(2)} (no edge)`;
+      }
+    }
+
+    const out = {
+      ultraShort, short, medium, long,
+      termStructure, verdicts,
+      ts: Date.now(),
+      sources: {
+        c5m: c5.length, c1h: c1h.length, c1d: c1d.length,
+      },
+    };
+    window.rvMtf.lastSnapshot = out;
+    return out;
+  }
+
+  function regime(snap){
+    if(!snap) snap = compute();
+    return snap.termStructure;
+  }
+
+  window.rvMtf = {
+    compute,
+    regime,
+    lastSnapshot: null,
+    // Expose the raw helper so other engines can compute a custom-N RV
+    // from any candle series with the same estimator the framework uses.
+    ccVol,
+    ANN_5M, ANN_1H, ANN_1D,
+  };
+})();
 
 /* ── Binance kline fetcher with multi-mirror fallback ── */
 const MPO_BINANCE_MIRRORS = [
@@ -32973,12 +34399,17 @@ async function mpoFetchBinance(path, timeoutMs = 8000) {
   throw new Error('All Binance mirrors failed for ' + path);
 }
 
-/* ── Fetch 1h, 4h, 1d candles (cached with TTL) ── */
+/* ── Fetch 5m, 1h, 4h, 1d candles (cached with TTL) ──
+   The 5m series is needed by the Multi-Timeframe RV Framework (see
+   rvMtf.compute()), which uses 12/48/288 × 5m bar windows for the
+   Ultra-short / Short / Medium RV calculations. 1500 bars ≈ 5.2 days,
+   which comfortably covers the longest window (288 bars = 24h). */
 async function mpoFetchCandles() {
   const now = Date.now();
   if (now - mpoState.lastFetch < mpoState.ttl && mpoState.candles1h.length > 5) return;
 
-  const [raw1h, raw4h, raw1d] = await Promise.all([
+  const [raw5m, raw1h, raw4h, raw1d] = await Promise.all([
+    mpoFetchBinance('/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=1000'),
     mpoFetchBinance('/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=120'),
     mpoFetchBinance('/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=90'),
     mpoFetchBinance('/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60'),
@@ -32990,6 +34421,7 @@ async function mpoFetchCandles() {
     range: ((+k[2] - +k[3]) / +k[1]) * 100,
   }));
 
+  mpoState.candles5m = parse(raw5m);
   mpoState.candles1h = parse(raw1h);
   mpoState.candles4h = parse(raw4h);
   mpoState.candles1d = parse(raw1d);
