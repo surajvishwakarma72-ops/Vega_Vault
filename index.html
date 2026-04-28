@@ -1941,6 +1941,176 @@ window._brahmastraADX = _ciComputeADX;
 .ckp-car-wrap.spinning{animation:ckp-spin 1.2s linear infinite}
 @keyframes ckp-spin{to{transform:translateX(-50%) rotate(360deg)}}
 
+/* ── DAMAGE STATES ────────────────────────────────────────────────
+   The car visually degrades as BTC's % move from baseline grows.
+   Stage 1 (≥2%): light shake + first crack overlay
+   Stage 2 (≥2.5%): smoke trail + dent overlay
+   Stage 3 (≥3%): heavier shake + smoke + spider-web cracks
+   Stage 4 (≥3.5%): EXPLOSION — fire + flying parts, audio crash
+   Plus a "news inbound" pre-trauma stutter when news <1h. */
+.ckp-car-wrap.dmg-1 { animation:ckp-car-shake-1 0.45s ease-in-out infinite; }
+.ckp-car-wrap.dmg-2 { animation:ckp-car-shake-2 0.30s ease-in-out infinite; }
+.ckp-car-wrap.dmg-3 { animation:ckp-car-shake-3 0.18s ease-in-out infinite; }
+.ckp-car-wrap.dmg-4 { animation:ckp-car-explode 1.6s ease-out forwards; }
+
+@keyframes ckp-car-shake-1{
+  0%,100%{transform:translateX(-50%) rotate(0deg)}
+  25%{transform:translateX(-50%) translateY(-1px) rotate(-1deg)}
+  75%{transform:translateX(-50%) translateY( 1px) rotate( 1deg)}
+}
+@keyframes ckp-car-shake-2{
+  0%,100%{transform:translateX(-50%) rotate(0deg)}
+  20%{transform:translateX(calc(-50% - 2px)) translateY(-2px) rotate(-2deg)}
+  60%{transform:translateX(calc(-50% + 2px)) translateY( 2px) rotate( 2deg)}
+}
+@keyframes ckp-car-shake-3{
+  0%,100%{transform:translateX(-50%) rotate(0deg)}
+  20%{transform:translateX(calc(-50% - 4px)) translateY(-3px) rotate(-4deg)}
+  50%{transform:translateX(calc(-50% + 1px)) translateY( 4px) rotate( 3deg)}
+  80%{transform:translateX(calc(-50% - 2px)) translateY(-1px) rotate(-2deg)}
+}
+@keyframes ckp-car-explode{
+  0%   {transform:translateX(-50%) scale(1.0) rotate(0deg);    filter:brightness(1)}
+  20%  {transform:translateX(-50%) scale(1.4) rotate(15deg);   filter:brightness(2.2) hue-rotate(-30deg)}
+  40%  {transform:translateX(-50%) scale(2.2) rotate(180deg);  filter:brightness(3) hue-rotate(-60deg) drop-shadow(0 0 30px #f97316)}
+  70%  {transform:translateX(-50%) scale(1.4) rotate(360deg);  filter:brightness(0.6) hue-rotate(-90deg)}
+  100% {transform:translateX(-50%) scale(0.8) rotate(540deg);  filter:brightness(0.3) grayscale(1) drop-shadow(0 0 8px #444)}
+}
+
+/* News-impact pre-trauma stutter (when news event <1h away) */
+.ckp-car-wrap.news-warn{
+  animation:ckp-car-news-stutter 1.8s ease-in-out infinite;
+}
+@keyframes ckp-car-news-stutter{
+  0%,75%,100%{transform:translateX(-50%) rotate(0deg)}
+  78%{transform:translateX(-50%) rotate(-2deg)}
+  82%{transform:translateX(-50%) rotate(2deg)}
+  86%{transform:translateX(-50%) rotate(-1deg)}
+  90%{transform:translateX(-50%) rotate(0deg)}
+}
+
+/* Damage overlays on the car (cracks, smoke, fire) */
+.ckp-car-damage-overlay{
+  position:absolute;
+  left:0; right:0; top:0; bottom:0;
+  pointer-events:none;
+  z-index:7;
+}
+.ckp-car-cracks{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:60px;
+  height:60px;
+  background:
+    radial-gradient(circle at 30% 40%, transparent 1px, rgba(0,0,0,0.4) 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 60%, transparent 1px, rgba(0,0,0,0.4) 1.5px, transparent 2px),
+    linear-gradient(45deg, transparent 48%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0.5) 51%, transparent 52%),
+    linear-gradient(-30deg, transparent 49%, rgba(0,0,0,0.4) 50%, transparent 51%);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.4s ease;
+  mix-blend-mode:multiply;
+}
+.ckp-car-wrap.dmg-1 .ckp-car-cracks{ opacity:0.45 }
+.ckp-car-wrap.dmg-2 .ckp-car-cracks{ opacity:0.75 }
+.ckp-car-wrap.dmg-3 .ckp-car-cracks,
+.ckp-car-wrap.dmg-4 .ckp-car-cracks{ opacity:1.0 }
+
+/* Smoke trail (dmg-2 and above) */
+.ckp-car-smoke{
+  position:absolute;
+  left:50%;
+  bottom:60%;
+  transform:translateX(-50%);
+  font-size:18px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.4s ease;
+  animation:ckp-smoke-rise 1.4s ease-out infinite;
+}
+@keyframes ckp-smoke-rise{
+  0%   {transform:translate(-50%, 0px) scale(0.8); opacity:0.9}
+  100% {transform:translate(-50%, -28px) scale(1.6); opacity:0}
+}
+.ckp-car-wrap.dmg-2 .ckp-car-smoke{ opacity:1; content:'💨' }
+.ckp-car-wrap.dmg-3 .ckp-car-smoke{ opacity:1 }
+
+/* Fire (dmg-3 and above) */
+.ckp-car-fire{
+  position:absolute;
+  left:50%;
+  top:30%;
+  transform:translateX(-50%);
+  font-size:22px;
+  opacity:0;
+  pointer-events:none;
+  animation:ckp-fire-flicker 0.25s ease-in-out infinite;
+}
+@keyframes ckp-fire-flicker{
+  0%,100%{transform:translateX(-50%) scale(1.0); filter:brightness(1)}
+  50%    {transform:translateX(-49%) scale(1.15); filter:brightness(1.4)}
+}
+.ckp-car-wrap.dmg-3 .ckp-car-fire,
+.ckp-car-wrap.dmg-4 .ckp-car-fire{ opacity:1 }
+
+/* Explosion sparks (dmg-4 only — radiating outward) */
+.ckp-car-explosion{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  font-size:60px;
+  opacity:0;
+  pointer-events:none;
+  z-index:9;
+}
+.ckp-car-wrap.dmg-4 .ckp-car-explosion{
+  opacity:1;
+  animation:ckp-boom 1.2s ease-out forwards;
+}
+@keyframes ckp-boom{
+  0%   {transform:translate(-50%, -50%) scale(0.3); opacity:1}
+  40%  {transform:translate(-50%, -50%) scale(2.0); opacity:1}
+  100% {transform:translate(-50%, -50%) scale(3.0); opacity:0}
+}
+
+/* Damage HUD chip — top-right of the cockpit, shows current % move + state */
+.ckp-damage-hud{
+  position:absolute;
+  top:6px;
+  right:6px;
+  z-index:10;
+  background:rgba(15,23,42,0.92);
+  border:1px solid rgba(220,38,38,0.6);
+  border-radius:6px;
+  padding:3px 8px;
+  font-size:9.5px;
+  font-weight:800;
+  color:#fff;
+  letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  pointer-events:auto;
+  cursor:help;
+}
+.ckp-damage-hud.lvl-0{border-color:rgba(34,197,94,0.5)}
+.ckp-damage-hud.lvl-1{border-color:rgba(245,158,11,0.7); animation:ckp-hud-pulse 1.4s ease-in-out infinite}
+.ckp-damage-hud.lvl-2{border-color:rgba(239,68,68,0.7); animation:ckp-hud-pulse 0.9s ease-in-out infinite}
+.ckp-damage-hud.lvl-3{border-color:rgba(220,38,38,0.95); animation:ckp-hud-pulse 0.5s ease-in-out infinite; background:rgba(60,15,15,0.95)}
+.ckp-damage-hud.lvl-4{background:linear-gradient(135deg, #dc2626, #f97316); border-color:#fff; animation:ckp-hud-explode 0.4s ease-in-out infinite}
+@keyframes ckp-hud-pulse{
+  0%,100%{box-shadow:0 0 4px rgba(239,68,68,0.4)}
+  50%    {box-shadow:0 0 16px rgba(239,68,68,0.95)}
+}
+@keyframes ckp-hud-explode{
+  0%,100%{transform:scale(1)}
+  50%    {transform:scale(1.08)}
+}
+
 .ckp-car-svg{width:100%;height:100%}
 .ckp-car-shadow{
   position:absolute;
@@ -2526,6 +2696,18 @@ window._brahmastraADX = _ciComputeADX;
         <circle cx="48" cy="30" r="5" fill="#1f2937" stroke="#0f172a" stroke-width="1"/>
         <circle cx="48" cy="30" r="2" fill="#6b7280"/>
       </svg>
+      <!-- Damage overlay layers — each visibility is gated by .dmg-N class on the parent -->
+      <div class="ckp-car-cracks"></div>
+      <div class="ckp-car-smoke">💨</div>
+      <div class="ckp-car-fire">🔥</div>
+      <div class="ckp-car-explosion">💥</div>
+    </div>
+
+    <!-- Damage HUD chip — top-right, shows live BTC % move + state -->
+    <div class="ckp-damage-hud lvl-0" id="ckpDamageHud" title="BTC % move from baseline · damage scales with magnitude" style="display:none">
+      <span id="ckpDamageHudIcon">✓</span>
+      <span id="ckpDamageHudVal">0.0%</span>
+      <span id="ckpDamageHudState" style="opacity:0.85;font-weight:600">CLEAN</span>
     </div>
 
     <!-- Live label: what state is the car in -->
@@ -5170,6 +5352,144 @@ window._brahmastraADX = _ciComputeADX;
         }
       }
     } catch(_e){ /* zone overlay is decorative — never block render */ }
+
+    // ── CAR DAMAGE SYSTEM ─────────────────────────────────────────────
+    // Tracks BTC absolute % move from a rolling 4h-ago baseline. Damage
+    // levels:
+    //   < 2.0%  → clean (no damage state)
+    //   2.0%   → dmg-1: light shake + first cracks
+    //   2.5%   → dmg-2: heavier shake + smoke
+    //   3.0%   → dmg-3: violent shake + smoke + fire
+    //   3.5%+  → dmg-4: EXPLOSION + crash audio + horn (one-shot)
+    //
+    // Plus a "news-warn" pre-trauma stutter when a high-impact event is
+    // <1h away — anticipating volatility before the fact.
+    //
+    // Baseline = closing price of the 1h candle 4 hours ago. This is the
+    // best-available proxy for "session start" — close enough to detect
+    // intraday moves, far enough to ignore noise.
+    try {
+      const carWrap = $('ckpCarWrap');
+      const hud     = $('ckpDamageHud');
+      if(carWrap && spot && spot > 1000){
+        // Compute baseline — 4h-ago 1h-candle close
+        let baseline = null;
+        if(typeof mpoState !== 'undefined' && Array.isArray(mpoState.candles1h) && mpoState.candles1h.length >= 5){
+          // Skip the in-progress current bar; use the close of the bar 4 ago
+          const idx = Math.max(0, mpoState.candles1h.length - 5);
+          baseline = mpoState.candles1h[idx]?.c;
+        }
+        // Fallback: if MTF framework has long, derive from there
+        if(!baseline && simState?.position?.entrySpot){
+          baseline = simState.position.entrySpot;
+        }
+
+        let pctMove = null;
+        if(baseline && baseline > 0){
+          pctMove = (spot - baseline) / baseline * 100;
+        }
+
+        // Determine damage level
+        const absMove = pctMove != null ? Math.abs(pctMove) : 0;
+        let dmgLevel = 0;
+        if(absMove >= 3.5)      dmgLevel = 4;
+        else if(absMove >= 3.0) dmgLevel = 3;
+        else if(absMove >= 2.5) dmgLevel = 2;
+        else if(absMove >= 2.0) dmgLevel = 1;
+
+        // Apply damage classes — preserve existing crash/spinning class if set
+        const wasSpinning = carWrap.classList.contains('spinning');
+        ['dmg-1','dmg-2','dmg-3','dmg-4','news-warn'].forEach(c => carWrap.classList.remove(c));
+        if(wasSpinning){ /* keep spinning */ }
+        if(dmgLevel > 0) carWrap.classList.add('dmg-' + dmgLevel);
+        // News-warn: when news <1h or any RED-tier alarm is imminent + we're not already in dmg
+        if(nextNewsHrs != null && nextNewsHrs < 1 && nextNewsHrs > 0 && dmgLevel === 0){
+          carWrap.classList.add('news-warn');
+        }
+
+        // Audio + persistent flag for level-4 (one-shot per crossing)
+        if(dmgLevel === 4 && !window.__ckpExplodedFlag){
+          window.__ckpExplodedFlag = true;
+          try { ckpAudio.skid({volume:0.30}); }   catch(_e){}
+          setTimeout(()=>{ try { ckpAudio.crash({volume:0.45}); } catch(_e){} }, 280);
+          setTimeout(()=>{ try { ckpAudio.horn({volume:0.25});  } catch(_e){} }, 1200);
+          // Hindi + English voice alert
+          try {
+            if(typeof speakAlert === 'function'){
+              const dirHi = pctMove > 0 ? 'ऊपर' : 'नीचे';
+              speakAlert(
+                `सावधान! बिटकॉइन ${Math.abs(pctMove).toFixed(1)} प्रतिशत ${dirHi} गया है। पोज़ीशन क्रैश हो गई है। तुरंत बाहर निकलिए।`,
+                `Caution! Bitcoin moved ${pctMove>=0?'up':'down'} ${Math.abs(pctMove).toFixed(1)}%. Position has crashed. Exit immediately.`
+              );
+            }
+          } catch(_e){}
+          // Telegram alert
+          try {
+            if(typeof tgSend === 'function'){
+              const istNow = new Date().toLocaleTimeString('en-IN',{
+                hour:'2-digit',minute:'2-digit',second:'2-digit',
+                hour12:false,timeZone:'Asia/Kolkata'
+              });
+              tgSend(
+                `💥 *Cockpit · CAR CRASHED*\n\n` +
+                `BTC moved *${pctMove>=0?'+':''}${pctMove.toFixed(2)}%* from 4h baseline.\n` +
+                `*Baseline:* $${Math.round(baseline).toLocaleString('en-US')}\n` +
+                `*Current:* $${Math.round(spot).toLocaleString('en-US')}\n\n` +
+                `🚨 This is a >3.5% move — strangle territory has been blown. Existing positions are likely deep in the red. Consider exit.\n\n` +
+                `_${istNow} IST · BRAHMASTRA Cockpit_`,
+                { force: true }
+              ).catch(()=>{});
+            }
+          } catch(_e){}
+          // Show a transient "BTC CRASH" label below the car
+          const carLabel = $('ckpCarLabel');
+          if(carLabel){
+            const orig = carLabel.textContent;
+            carLabel.textContent = `💥 BTC ${pctMove>=0?'+':''}${pctMove.toFixed(2)}% — CRASH!`;
+            carLabel.style.color = '#dc2626';
+            carLabel.style.fontWeight = '900';
+            setTimeout(()=>{
+              carLabel.textContent = orig;
+              carLabel.style.color = '';
+              carLabel.style.fontWeight = '';
+            }, 4000);
+          }
+        } else if(dmgLevel < 4){
+          // Reset the flag once damage drops below explosion threshold,
+          // so a fresh +3.5% move can re-trigger the boom.
+          window.__ckpExplodedFlag = false;
+        }
+
+        // HUD chip
+        if(hud){
+          hud.style.display = '';
+          ['lvl-0','lvl-1','lvl-2','lvl-3','lvl-4'].forEach(c => hud.classList.remove(c));
+          hud.classList.add('lvl-' + dmgLevel);
+          const icon = $('ckpDamageHudIcon');
+          const val  = $('ckpDamageHudVal');
+          const stt  = $('ckpDamageHudState');
+          const stateMap = {
+            0: { ico:'✓',  txt:'CLEAN' },
+            1: { ico:'⚠',  txt:'DAMAGE' },
+            2: { ico:'⚠⚠', txt:'HEAVY' },
+            3: { ico:'🔥', txt:'CRITICAL' },
+            4: { ico:'💥', txt:'CRASHED' },
+          };
+          const m = stateMap[dmgLevel];
+          if(icon) icon.textContent = m.ico;
+          if(val)  val.textContent  = pctMove != null
+            ? `${pctMove>=0?'+':''}${pctMove.toFixed(2)}%`
+            : '—';
+          if(stt)  stt.textContent  = m.txt;
+          hud.title =
+            `BTC move from 4h-ago baseline\n\n` +
+            (baseline ? `Baseline: $${Math.round(baseline).toLocaleString('en-US')}\n` : '') +
+            `Spot: $${Math.round(spot).toLocaleString('en-US')}\n` +
+            `Move: ${pctMove != null ? (pctMove>=0?'+':'') + pctMove.toFixed(2) + '%' : '—'}\n\n` +
+            `Damage thresholds: 2% → light · 2.5% → heavy · 3% → critical · 3.5% → CRASH`;
+        }
+      }
+    } catch(_e){ /* damage system never breaks render */ }
 
     // ── Verdict ribbon ──
     const verdict = deriveVerdict({
@@ -21430,6 +21750,41 @@ setTimeout(()=>{
       </div>
     </div>
 
+    <!-- ── MANUAL TRADE PANEL ─────────────────────────────────────────
+         Click any row in the chain table below to open this panel with
+         the leg pre-loaded. Build a single-leg or two-leg trade with
+         explicit BUY/SELL × CALL/PUT direction. -->
+    <div id="simManualTradePanel"
+         style="background:linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(15,23,42,0.0) 100%);border:1px solid rgba(124,58,237,0.4);border-radius:9px;padding:10px 12px;margin-bottom:10px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#a78bfa">⚡ Manual Trade Builder</div>
+        <button onclick="window.simManualClose && window.simManualClose()" style="font-size:10px;padding:2px 8px;border-radius:4px;border:0.5px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-secondary);cursor:pointer">✕ Close</button>
+      </div>
+      <div style="font-size:9.5px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.4">
+        Click a strike row in the chain below to add a leg. Then pick BUY (debit) or SELL (credit), set lots, and execute.
+      </div>
+
+      <!-- Legs container -->
+      <div id="simManualLegs" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        <div id="simManualEmptyState" style="font-size:10px;color:var(--color-text-secondary);padding:10px;text-align:center;border:1px dashed var(--color-border-tertiary);border-radius:6px">
+          No legs yet — click a strike row in the chain to add one
+        </div>
+      </div>
+
+      <!-- Lots + Total + Execute -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:0.5px solid var(--color-border-tertiary);padding-top:8px">
+        <label style="font-size:10px;color:var(--color-text-secondary);font-weight:600">Lots:</label>
+        <input type="number" id="simManualLots" value="1" min="1" max="1000"
+               onchange="window.simManualRecalc && window.simManualRecalc()"
+               style="font-size:11px;padding:4px 7px;width:60px;border-radius:4px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-variant-numeric:tabular-nums">
+        <span id="simManualNetLabel" style="font-size:10.5px;font-weight:700;color:var(--color-text-primary);margin-left:auto">Net: $0.00</span>
+        <button id="simManualExecBtn"
+                onclick="window.simManualExecute && window.simManualExecute()"
+                disabled
+                style="font-size:11px;font-weight:800;padding:5px 14px;border-radius:5px;border:none;background:#7c3aed;color:#fff;cursor:pointer;letter-spacing:.04em">🚀 EXECUTE MANUAL</button>
+      </div>
+    </div>
+
     <!-- SDP Auto-Trade Toggle removed (user request 2026-04-27). SDP signals
          are still published to window.brSDP for the Synthesis Decision Panel,
          but no trades (real or paper) are opened automatically anymore. -->
@@ -22805,17 +23160,17 @@ setTimeout(()=>{
 
       html += `<tr class="${rowClass}">
         ${oiBarCell(call, 'call')}
-        <td class="call-side">${call ? fmt(call.iv) : '—'}</td>
-        <td class="call-side">${deltaPillC}</td>
-        <td class="call-side">${call ? fmt(call.bid,1) : '—'}</td>
-        <td class="call-side"><strong>${call ? fmt(call.mark,1) + trendC : '—'}</strong></td>
-        <td class="call-side">${call ? fmt(call.ask,1) : '—'}</td>
-        <td class="strike-cell">${strike}</td>
-        <td class="put-side">${put ? fmt(put.bid,1) : '—'}</td>
-        <td class="put-side"><strong>${put ? fmt(put.mark,1) + trendP : '—'}</strong></td>
-        <td class="put-side">${put ? fmt(put.ask,1) : '—'}</td>
-        <td class="put-side">${deltaPillP}</td>
-        <td class="put-side">${put ? fmt(put.iv) : '—'}</td>
+        <td class="call-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'call')" style="cursor:pointer" title="Click to add CALL leg to manual trade builder">${call ? fmt(call.iv) : '—'}</td>
+        <td class="call-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'call')" style="cursor:pointer">${deltaPillC}</td>
+        <td class="call-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'call')" style="cursor:pointer">${call ? fmt(call.bid,1) : '—'}</td>
+        <td class="call-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'call')" style="cursor:pointer"><strong>${call ? fmt(call.mark,1) + trendC : '—'}</strong></td>
+        <td class="call-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'call')" style="cursor:pointer">${call ? fmt(call.ask,1) : '—'}</td>
+        <td class="strike-cell" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'both')" style="cursor:pointer" title="Click to add BOTH call and put legs (straddle/strangle quick build)">${strike}</td>
+        <td class="put-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'put')" style="cursor:pointer" title="Click to add PUT leg to manual trade builder">${put ? fmt(put.bid,1) : '—'}</td>
+        <td class="put-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'put')" style="cursor:pointer"><strong>${put ? fmt(put.mark,1) + trendP : '—'}</strong></td>
+        <td class="put-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'put')" style="cursor:pointer">${put ? fmt(put.ask,1) : '—'}</td>
+        <td class="put-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'put')" style="cursor:pointer">${deltaPillP}</td>
+        <td class="put-side" onclick="window.simManualAddLeg && window.simManualAddLeg(${strike},'put')" style="cursor:pointer">${put ? fmt(put.iv) : '—'}</td>
         ${oiBarCell(put, 'put')}
       </tr>`;
     });
@@ -22835,6 +23190,8 @@ setTimeout(()=>{
     }
 
     simRecalcPreview();
+    // Refresh the manual trade builder so its quotes track live chain updates
+    if(typeof window._simManualRefresh === 'function') window._simManualRefresh();
   }
 
   window.simFilterChain = function(mode){
@@ -23102,6 +23459,260 @@ setTimeout(()=>{
     simDBSave().catch(()=>{});
     return newPos;
   };
+
+  // ────────────────────────────────────────────────────────────────────
+  // MANUAL TRADE BUILDER
+  // ────────────────────────────────────────────────────────────────────
+  // State: { legs: [{type:'call'|'put', strike, side:null}, ...] }
+  // Side defaults to null (user must pick BUY or SELL on each leg).
+  // Up to 2 legs supported (any combo). For 1 leg, the unused slot is
+  // stubbed to keep the rest of the dashboard happy.
+  const _simManual = { legs: [] };
+
+  window.simManualAddLeg = function(strike, type){
+    if(!simState.chain || !simState.currentExpiry) return;
+    const ex = simState.chain.expiries[simState.currentExpiry];
+    if(!ex) return;
+
+    // 'both' shorthand from the strike cell — adds a call + put for that strike
+    if(type === 'both'){
+      window.simManualAddLeg(strike, 'call');
+      window.simManualAddLeg(strike, 'put');
+      return;
+    }
+
+    // Lookup the leg with quotes
+    const leg = (type === 'call')
+      ? ex.calls.find(c => c.strike === strike)
+      : ex.puts.find(p => p.strike === strike);
+    if(!leg){
+      alert('No quote available for ' + type.toUpperCase() + ' ' + strike);
+      return;
+    }
+
+    // Reject if a duplicate leg already exists
+    if(_simManual.legs.some(l => l.type === type && l.strike === strike)){
+      // Toggle removal on duplicate click
+      _simManual.legs = _simManual.legs.filter(l => !(l.type === type && l.strike === strike));
+      _simManualRender();
+      return;
+    }
+
+    // Cap at 2 legs — push out the oldest if a 3rd is clicked
+    if(_simManual.legs.length >= 2) _simManual.legs.shift();
+    _simManual.legs.push({ type, strike, side: null });   // side is set via toggle
+    _simManualRender();
+  };
+
+  window.simManualClose = function(){
+    _simManual.legs = [];
+    _simManualRender();
+  };
+
+  // Toggle side for a leg (idx)
+  window.simManualSetSide = function(idx, side){
+    if(idx < 0 || idx >= _simManual.legs.length) return;
+    _simManual.legs[idx].side = side;
+    _simManualRender();
+  };
+
+  // Remove a leg by index
+  window.simManualRemoveLeg = function(idx){
+    if(idx < 0 || idx >= _simManual.legs.length) return;
+    _simManual.legs.splice(idx, 1);
+    _simManualRender();
+  };
+
+  function _simManualGetLegInfo(leg){
+    // Re-fetch quote + slipped price from current chain
+    if(!simState.chain) return null;
+    const ex = simState.chain.expiries[simState.currentExpiry];
+    if(!ex) return null;
+    const data = (leg.type === 'call')
+      ? ex.calls.find(c => c.strike === leg.strike)
+      : ex.puts.find(p => p.strike === leg.strike);
+    if(!data) return null;
+    const slipMode = $('simSlippage')?.value || 'spread50';
+    // For BUY: side='buy', uses ask side; SELL: side='sell', uses bid side
+    const exec = leg.side ? getExecPrice(data, leg.side === 'buy' ? 'buy' : 'sell', slipMode) : null;
+    return { data, exec };
+  }
+
+  function _simManualRender(){
+    const panel  = $('simManualTradePanel');
+    const legsEl = $('simManualLegs');
+    const empty  = $('simManualEmptyState');
+    const netEl  = $('simManualNetLabel');
+    const btn    = $('simManualExecBtn');
+    if(!panel || !legsEl) return;
+
+    // Show panel when at least one leg exists
+    panel.style.display = _simManual.legs.length ? '' : 'none';
+    if(!_simManual.legs.length){ if(empty) empty.style.display=''; return; }
+
+    let netDollars = 0;
+    let allSidesSet = true;
+    const lots = parseInt($('simManualLots')?.value || 1) || 1;
+
+    const html = _simManual.legs.map((leg, idx) => {
+      const info = _simManualGetLegInfo(leg);
+      const data = info?.data;
+      const exec = info?.exec;
+      if(!leg.side) allSidesSet = false;
+
+      // Compute leg cost (positive for BUY/debit, negative for SELL/credit)
+      let legNet = 0;
+      let legNetDisplay = '—';
+      if(exec && exec.px > 0 && leg.side){
+        const sign = leg.side === 'buy' ? +1 : -1;
+        legNet = sign * exec.px * lots * CONTRACT_SIZE;
+        netDollars += legNet;
+        legNetDisplay = (legNet >= 0 ? '+$' : '-$') + Math.abs(legNet).toFixed(2);
+      }
+
+      const typeColor = leg.type === 'call' ? '#16a34a' : '#dc2626';
+      const sideLabel = leg.side ? (leg.side === 'buy' ? 'BUY (debit)' : 'SELL (credit)') : 'PICK SIDE →';
+      const buyBtnStyle  = leg.side === 'buy'
+        ? 'background:#16a34a;color:#fff;border-color:#16a34a'
+        : 'background:transparent;color:#16a34a;border-color:#16a34a';
+      const sellBtnStyle = leg.side === 'sell'
+        ? 'background:#dc2626;color:#fff;border-color:#dc2626'
+        : 'background:transparent;color:#dc2626;border-color:#dc2626';
+
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:6px;flex-wrap:wrap">
+          <span style="font-size:10px;font-weight:800;color:${typeColor};text-transform:uppercase;letter-spacing:.04em">${leg.type}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums">$${leg.strike.toLocaleString('en-US')}</span>
+          <span style="font-size:9.5px;color:var(--color-text-secondary)">
+            B/A: ${data ? data.bid.toFixed(1) : '—'} / ${data ? data.ask.toFixed(1) : '—'} · M: ${data ? data.mark.toFixed(1) : '—'} · Δ ${data ? Math.abs(data.delta).toFixed(2) : '—'}
+          </span>
+          <button onclick="window.simManualSetSide(${idx},'buy')"  style="font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:4px;border:1px solid;cursor:pointer;letter-spacing:.04em;${buyBtnStyle}">BUY</button>
+          <button onclick="window.simManualSetSide(${idx},'sell')" style="font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:4px;border:1px solid;cursor:pointer;letter-spacing:.04em;${sellBtnStyle}">SELL</button>
+          <span style="font-size:10px;font-weight:800;color:${legNet>0?'#dc2626':legNet<0?'#16a34a':'var(--color-text-secondary)'};font-variant-numeric:tabular-nums;margin-left:auto">${legNetDisplay}</span>
+          <button onclick="window.simManualRemoveLeg(${idx})" title="Remove leg" style="font-size:10px;padding:2px 6px;border-radius:3px;border:0.5px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-secondary);cursor:pointer">✕</button>
+        </div>`;
+    }).join('');
+
+    legsEl.innerHTML = html;
+
+    if(netEl){
+      // Net positive = debit (you pay), negative = credit (you receive)
+      const lbl = netDollars > 0 ? `Net DEBIT: $${netDollars.toFixed(2)}`
+                : netDollars < 0 ? `Net CREDIT: $${Math.abs(netDollars).toFixed(2)}`
+                : 'Net: $0.00';
+      netEl.textContent = lbl;
+      netEl.style.color = netDollars > 0 ? '#dc2626' : netDollars < 0 ? '#16a34a' : 'var(--color-text-primary)';
+    }
+
+    if(btn){
+      btn.disabled = !allSidesSet || _simManual.legs.length === 0;
+      btn.style.opacity = btn.disabled ? '0.45' : '1';
+      btn.style.cursor  = btn.disabled ? 'not-allowed' : 'pointer';
+    }
+  }
+
+  window.simManualRecalc = _simManualRender;
+
+  window.simManualExecute = function(){
+    if(!simState.chain) { alert('Chain not loaded'); return; }
+    if(!_simManual.legs.length) return;
+    const ex = simState.chain.expiries[simState.currentExpiry];
+    if(!ex) { alert('No chain for selected expiry'); return; }
+    if(_simManual.legs.some(l => !l.side)){ alert('Pick BUY or SELL for every leg before executing'); return; }
+
+    const lots = parseInt($('simManualLots')?.value || 1) || 1;
+    const slipMode = $('simSlippage')?.value || 'spread50';
+
+    // Map both legs into the call/put slots so the rest of the dashboard
+    // (P&L tracker, greeks aggregation, position tab) works seamlessly.
+    // The `side` field on each slot tracks long/short orientation.
+    let callLeg = null, putLeg = null;
+    _simManual.legs.forEach(l => {
+      const data = (l.type === 'call')
+        ? ex.calls.find(c => c.strike === l.strike)
+        : ex.puts.find(p => p.strike === l.strike);
+      if(!data) return;
+      const exec = getExecPrice(data, l.side === 'buy' ? 'buy' : 'sell', slipMode);
+      if(exec.noLiquidity){ alert('No liquidity on ' + l.type.toUpperCase() + ' ' + l.strike); return; }
+      const slot = {
+        symbol: data.symbol,
+        strike: data.strike,
+        side:   l.side,       // 'buy' or 'sell' — NEW field for manual trades
+        entryPx:    exec.px,
+        entryIV:    data.iv,
+        entryDelta: data.delta,
+        entryGamma: data.gamma,
+        entryTheta: data.theta,
+        entryVega:  data.vega,
+        currentMark: data.mark,
+        slipBps: exec.slipBps,
+      };
+      if(l.type === 'call') callLeg = slot;
+      else                  putLeg  = slot;
+    });
+
+    // Stub the missing slot if user only built one leg, so downstream code
+    // that expects pos.call AND pos.put doesn't crash.
+    if(!callLeg){
+      callLeg = { symbol:'(none)', strike: putLeg.strike, side:'none',
+                  entryPx:0, entryIV:0, entryDelta:0, entryGamma:0,
+                  entryTheta:0, entryVega:0, currentMark:0, slipBps:0, stub:true };
+    }
+    if(!putLeg){
+      putLeg = { symbol:'(none)', strike: callLeg.strike, side:'none',
+                 entryPx:0, entryIV:0, entryDelta:0, entryGamma:0,
+                 entryTheta:0, entryVega:0, currentMark:0, slipBps:0, stub:true };
+    }
+
+    // Net credit/debit
+    const sumNet = _simManual.legs.reduce((s, l) => {
+      const data = (l.type === 'call')
+        ? ex.calls.find(c => c.strike === l.strike)
+        : ex.puts.find(p => p.strike === l.strike);
+      const exec = data ? getExecPrice(data, l.side === 'buy' ? 'buy' : 'sell', slipMode) : { px:0 };
+      const sign = l.side === 'buy' ? -1 : +1;   // sell = + credit, buy = - debit
+      return s + sign * exec.px * lots * CONTRACT_SIZE;
+    }, 0);
+
+    const newPos = {
+      id:        'pos_manual_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+      source:    'manual',
+      shape:     'manual',
+      manualLegs: _simManual.legs.map(l => ({ ...l })),  // remember original legs
+      expiry:    simState.currentExpiry,
+      entryTs:   Date.now(),
+      entrySpot: getLiveSpot(),
+      lots,
+      slipMode,
+      call: callLeg,
+      put:  putLeg,
+      creditInitial:      sumNet,    // negative = debit, positive = credit
+      slippageCostTotal:  0,
+      pnlSeries: [{
+        t: Date.now(),
+        spot: getLiveSpot(),
+        pnl: 0,
+        callMark: callLeg.entryPx,
+        putMark:  putLeg.entryPx,
+      }],
+    };
+
+    simAddPosition(newPos);
+    if(typeof simSwitchTab === 'function') simSwitchTab('position');
+    if(simState.pnlChart){ try{ simState.pnlChart.destroy(); }catch(e){} simState.pnlChart = null; }
+    if(typeof updatePosition === 'function') updatePosition();
+    if(typeof renderPositionRoster === 'function') renderPositionRoster();
+    simDBSave().catch(()=>{});
+
+    // Clear the builder
+    _simManual.legs = [];
+    _simManualRender();
+    return newPos;
+  };
+
+  // Expose the render hook so renderChain() can call it after each refresh.
+  // (Strict mode prevents reassigning the function declaration directly.)
+  window._simManualRefresh = _simManualRender;
 
   // ── Close active position ──
   window.simCloseAll = async function(opts){
