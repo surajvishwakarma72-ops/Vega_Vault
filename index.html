@@ -2264,6 +2264,100 @@ window._brahmastraADX = _ciComputeADX;
 .ckp-vehicle.trade-bus   .ckp-vehicle-tag{border-color:#a78bfa;color:#c4b5fd;background:rgba(15,23,42,0.95)}
 .ckp-vehicle.trade-truck .ckp-vehicle-tag{border-color:#fbbf24;color:#fcd34d;background:rgba(15,23,42,0.95)}
 
+/* ── TRADE VEHICLE FLOATING READOUTS ──────────────────────────────
+   When a fleet entry carries _pnl / _callDiff / _putDiff fields, the
+   renderer attaches three small chips around the vehicle:
+
+     ┌────────────┐      ┌──────────┐
+     │  +$12.45   │ ←─── PnL above (color: green=profit, red=loss)
+     └────────────┘
+     ┌────┐  🚗→  ┌─────────┐
+     │P85k│       │ C92k +$0.85│
+     │+0.6│       │ (call short diff in FRONT — right side, since
+     └────┘       │  trade vehicles face right toward the future)
+       ↑
+       └─ put short diff BEHIND (left side)
+
+   All three chips counter-flip the parent's scaleX(-1) so text
+   reads left-to-right. They use small font + tabular-numbers so
+   the values line up across stacked vehicles. */
+.ckp-trade-pnl-chip{
+  position:absolute;
+  bottom:38px;            /* ~6px above the standard vehicle row */
+  left:50%;
+  transform:translateX(-50%) scaleX(-1);
+  font-size:10px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+  padding:1.5px 6px;
+  border-radius:4px;
+  white-space:nowrap;
+  pointer-events:none;
+  box-shadow:0 1px 3px rgba(0,0,0,0.5);
+  z-index:7;              /* above the YOU tag's z=6 — but YOU tag is on the gentleman, not vehicles, so no conflict */
+}
+.ckp-trade-pnl-chip.pnl-pos{
+  background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color:#dcfce7;
+  border:0.5px solid #22c55e;
+  text-shadow:0 1px 1px rgba(0,0,0,0.3);
+}
+.ckp-trade-pnl-chip.pnl-neg{
+  background:linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color:#fee2e2;
+  border:0.5px solid #ef4444;
+  text-shadow:0 1px 1px rgba(0,0,0,0.3);
+}
+
+.ckp-trade-leg-chip{
+  position:absolute;
+  font-size:8.5px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;
+  padding:1px 4px;
+  border-radius:3px;
+  white-space:nowrap;
+  pointer-events:none;
+  background:rgba(15,23,42,0.92);
+  border:0.5px solid;
+  box-shadow:0 1px 2px rgba(0,0,0,0.5);
+  z-index:7;
+  bottom:14px;            /* aligned with vehicle row, slight overlap with vehicle body */
+}
+/* Counter-flip so text reads correctly on right-facing trade vehicles.
+   The parent has scaleX(-1) which mirrors the LOCAL X coord system.
+   So if we want a chip to appear at the VISUAL right side of the
+   on-screen vehicle, we anchor it to the LOCAL `right:100%` — after
+   the parent's mirror, that renders at the visual right. Conversely,
+   `left:100%` would push past the local right edge of the parent,
+   which is the VISUAL LEFT side after mirror. Confusing — but this
+   is the only way to position children of a scaleX(-1) element. */
+.ckp-trade-leg-front{
+  /* "In front" = on the VISUAL right of the right-facing vehicle.
+     Anchor to local right:100% which becomes visual right after mirror.
+     The translate offset uses positive X (which is also mirrored to
+     negative visually) so the chip clears the vehicle body. */
+  right:100%;
+  transform:translateX(2px) scaleX(-1);
+  margin-right:0;
+}
+.ckp-trade-leg-back{
+  /* "Behind" = on the VISUAL left of the right-facing vehicle.
+     Anchor to local left:100% which becomes visual left after mirror. */
+  left:100%;
+  transform:translateX(-2px) scaleX(-1);
+}
+.ckp-trade-leg-chip.leg-pos{
+  border-color:#16a34a;
+  color:#86efac;
+}
+.ckp-trade-leg-chip.leg-neg{
+  border-color:#dc2626;
+  color:#fca5a5;
+}
+
 /* ── Vehicle orientation ──────────────────────────────────────────
    Standard Unicode car emojis (🚗 🚌 🚐 🚛 🚙 🚓 🚑) face LEFT by
    default. The cockpit road has the player car anchored at 18% from
@@ -5664,6 +5758,26 @@ ambulances = settlement, police = gamma cops, news vans = events.">
             // ── Lane stagger so multiple trades don't overlap ──
             const lane = (tradeIdx % 3) + 1;
 
+            // ── Live numbers for the floating readouts ──
+            // PnL (top): pos.currentPnl is total $ across both legs.
+            //   Positive = trade is in profit (short premium has decayed
+            //   or moved against the seller's strikes less than collected).
+            // Call leg diff (front of vehicle): entryPx − currentMark for
+            //   the SHORT call. Positive = the call has lost value (good
+            //   for seller).
+            // Put leg diff (back of vehicle): same logic for the SHORT put.
+            // We always show the diff in dollar premium per BTC (the leg's
+            // entry/mark units) so the reader can compare apples-to-apples
+            // across expiries/strikes. A "$/lot" view would also be valid;
+            // the per-BTC view matches how the option chain shows premiums.
+            const pnl       = isFinite(p.currentPnl)        ? p.currentPnl        : null;
+            const callEntry = isFinite(p.call?.entryPx)     ? p.call.entryPx      : null;
+            const callMark  = isFinite(p.call?.currentMark) ? p.call.currentMark  : null;
+            const putEntry  = isFinite(p.put?.entryPx)      ? p.put.entryPx       : null;
+            const putMark   = isFinite(p.put?.currentMark)  ? p.put.currentMark   : null;
+            const callDiff  = (callEntry != null && callMark != null) ? (callEntry - callMark) : null;
+            const putDiff   = (putEntry  != null && putMark  != null) ? (putEntry  - putMark)  : null;
+
             // ── Tooltip with current IV + trade essentials ──
             let ivStr = '—';
             const idx = EXPIRIES.findIndex(e => e.label === p.expiry && !e.expired);
@@ -5672,11 +5786,22 @@ ambulances = settlement, police = gamma cops, news vans = events.">
               if(isFinite(iv)) ivStr = iv.toFixed(1) + '%';
             }
             const credit = isFinite(p.creditInitial) ? p.creditInitial : null;
+            const callLine = (callEntry != null && callMark != null)
+              ? `Short Call ${p.call.strike}: entry $${callEntry.toFixed(2)} → now $${callMark.toFixed(2)} = ${callDiff>=0?'+':''}$${callDiff.toFixed(2)}`
+              : `Short Call ${p.call?.strike ?? '?'}`;
+            const putLine = (putEntry != null && putMark != null)
+              ? `Short Put  ${p.put.strike}: entry $${putEntry.toFixed(2)} → now $${putMark.toFixed(2)} = ${putDiff>=0?'+':''}$${putDiff.toFixed(2)}`
+              : `Short Put  ${p.put?.strike ?? '?'}`;
+            const pnlLine = (pnl != null)
+              ? `Net PnL: ${pnl>=0?'+':'-'}$${Math.abs(pnl).toFixed(2)} (${p.pctMaxProfit>=0?'+':''}${(p.pctMaxProfit||0).toFixed(1)}% of max)`
+              : 'Net PnL: pending first quote';
             const tip =
               `${emoji} TRADE: ${p.expiry} (${dte} DTE)\n` +
-              `Strikes: ${p.put?.strike?.toLocaleString('en-US')} P  /  ${p.call?.strike?.toLocaleString('en-US')} C\n` +
+              `${pnlLine}\n` +
+              `${callLine}\n` +
+              `${putLine}\n` +
               `IV now: ${ivStr}\n` +
-              (credit != null ? `Net ${credit>=0?'credit':'debit'}: $${Math.abs(credit).toFixed(2)}\n` : '') +
+              (credit != null ? `Net ${credit>=0?'credit':'debit'} at entry: $${Math.abs(credit).toFixed(2)}\n` : '') +
               `\nVehicle type by DTE:\n` +
               `🏍 ≤1d · 🚗 ≤7d · 🚐 ≤14d · 🚌 ≤49d · 🚛 ≥50d`;
 
@@ -5688,6 +5813,12 @@ ambulances = settlement, police = gamma cops, news vans = events.">
               emoji,
               label: banner,
               tip,
+              // Live readouts for the floating chips:
+              _pnl:      pnl,            // → above the vehicle
+              _callDiff: callDiff,       // → in front of the vehicle (right side, since trade vehicles face right)
+              _putDiff:  putDiff,        // → behind the vehicle (left side)
+              _callStrike: p.call?.strike,
+              _putStrike:  p.put?.strike,
             });
           });
         } catch(_e){ /* trade vehicles never break render */ }
@@ -5744,6 +5875,52 @@ ambulances = settlement, police = gamma cops, news vans = events.">
             tag.className = 'ckp-vehicle-tag';
             tag.textContent = v.label;
             el.appendChild(tag);
+          }
+
+          // ── Trade-vehicle floating chips: PnL above, call-diff in
+          // front (right), put-diff behind (left). Only attached when
+          // the fleet entry has the live numbers stashed by the trade
+          // spawner block. The vehicle has scaleX(-1) on it (faces
+          // right), so each chip uses a counter-flip transform so the
+          // text reads left-to-right. ──
+          if(v._pnl != null || v._callDiff != null || v._putDiff != null){
+            const fmtSign = (n) => (n >= 0 ? '+' : '-') + '$' + Math.abs(n).toFixed(2);
+            // Net PnL chip — large, top-centered, color-coded
+            if(v._pnl != null){
+              const pnlChip = document.createElement('div');
+              pnlChip.className = 'ckp-trade-pnl-chip ' + (v._pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+              pnlChip.textContent = fmtSign(v._pnl);
+              pnlChip.title = `Net PnL across both legs · ${v._pnl>=0?'profit':'loss'}`;
+              el.appendChild(pnlChip);
+            }
+            // Call short diff — in FRONT of the vehicle (right side, since
+            // trade vehicles face right). Positive = call has lost premium
+            // (good for short seller).
+            if(v._callDiff != null){
+              const callChip = document.createElement('div');
+              callChip.className = 'ckp-trade-leg-chip ckp-trade-leg-front ' +
+                                   (v._callDiff >= 0 ? 'leg-pos' : 'leg-neg');
+              const cStrikeLbl = isFinite(v._callStrike)
+                ? 'C' + Math.round(v._callStrike/1000) + 'k '
+                : 'C ';
+              callChip.textContent = cStrikeLbl + fmtSign(v._callDiff);
+              callChip.title = `Short Call ${v._callStrike} · entry vs current premium = ${fmtSign(v._callDiff)}` +
+                               `\n(positive = call has decayed, good for seller)`;
+              el.appendChild(callChip);
+            }
+            // Put short diff — BEHIND the vehicle (left side). Same logic.
+            if(v._putDiff != null){
+              const putChip = document.createElement('div');
+              putChip.className = 'ckp-trade-leg-chip ckp-trade-leg-back ' +
+                                  (v._putDiff >= 0 ? 'leg-pos' : 'leg-neg');
+              const pStrikeLbl = isFinite(v._putStrike)
+                ? 'P' + Math.round(v._putStrike/1000) + 'k '
+                : 'P ';
+              putChip.textContent = pStrikeLbl + fmtSign(v._putDiff);
+              putChip.title = `Short Put ${v._putStrike} · entry vs current premium = ${fmtSign(v._putDiff)}` +
+                              `\n(positive = put has decayed, good for seller)`;
+              el.appendChild(putChip);
+            }
           }
           vehiclesEl.appendChild(el);
         });
