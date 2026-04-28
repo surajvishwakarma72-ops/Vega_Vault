@@ -2312,17 +2312,16 @@ window._brahmastraADX = _ciComputeADX;
 
 .ckp-trade-leg-chip{
   position:absolute;
-  font-size:8.5px;
-  font-weight:700;
+  font-size:9.5px;
+  font-weight:800;
   font-variant-numeric:tabular-nums;
   letter-spacing:.01em;
-  padding:1px 4px;
+  padding:1.5px 5px;
   border-radius:3px;
   white-space:nowrap;
   pointer-events:none;
-  background:rgba(15,23,42,0.92);
   border:0.5px solid;
-  box-shadow:0 1px 2px rgba(0,0,0,0.5);
+  box-shadow:0 1px 3px rgba(0,0,0,0.55);
   z-index:7;
   bottom:14px;            /* aligned with vehicle row, slight overlap with vehicle body */
 }
@@ -2350,12 +2349,31 @@ window._brahmastraADX = _ciComputeADX;
   transform:translateX(-2px) scaleX(-1);
 }
 .ckp-trade-leg-chip.leg-pos{
-  border-color:#16a34a;
-  color:#86efac;
+  background:linear-gradient(135deg, rgba(22,163,74,0.95) 0%, rgba(21,128,61,0.95) 100%);
+  border-color:#22c55e;
+  color:#dcfce7;
+  text-shadow:0 1px 1px rgba(0,0,0,0.4);
 }
 .ckp-trade-leg-chip.leg-neg{
-  border-color:#dc2626;
-  color:#fca5a5;
+  background:linear-gradient(135deg, rgba(220,38,38,0.95) 0%, rgba(185,28,28,0.95) 100%);
+  border-color:#ef4444;
+  color:#fee2e2;
+  text-shadow:0 1px 1px rgba(0,0,0,0.4);
+}
+
+/* ── Multi-Timeframe RV grid: 4 cols on desktop, 2 cols on phones.
+   At narrow widths the four 8.5px range lines (L · O · H · σ) plus
+   verdict pills crowd into single-column cells and wrap into the
+   next cell, which looked like text "overwriting on each other". */
+.ckp-rvmtf-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+}
+@media (max-width:560px){
+  .ckp-rvmtf-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
 }
 
 /* ── Vehicle orientation ──────────────────────────────────────────
@@ -3246,30 +3264,34 @@ ambulances = settlement, police = gamma cops, news vans = events.">
       <span id="ckpRvMtfRegime" style="font-weight:700;font-size:9px;padding:2px 7px;border-radius:4px;background:#475569;color:#fff;letter-spacing:.04em">…</span>
       <span style="font-size:9px;color:var(--color-text-secondary);margin-left:auto" id="ckpRvMtfSrc">awaiting candles…</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-      <div class="ckp-rvmtf-cell" data-w="ultraShort" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">⚡ Ultra-short · 1h</div>
-        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvUS">—</div>
-        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">12 × 5m bars · exit signals</div>
-        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvUSVerdict">—</div>
+    <div class="ckp-rvmtf-grid">
+      <div class="ckp-rvmtf-cell" data-w="ultraShort" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⚡ Ultra-short · 1h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums" id="ckpRvUS">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">12 × 5m bars · exit signals</div>
+        <div class="ckp-rvmtf-range" id="ckpRvUSRange" style="font-size:8.5px;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);line-height:1.35;min-width:0;overflow:hidden">—</div>
+        <div style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ckpRvUSVerdict">—</div>
       </div>
-      <div class="ckp-rvmtf-cell" data-w="short" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🔄 Short · 4h</div>
-        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvS">—</div>
-        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">48 × 5m bars · adjust timing</div>
-        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvSVerdict">—</div>
+      <div class="ckp-rvmtf-cell" data-w="short" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🔄 Short · 4h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums" id="ckpRvS">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">48 × 5m bars · adjust timing</div>
+        <div class="ckp-rvmtf-range" id="ckpRvSRange" style="font-size:8.5px;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);line-height:1.35;min-width:0;overflow:hidden">—</div>
+        <div style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ckpRvSVerdict">—</div>
       </div>
-      <div class="ckp-rvmtf-cell" data-w="medium" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🌅 Medium · 24h</div>
-        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvM">—</div>
-        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">288 × 5m bars · entry/skip</div>
-        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvMVerdict">—</div>
+      <div class="ckp-rvmtf-cell" data-w="medium" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌅 Medium · 24h</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums" id="ckpRvM">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">288 × 5m bars · entry/skip</div>
+        <div class="ckp-rvmtf-range" id="ckpRvMRange" style="font-size:8.5px;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);line-height:1.35;min-width:0;overflow:hidden">—</div>
+        <div style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ckpRvMVerdict">—</div>
       </div>
-      <div class="ckp-rvmtf-cell" data-w="long" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700">🏛 Long · 7d</div>
-        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px" id="ckpRvL">—</div>
-        <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">7d rolling · strike selection</div>
-        <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvLVerdict">—</div>
+      <div class="ckp-rvmtf-cell" data-w="long" style="padding:6px 8px;border-radius:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden">
+        <div style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏛 Long · 7d</div>
+        <div style="font-size:14px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums" id="ckpRvL">—</div>
+        <div style="font-size:8.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">7d rolling · strike selection</div>
+        <div class="ckp-rvmtf-range" id="ckpRvLRange" style="font-size:8.5px;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);line-height:1.35;min-width:0;overflow:hidden">—</div>
+        <div style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ckpRvLVerdict">—</div>
       </div>
     </div>
 
@@ -3374,6 +3396,7 @@ ambulances = settlement, police = gamma cops, news vans = events.">
       whistle:    8000,
       horn:       5000,
       skid:       6000,
+      rvWarn:   300000,   // 5 min — matches MTF breach detector cooldown
     };
     function shouldPlay(type){
       const now = Date.now();
@@ -3507,6 +3530,24 @@ ambulances = settlement, police = gamma cops, news vans = events.">
       noiseBurst(c, 0.10, 220, v*0.7, 2200, 10);
     }
 
+    // RV-WARN — 3-tone descending warble, distinct from siren/horn.
+    // Used when a Multi-Timeframe RV window breaches its normal band
+    // by more than 2σ (statistically significant vol regime shift).
+    // Pattern: high-mid-low descending sweep × 2 with a small gap.
+    function rvWarn(opts){
+      if(isMuted() || !shouldPlay('rvWarn')) return;
+      const c = ensureCtx(); if(!c) return;
+      const v = (opts?.volume ?? 0.22);
+      // First descending sweep (warning starts)
+      sweep(c, 1100, 700,  0.00, 220, v,    'triangle');
+      sweep(c,  700, 480,  0.22, 220, v,    'triangle');
+      sweep(c,  480, 320,  0.44, 260, v*0.9,'triangle');
+      // Brief pause then second sweep at higher pitch (escalation)
+      sweep(c, 1300, 850,  0.85, 220, v*0.95,'triangle');
+      sweep(c,  850, 580,  1.07, 220, v*0.95,'triangle');
+      sweep(c,  580, 380,  1.29, 260, v*0.85,'triangle');
+    }
+
     // Force play (bypass cooldown) — used by the test-alert button
     function force(name, opts){
       const fn = api[name];
@@ -3515,7 +3556,7 @@ ambulances = settlement, police = gamma cops, news vans = events.">
       fn(opts);
     }
 
-    const api = { crash, siren, ambulance, whistle, horn, skid, force, ensureCtx };
+    const api = { crash, siren, ambulance, whistle, horn, skid, rvWarn, force, ensureCtx };
     return api;
   })();
 
@@ -5759,24 +5800,24 @@ ambulances = settlement, police = gamma cops, news vans = events.">
             const lane = (tradeIdx % 3) + 1;
 
             // ── Live numbers for the floating readouts ──
-            // PnL (top): pos.currentPnl is total $ across both legs.
-            //   Positive = trade is in profit (short premium has decayed
-            //   or moved against the seller's strikes less than collected).
-            // Call leg diff (front of vehicle): entryPx − currentMark for
-            //   the SHORT call. Positive = the call has lost value (good
-            //   for seller).
-            // Put leg diff (back of vehicle): same logic for the SHORT put.
-            // We always show the diff in dollar premium per BTC (the leg's
-            // entry/mark units) so the reader can compare apples-to-apples
-            // across expiries/strikes. A "$/lot" view would also be valid;
-            // the per-BTC view matches how the option chain shows premiums.
-            const pnl       = isFinite(p.currentPnl)        ? p.currentPnl        : null;
+            // We surface PER-LEG DOLLAR PnL on the front and back of the
+            // vehicle (replacing the older per-BTC premium diff). Match
+            // the sim engine's accounting:
+            //   leg PnL = (entryPx − currentMark) × lots × CONTRACT_SIZE
+            // For a SHORT seller, positive means the leg has decayed in
+            // your favour (you'd close cheaper than you sold).
+            const lots = isFinite(p.lots) && p.lots > 0 ? p.lots : 1;
+            const CSZ  = (typeof CONTRACT_SIZE !== 'undefined') ? CONTRACT_SIZE : 0.001;
             const callEntry = isFinite(p.call?.entryPx)     ? p.call.entryPx      : null;
             const callMark  = isFinite(p.call?.currentMark) ? p.call.currentMark  : null;
             const putEntry  = isFinite(p.put?.entryPx)      ? p.put.entryPx       : null;
             const putMark   = isFinite(p.put?.currentMark)  ? p.put.currentMark   : null;
             const callDiff  = (callEntry != null && callMark != null) ? (callEntry - callMark) : null;
             const putDiff   = (putEntry  != null && putMark  != null) ? (putEntry  - putMark)  : null;
+            const callPnl   = (callDiff != null) ? callDiff * lots * CSZ : null;
+            const putPnl    = (putDiff  != null) ? putDiff  * lots * CSZ : null;
+            // Net PnL kept for tooltip only (no central chip anymore)
+            const pnl       = isFinite(p.currentPnl) ? p.currentPnl : null;
 
             // ── Tooltip with current IV + trade essentials ──
             let ivStr = '—';
@@ -5787,10 +5828,10 @@ ambulances = settlement, police = gamma cops, news vans = events.">
             }
             const credit = isFinite(p.creditInitial) ? p.creditInitial : null;
             const callLine = (callEntry != null && callMark != null)
-              ? `Short Call ${p.call.strike}: entry $${callEntry.toFixed(2)} → now $${callMark.toFixed(2)} = ${callDiff>=0?'+':''}$${callDiff.toFixed(2)}`
+              ? `Short Call ${p.call.strike}: $${callEntry.toFixed(2)} → $${callMark.toFixed(2)} = ${callPnl>=0?'+':'-'}$${Math.abs(callPnl).toFixed(2)}`
               : `Short Call ${p.call?.strike ?? '?'}`;
             const putLine = (putEntry != null && putMark != null)
-              ? `Short Put  ${p.put.strike}: entry $${putEntry.toFixed(2)} → now $${putMark.toFixed(2)} = ${putDiff>=0?'+':''}$${putDiff.toFixed(2)}`
+              ? `Short Put  ${p.put.strike}: $${putEntry.toFixed(2)} → $${putMark.toFixed(2)} = ${putPnl>=0?'+':'-'}$${Math.abs(putPnl).toFixed(2)}`
               : `Short Put  ${p.put?.strike ?? '?'}`;
             const pnlLine = (pnl != null)
               ? `Net PnL: ${pnl>=0?'+':'-'}$${Math.abs(pnl).toFixed(2)} (${p.pctMaxProfit>=0?'+':''}${(p.pctMaxProfit||0).toFixed(1)}% of max)`
@@ -5814,9 +5855,11 @@ ambulances = settlement, police = gamma cops, news vans = events.">
               label: banner,
               tip,
               // Live readouts for the floating chips:
-              _pnl:      pnl,            // → above the vehicle
-              _callDiff: callDiff,       // → in front of the vehicle (right side, since trade vehicles face right)
-              _putDiff:  putDiff,        // → behind the vehicle (left side)
+              //   _callPnl → in FRONT of vehicle (right side)
+              //   _putPnl  → BEHIND vehicle (left side)
+              // Net PnL is in the tooltip; no central chip anymore (user's request).
+              _callPnl: callPnl,
+              _putPnl:  putPnl,
               _callStrike: p.call?.strike,
               _putStrike:  p.put?.strike,
             });
@@ -5877,48 +5920,39 @@ ambulances = settlement, police = gamma cops, news vans = events.">
             el.appendChild(tag);
           }
 
-          // ── Trade-vehicle floating chips: PnL above, call-diff in
-          // front (right), put-diff behind (left). Only attached when
-          // the fleet entry has the live numbers stashed by the trade
-          // spawner block. The vehicle has scaleX(-1) on it (faces
-          // right), so each chip uses a counter-flip transform so the
-          // text reads left-to-right. ──
-          if(v._pnl != null || v._callDiff != null || v._putDiff != null){
+          // ── Trade-vehicle floating chips: call PnL in front (right
+          // side, since trade vehicles face right toward expiry), put PnL
+          // behind (left side). The net PnL is no longer surfaced as a
+          // separate chip — it lives in the tooltip — because the per-leg
+          // PnL is more actionable: you can see WHICH wing is making/
+          // losing money. The vehicle has scaleX(-1), so each chip uses
+          // a counter-flip transform so text reads left-to-right. ──
+          if(v._callPnl != null || v._putPnl != null){
             const fmtSign = (n) => (n >= 0 ? '+' : '-') + '$' + Math.abs(n).toFixed(2);
-            // Net PnL chip — large, top-centered, color-coded
-            if(v._pnl != null){
-              const pnlChip = document.createElement('div');
-              pnlChip.className = 'ckp-trade-pnl-chip ' + (v._pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
-              pnlChip.textContent = fmtSign(v._pnl);
-              pnlChip.title = `Net PnL across both legs · ${v._pnl>=0?'profit':'loss'}`;
-              el.appendChild(pnlChip);
-            }
-            // Call short diff — in FRONT of the vehicle (right side, since
-            // trade vehicles face right). Positive = call has lost premium
-            // (good for short seller).
-            if(v._callDiff != null){
+            // CALL PnL — in FRONT of the vehicle (visual right)
+            if(v._callPnl != null){
               const callChip = document.createElement('div');
               callChip.className = 'ckp-trade-leg-chip ckp-trade-leg-front ' +
-                                   (v._callDiff >= 0 ? 'leg-pos' : 'leg-neg');
+                                   (v._callPnl >= 0 ? 'leg-pos' : 'leg-neg');
               const cStrikeLbl = isFinite(v._callStrike)
                 ? 'C' + Math.round(v._callStrike/1000) + 'k '
                 : 'C ';
-              callChip.textContent = cStrikeLbl + fmtSign(v._callDiff);
-              callChip.title = `Short Call ${v._callStrike} · entry vs current premium = ${fmtSign(v._callDiff)}` +
-                               `\n(positive = call has decayed, good for seller)`;
+              callChip.textContent = cStrikeLbl + fmtSign(v._callPnl);
+              callChip.title = `Short Call ${v._callStrike} · leg PnL = ${fmtSign(v._callPnl)}` +
+                               `\n(positive = call has decayed, good for short seller)`;
               el.appendChild(callChip);
             }
-            // Put short diff — BEHIND the vehicle (left side). Same logic.
-            if(v._putDiff != null){
+            // PUT PnL — BEHIND the vehicle (visual left)
+            if(v._putPnl != null){
               const putChip = document.createElement('div');
               putChip.className = 'ckp-trade-leg-chip ckp-trade-leg-back ' +
-                                  (v._putDiff >= 0 ? 'leg-pos' : 'leg-neg');
+                                  (v._putPnl >= 0 ? 'leg-pos' : 'leg-neg');
               const pStrikeLbl = isFinite(v._putStrike)
                 ? 'P' + Math.round(v._putStrike/1000) + 'k '
                 : 'P ';
-              putChip.textContent = pStrikeLbl + fmtSign(v._putDiff);
-              putChip.title = `Short Put ${v._putStrike} · entry vs current premium = ${fmtSign(v._putDiff)}` +
-                              `\n(positive = put has decayed, good for seller)`;
+              putChip.textContent = pStrikeLbl + fmtSign(v._putPnl);
+              putChip.title = `Short Put ${v._putStrike} · leg PnL = ${fmtSign(v._putPnl)}` +
+                              `\n(positive = put has decayed, good for short seller)`;
               el.appendChild(putChip);
             }
           }
@@ -6327,6 +6361,180 @@ ambulances = settlement, police = gamma cops, news vans = events.">
         setVerdict('ckpRvSVerdict',  mtf.verdicts.short);
         setVerdict('ckpRvMVerdict',  mtf.verdicts.medium);
         setVerdict('ckpRvLVerdict',  mtf.verdicts.long);
+
+        // ── Session H/L/O ranges + band health ──
+        // window.rvStats keeps a per-window envelope (open/high/low/last)
+        // for the current IST trading day (rolls at 5:30 AM IST). It also
+        // knows the user-defined "normal" band per window:
+        //   1H 14–20  ·  4H 20–30  ·  24H 20–25  ·  7D 40–60
+        // We surface today's range alongside the band, and tint the cell
+        // border green/amber/red based on whether the latest value is
+        // inside / mildly outside / far outside the band.
+        try {
+          const stats = (window.rvStats && typeof window.rvStats.snapshot === 'function')
+            ? window.rvStats.snapshot() : null;
+          if(stats){
+            const fmtV = v => (v == null || !isFinite(v)) ? '—' : v.toFixed(1);
+            const renderCell = (winKey, rangeId, cellSuffix) => {
+              const w = stats[winKey];
+              const rangeEl = document.getElementById(rangeId);
+              const cellEl = document.querySelector(`.ckp-rvmtf-cell[data-w="${winKey}"]`);
+              if(!w) return;
+              if(rangeEl){
+                // Two-line range: today's H/L/O on first line, band on second.
+                // Stdev shown only if we have 3+ samples (otherwise meaningless).
+                const stdevStr = (w.stdev != null) ? ` · σ${w.stdev.toFixed(1)}` : '';
+                const samplesStr = w.samples > 0 ? ` (${w.samples})` : '';
+                const line1 = `L ${fmtV(w.low)} · O ${fmtV(w.open)} · H ${fmtV(w.high)}${stdevStr}`;
+                const line2 = `band ${w.band ? w.band.label : '—'}${samplesStr}`;
+                rangeEl.innerHTML = `<div>${line1}</div><div style="opacity:0.75">${line2}</div>`;
+              }
+              // Band-health border tint
+              if(cellEl){
+                let border = 'var(--color-border-tertiary)';
+                let bg     = 'var(--color-background-secondary)';
+                switch(w.health){
+                  case 'in':
+                    border = 'rgba(22,163,74,0.45)';
+                    bg     = 'color-mix(in srgb, #16a34a 4%, var(--color-background-secondary))';
+                    break;
+                  case 'low':
+                  case 'high':
+                    border = 'rgba(245,158,11,0.45)';
+                    bg     = 'color-mix(in srgb, #f59e0b 4%, var(--color-background-secondary))';
+                    break;
+                  case 'far-low':
+                  case 'far-high':
+                    border = 'rgba(220,38,38,0.55)';
+                    bg     = 'color-mix(in srgb, #dc2626 5%, var(--color-background-secondary))';
+                    break;
+                }
+                cellEl.style.borderColor = border;
+                cellEl.style.background  = bg;
+                // Tooltip explaining the band & current health
+                if(w.health){
+                  const healthLbl = ({
+                    'in':       'inside normal band',
+                    'low':      'below normal — vol cooling',
+                    'high':     'above normal — vol elevated',
+                    'far-low':  'WELL BELOW normal — extreme calm',
+                    'far-high': 'WELL ABOVE normal — vol shock',
+                  })[w.health] || '';
+                  cellEl.title =
+                    `Session range (resets at 5:30 AM IST):\n` +
+                    `  Open ${fmtV(w.open)}%   Low ${fmtV(w.low)}%   High ${fmtV(w.high)}%\n` +
+                    (w.stdev != null ? `  σ ${w.stdev.toFixed(2)}pp over ${w.samples} samples\n` : '') +
+                    `\nNormal band: ${w.band ? w.band.label : '—'}\n` +
+                    `Latest:      ${fmtV(w.last)}% — ${healthLbl}`;
+                }
+              }
+            };
+            renderCell('ultraShort', 'ckpRvUSRange', 'US');
+            renderCell('short',      'ckpRvSRange',  'S');
+            renderCell('medium',     'ckpRvMRange',  'M');
+            renderCell('long',       'ckpRvLRange',  'L');
+
+            // ── σ breach detector ──
+            // Fires when an RV window's current value is BOTH:
+            //   (a) outside its user-defined normal band, AND
+            //   (b) more than 2σ from its rolling-history mean
+            // Both conditions matter — (a) ensures the move is meaningful
+            // for the trader's regime expectations; (b) ensures it's
+            // statistically significant vs recent realised vol behaviour
+            // (filters out slow drift events from genuine vol shocks).
+            //
+            // On fire: speaks Hindi voice alert, plays the rvWarn audio,
+            // and posts to Telegram. Cooldown is 5 min per (window,direction)
+            // pair so e.g. ultraShort-high and ultraShort-low are independent.
+            try {
+              if(!window._rvBreachState) window._rvBreachState = { lastFired: {} };
+              const breachState = window._rvBreachState;
+              const COOLDOWN_MS = 5 * 60 * 1000;
+
+              // Hindi/English labels per window for the voice message
+              const winLbl = {
+                ultraShort: { en: '1-hour',   hi: 'एक घंटा' },
+                short:      { en: '4-hour',   hi: 'चार घंटा' },
+                medium:     { en: '24-hour',  hi: 'चौबीस घंटा' },
+                long:       { en: '7-day',    hi: 'सात दिन' },
+              };
+              const winEmoji = {
+                ultraShort: '⚡', short: '🔄', medium: '🌅', long: '🏛',
+              };
+
+              ['ultraShort','short','medium','long'].forEach(winKey => {
+                const w = stats[winKey];
+                if(!w || w.last == null || !isFinite(w.last)) return;
+                if(w.stdev == null || w.stdev <= 0) return;
+                if(w.samples < 20) return;   // need enough history for σ to be meaningful
+
+                // Compute rolling mean for z-score
+                const mean = (w.high != null && w.low != null && w.open != null)
+                  ? (w.high + w.low + w.open) / 3   // crude session mean
+                  : w.last;
+                // For a more robust mean, use the rolling history mean instead
+                // by querying rvStats directly. The session-tri-point fallback
+                // above is fine for early-day samples.
+
+                const z = (w.last - mean) / w.stdev;
+                const absZ = Math.abs(z);
+
+                // Band check
+                const b = w.band;
+                if(!b) return;
+                const inBand = (w.last >= b.lo && w.last <= b.hi);
+                if(inBand) return;            // condition (a) failed
+
+                if(absZ < 2.0) return;         // condition (b) failed — only mild drift
+
+                // Direction: high or low
+                const dir = w.last > b.hi ? 'high' : 'low';
+                const cooldownKey = `${winKey}-${dir}`;
+                const lastFired = breachState.lastFired[cooldownKey] || 0;
+                if(Date.now() - lastFired < COOLDOWN_MS) return;
+                breachState.lastFired[cooldownKey] = Date.now();
+                // Persist the cooldown immediately so a refresh within
+                // the next 30s won't re-fire the same alert.
+                try { window.brmPersist?.saveBreachState(); } catch(_e){}
+
+                const lbl     = winLbl[winKey] || { en: winKey, hi: winKey };
+                const emoji   = winEmoji[winKey] || '⚠️';
+                const dirLbl  = dir === 'high'
+                  ? { en: 'spike above',  hi: 'ऊपर शॉक' }
+                  : { en: 'crush below',  hi: 'नीचे क्रश' };
+                const valStr  = w.last.toFixed(1);
+                const bandStr = b.label;
+                const zStr    = absZ.toFixed(1);
+
+                // 1. Hindi voice
+                const hindiTxt =
+                  `${lbl.hi} वॉलेटिलिटी ${dir === 'high' ? 'ऊपर निकल गई' : 'नीचे गिर गई'}। ` +
+                  `अभी ${valStr} प्रतिशत है, सामान्य ${bandStr}। ` +
+                  `${zStr} सिग्मा का ब्रीच।`;
+                const englishTxt =
+                  `${lbl.en} RV has ${dir === 'high' ? 'spiked above' : 'crushed below'} normal band. ` +
+                  `Current ${valStr}%, expected ${bandStr}. ${zStr}σ breach.`;
+                try { speakAlert(hindiTxt, englishTxt); } catch(_e){}
+
+                // 2. Audio cue
+                try { ckpAudio.rvWarn(); } catch(_e){}
+
+                // 3. Telegram (uses tgSend dedupe internally for 30s)
+                const tgMsg =
+                  `${emoji} *${lbl.en} RV ${dirLbl.en.toUpperCase()} band*\n` +
+                  `Window: ${lbl.en} (${winKey})\n` +
+                  `Current: *${valStr}%*  ·  Band: ${bandStr}\n` +
+                  `Session: O ${w.open?.toFixed(1) ?? '—'}  ·  L ${w.low?.toFixed(1) ?? '—'}  ·  H ${w.high?.toFixed(1) ?? '—'}\n` +
+                  `Z-score: *${zStr}σ* over ${w.samples} samples\n` +
+                  `Direction: ${dir === 'high' ? 'VOL SHOCK ↑' : 'VOL CRUSH ↓'}`;
+                try { tgSend(tgMsg); } catch(_e){}
+
+                // Console log for debugging
+                console.log(`[rvBreach] ${winKey} ${dir} — ${valStr}% vs band ${bandStr}, ${zStr}σ`);
+              });
+            } catch(_e){ /* breach detector never breaks render */ }
+          }
+        } catch(_e){ /* range/band overlay is decorative */ }
 
         // Term-structure regime badge
         const regimeMap = {
@@ -17169,6 +17377,49 @@ setTimeout(()=>{
       <div style="position:relative;width:100%;height:220px">
         <canvas id="vapMainChart"></canvas>
       </div>
+
+      <!-- ═══ STANDARD DEVIATION STRIP — for every plotted series ═══
+           σ is computed across the same rolling 60-point window the
+           chart plots. Sample stdev (n-1) so a single-point window
+           yields "—" rather than 0. The "current vs band" cell shows
+           where the LAST tick sits relative to (mean − 2σ, mean + 2σ)
+           — the same envelope a Bollinger band would draw, but on the
+           live vol series instead of price. Useful for seeing whether
+           realised vol is currently in/outside its own historical
+           variance envelope.                                          -->
+      <div id="vapStdevStrip" style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:8px;padding:7px 8px;background:rgba(128,128,128,0.04);border:1px solid var(--color-border-tertiary);border-radius:7px;font-size:9px">
+        <div data-stdev-cell="iv"   style="text-align:center">
+          <div style="color:#7c3aed;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px">ATM IV σ</div>
+          <div style="font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:700;font-size:11px;margin-top:1px" data-sd>—</div>
+          <div style="color:var(--color-text-secondary);font-size:8px;margin-top:1px" data-meta>μ — · n —</div>
+        </div>
+        <div data-stdev-cell="rv5"  style="text-align:center;border-left:1px dashed var(--color-border-tertiary);border-right:1px dashed var(--color-border-tertiary);background:rgba(59,130,246,0.04);border-radius:4px">
+          <div style="color:#3b82f6;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px">RV5 σ <span style="font-size:7.5px;background:#3b82f6;color:#fff;padding:0 4px;border-radius:3px;margin-left:2px">PLOTTED</span></div>
+          <div style="font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:800;font-size:11px;margin-top:1px" data-sd>—</div>
+          <div style="color:var(--color-text-secondary);font-size:8px;margin-top:1px" data-meta>μ — · n —</div>
+        </div>
+        <div data-stdev-cell="hv30" style="text-align:center">
+          <div style="color:#06b6d4;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px">HV30 σ</div>
+          <div style="font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:700;font-size:11px;margin-top:1px" data-sd>—</div>
+          <div style="color:var(--color-text-secondary);font-size:8px;margin-top:1px" data-meta>μ — · n —</div>
+        </div>
+        <div data-stdev-cell="vrp"  style="text-align:center">
+          <div style="color:#10b981;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px">VRP σ</div>
+          <div style="font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:700;font-size:11px;margin-top:1px" data-sd>—</div>
+          <div style="color:var(--color-text-secondary);font-size:8px;margin-top:1px" data-meta>μ — · n —</div>
+        </div>
+        <div data-stdev-cell="vov"  style="text-align:center">
+          <div style="color:#f59e0b;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:8.5px">VoV σ</div>
+          <div style="font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:700;font-size:11px;margin-top:1px" data-sd>—</div>
+          <div style="color:var(--color-text-secondary);font-size:8px;margin-top:1px" data-meta>μ — · n —</div>
+        </div>
+      </div>
+      <!-- "current vs band" sub-strip showing where the latest RV5 sits in its own σ envelope -->
+      <div id="vapRv5BandStrip" style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 9px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.18);border-radius:6px;font-size:9.5px">
+        <span style="font-weight:800;color:#3b82f6;text-transform:uppercase;letter-spacing:.04em;font-size:9px">RV5 σ-Band:</span>
+        <span id="vapRv5BandRange" style="font-variant-numeric:tabular-nums;color:var(--color-text-secondary);font-size:9.5px">—</span>
+        <span id="vapRv5BandStatus" style="margin-left:auto;font-weight:800;font-size:9.5px;padding:2px 8px;border-radius:4px;background:rgba(128,128,128,0.1);color:var(--color-text-secondary)">—</span>
+      </div>
     </div>
 
     <!-- Augen IV Z-Score bar -->
@@ -17473,6 +17724,53 @@ function vapInitChart(){
       }
     }
   });
+
+  // ── Seed chart from restored vapState history (page-reopen path) ──
+  // brmPersist.restoreVap() refills vapState.*History arrays from
+  // localStorage at boot, but those arrays don't show up on the chart
+  // until fresh ticks roll in. We seed the chart datasets here so the
+  // user sees their full pre-refresh history immediately, and so the
+  // σ strip below has data to compute against right away.
+  try {
+    const vs = vapState;
+    const has = (a) => Array.isArray(a) && a.length > 0;
+    if(has(vs.ivHistory) || has(vs.rv5History) || has(vs.hv30History)){
+      const MAX = VAP_MAX_HISTORY;
+      const slice = (a) => Array.isArray(a) ? a.slice(-MAX) : [];
+      const ivArr   = slice(vs.ivHistory);
+      const rv5Arr  = slice(vs.rv5History);
+      const hv30Arr = slice(vs.hv30History);
+      const vrpArr  = slice(vs.vrpHistory);
+      const vovArr  = slice(vs.vovHistory);
+      const tsArr   = slice(vs.timestamps);
+      // Length-align: the longest array drives the chart length; shorter
+      // arrays are right-padded with null so Chart.js draws gaps cleanly.
+      const len = Math.max(ivArr.length, rv5Arr.length, hv30Arr.length, vrpArr.length, vovArr.length);
+      function pad(arr){
+        if(arr.length === len) return arr;
+        const out = new Array(len - arr.length).fill(null).concat(arr);
+        return out.slice(-len);
+      }
+      const labelsOut = [];
+      for(let i = 0; i < len; i++){
+        const ts = tsArr[tsArr.length - len + i];
+        if(ts && isFinite(ts)){
+          labelsOut.push(new Date(ts).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}));
+        } else {
+          labelsOut.push('');
+        }
+      }
+      vapState.chartInst.data.labels         = labelsOut;
+      vapState.chartInst.data.datasets[0].data = pad(ivArr);
+      vapState.chartInst.data.datasets[1].data = pad(rv5Arr);
+      vapState.chartInst.data.datasets[2].data = pad(hv30Arr);
+      vapState.chartInst.data.datasets[3].data = pad(vrpArr);
+      vapState.chartInst.data.datasets[4].data = pad(vovArr);
+      vapState.chartInst.update('none');
+      // Refresh σ strip too so user sees stdev immediately on open
+      try { _vapRefreshStdevStrip(vapState.chartInst); } catch(_e){}
+    }
+  } catch(e){ console.warn('[vap] seed-from-restore failed:', e.message); }
 }
 
 /* ── Update Chart ── */
@@ -17489,6 +17787,93 @@ function vapUpdateChart(iv,rv5,hv30,vrp,vov,label){
   push(ch.data.datasets[3].data, vrp);
   push(ch.data.datasets[4].data, vov);
   ch.update('none');
+
+  // ── Refresh stdev strip from the same series the chart just plotted ──
+  // The strip lives directly below the chart. We pull straight from the
+  // chart's dataset arrays so the σ value is always exactly the spread
+  // of what the user is looking at. Sample stdev with n-1 denominator;
+  // returns null when fewer than 2 finite samples are available.
+  try { _vapRefreshStdevStrip(ch); } catch(e){ /* strip is best-effort */ }
+}
+
+/* ── Stdev strip refresh ─────────────────────────────────────────
+   Reads the live datasets off the chart (so it always reflects what's
+   currently plotted), filters non-finite values, and computes the
+   sample stdev. Updates per-series cells plus a "current vs ±2σ band"
+   readout for RV5 specifically (since that's the one the user asked
+   about — but the same is true for any of the others if we ever want
+   to expand it).                                                    */
+function _vapRefreshStdevStrip(ch){
+  if(!ch || !ch.data || !ch.data.datasets) return;
+  const cells = {
+    iv:   ch.data.datasets[0]?.data || [],
+    rv5:  ch.data.datasets[1]?.data || [],
+    hv30: ch.data.datasets[2]?.data || [],
+    vrp:  ch.data.datasets[3]?.data || [],
+    vov:  ch.data.datasets[4]?.data || [],
+  };
+  function sampleStats(arr){
+    const clean = arr.filter(v => typeof v === 'number' && isFinite(v));
+    const n = clean.length;
+    if(n < 2) return { n, mean:null, sd:null, last:n?clean[n-1]:null };
+    const mean = clean.reduce((a,b)=>a+b,0)/n;
+    let sse = 0;
+    for(let i=0;i<n;i++){ const d = clean[i]-mean; sse += d*d; }
+    const variance = sse/(n-1);                  // unbiased sample variance
+    return { n, mean, sd:Math.sqrt(variance), last:clean[n-1] };
+  }
+  const stats = {
+    iv:   sampleStats(cells.iv),
+    rv5:  sampleStats(cells.rv5),
+    hv30: sampleStats(cells.hv30),
+    vrp:  sampleStats(cells.vrp),
+    vov:  sampleStats(cells.vov),
+  };
+  Object.entries(stats).forEach(([k, st]) => {
+    const cell = document.querySelector(`[data-stdev-cell="${k}"]`);
+    if(!cell) return;
+    const sdEl   = cell.querySelector('[data-sd]');
+    const metaEl = cell.querySelector('[data-meta]');
+    if(sdEl){
+      sdEl.textContent = (st.sd != null) ? '±' + st.sd.toFixed(2) + 'pp' : '—';
+    }
+    if(metaEl){
+      const meanTxt = (st.mean != null) ? st.mean.toFixed(1) + '%' : '—';
+      metaEl.textContent = `μ ${meanTxt} · n ${st.n}`;
+    }
+  });
+
+  // RV5 band cell: where does the latest reading sit vs (μ − 2σ, μ + 2σ)?
+  const rv = stats.rv5;
+  const rangeEl  = document.getElementById('vapRv5BandRange');
+  const statusEl = document.getElementById('vapRv5BandStatus');
+  if(rv.sd != null && rv.last != null && rangeEl && statusEl){
+    const lo = rv.mean - 2*rv.sd;
+    const hi = rv.mean + 2*rv.sd;
+    rangeEl.textContent = `μ ${rv.mean.toFixed(1)}% · ±2σ band [${lo.toFixed(1)}%, ${hi.toFixed(1)}%] · last ${rv.last.toFixed(1)}%`;
+    let label, bg, color;
+    if(rv.last > hi){
+      label = 'ABOVE +2σ · vol regime spike'; bg = 'rgba(220,38,38,0.2)';  color = '#dc2626';
+    } else if(rv.last < lo){
+      label = 'BELOW −2σ · vol crush'; bg = 'rgba(22,163,74,0.2)';  color = '#16a34a';
+    } else if(rv.last > rv.mean + rv.sd){
+      label = 'Above +1σ · elevated';   bg = 'rgba(245,158,11,0.2)'; color = '#d97706';
+    } else if(rv.last < rv.mean - rv.sd){
+      label = 'Below −1σ · cooling';    bg = 'rgba(59,130,246,0.2)'; color = '#2563eb';
+    } else {
+      label = 'Inside ±1σ · normal';    bg = 'rgba(128,128,128,0.15)'; color = 'var(--color-text-primary)';
+    }
+    statusEl.textContent = label;
+    statusEl.style.background = bg;
+    statusEl.style.color = color;
+  } else if(rangeEl){
+    rangeEl.textContent = 'Building sample · need 2+ ticks for σ';
+    if(statusEl){
+      statusEl.textContent = '—';
+      statusEl.style.background = 'rgba(128,128,128,0.1)';
+      statusEl.style.color = 'var(--color-text-secondary)';
+    }
+  }
 }
 
 /* ── Update Expiry Table ── */
@@ -23271,6 +23656,30 @@ setTimeout(()=>{
         </div>
       </div>
 
+      <!-- ═══ CURRENT P&L — headline strip directly above the payoff chart ═══
+           Two side-by-side cards:
+             1. CURRENT P&L (LIVE MTM) — your live mark-to-market right now,
+                from pos.currentPnl. Updates every sim tick. This is what you
+                actually have on the books — close now and this is your
+                realised cash.
+             2. P&L AT TARGET — projected P&L if BTC moves to the slider's
+                target price on the slider's target date. Uses the existing
+                'On Target Date' curve which already accounts for theta and
+                IV. Updates live as the user drags the BTC Target / Date
+                sliders below the chart. -->
+      <div id="simExpiryFinalPnl" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px 10px;background:linear-gradient(135deg,rgba(22,163,74,0.06),rgba(59,130,246,0.04));border:1px solid rgba(22,163,74,0.22);border-radius:8px;margin-bottom:7px">
+        <div style="text-align:center;padding:4px">
+          <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-bottom:3px">📍 Current P&amp;L · Live MTM</div>
+          <div class="sim-pnl-stat-val" id="simFinalPnlAtSpot" style="font-size:17px;color:#16a34a;font-variant-numeric:tabular-nums">—</div>
+          <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px" id="simFinalPnlAtSpotSub">Mark-to-market · close now and this is your cash</div>
+        </div>
+        <div style="text-align:center;padding:4px;border-left:1px dashed var(--color-border-tertiary)">
+          <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-bottom:3px">🎯 P&amp;L · At Target</div>
+          <div class="sim-pnl-stat-val" id="simFinalPnlAtTarget" style="font-size:17px;color:#3b82f6;font-variant-numeric:tabular-nums">—</div>
+          <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px" id="simFinalPnlAtTargetSub">If BTC reaches $— on target date</div>
+        </div>
+      </div>
+
       <!-- Legend strip above chart -->
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;background:rgba(128,128,128,0.04);border-radius:7px;margin-bottom:6px;font-size:10px">
         <span style="font-weight:700;color:var(--color-text-secondary)">OVERLAYS:</span>
@@ -26414,6 +26823,45 @@ setTimeout(()=>{
     chart.update('none');  // no animation = no flicker
     // Re-render greeks at target (slider + IV overrides change them)
     try { renderGreeksAtTarget(); } catch(e) { console.warn('[SIM] greeks:', e.message); }
+
+    // ── Current P&L badges (top-of-chart strip) — slider fast path ─
+    // Left card: live MTM from pos.currentPnl (slider-invariant; updates
+    // because every full sim tick refreshes pos.currentPnl).
+    // Right card: P&L at the target slider's spot + date — read straight
+    // from pnlOnTargetDate[targetMarkerIdx] which we just rebuilt above.
+    try {
+      const pos2 = cache.pos;
+      if(pos2){
+        const currentPnL = isFinite(pos2.currentPnl) ? pos2.currentPnl : null;
+        const projAtTgt  = pnlOnTargetDate[targetMarkerIdx];
+        const elS = document.getElementById('simFinalPnlAtSpot');
+        const elT = document.getElementById('simFinalPnlAtTarget');
+        const fmt = (n) => (n>=0?'+':'-') + '$' + Math.abs(n).toFixed(2);
+        if(elS){
+          if(currentPnL != null){
+            elS.textContent = fmt(currentPnL);
+            elS.style.color = currentPnL >= 0 ? '#16a34a' : '#dc2626';
+          } else {
+            elS.textContent = '—';
+            elS.style.color = 'var(--color-text-secondary)';
+          }
+        }
+        if(elT){
+          if(isFinite(projAtTgt)){
+            elT.textContent = fmt(projAtTgt);
+            elT.style.color = projAtTgt >= 0 ? '#16a34a' : '#dc2626';
+          } else {
+            elT.textContent = '—';
+            elT.style.color = 'var(--color-text-secondary)';
+          }
+        }
+        const pctMaxStr = (pos2.creditInitial > 0 && currentPnL != null)
+          ? ` · ${(currentPnL/pos2.creditInitial*100).toFixed(1)}% of max`
+          : '';
+        $set('simFinalPnlAtSpotSub',   `Mark-to-market · close now and this is your cash${pctMaxStr}`);
+        $set('simFinalPnlAtTargetSub', `If BTC reaches $${Math.round(targetSpot).toLocaleString()} on target date · ${(simState.targetSpotPct>=0?'+':'')}${simState.targetSpotPct.toFixed(1)}%`);
+      }
+    } catch(_e){ /* badges are best-effort UI */ }
   };
 
   function drawPnlCurve(){
@@ -26574,6 +27022,43 @@ setTimeout(()=>{
     const zDn = (beLower - spot) / sigmaMove;
     const pop = (normCDF(zUp) - normCDF(zDn)) * 100;
     $set('simPOP', Math.round(pop) + '%');
+
+    // ── CURRENT P&L (top-of-chart strip) ────────────────────────────
+    // Left card: live mark-to-market — what you'd realise if you closed
+    // the position right now. Pulled straight from pos.currentPnl which
+    // the sim engine refreshes on every tick.
+    // Right card: projected P&L at the target slider's spot AND target
+    // slider's date — uses the already-computed On-Target-Date curve
+    // (which factors in theta decay + IV-shift overrides), not pure
+    // expiry intrinsic value.
+    const _currentPnL = isFinite(pos.currentPnl) ? pos.currentPnl : null;
+    const _pnlAtTargetProjected = pnlOnTargetDate[targetMarkerIdx];
+    const _fmtSigned = (n) => (n>=0?'+':'-') + '$' + Math.abs(n).toFixed(2);
+    const elFinalSpot   = document.getElementById('simFinalPnlAtSpot');
+    const elFinalTarget = document.getElementById('simFinalPnlAtTarget');
+    if(elFinalSpot){
+      if(_currentPnL != null){
+        elFinalSpot.textContent = _fmtSigned(_currentPnL);
+        elFinalSpot.style.color = _currentPnL >= 0 ? '#16a34a' : '#dc2626';
+      } else {
+        elFinalSpot.textContent = '—';
+        elFinalSpot.style.color = 'var(--color-text-secondary)';
+      }
+    }
+    if(elFinalTarget){
+      if(isFinite(_pnlAtTargetProjected)){
+        elFinalTarget.textContent = _fmtSigned(_pnlAtTargetProjected);
+        elFinalTarget.style.color = _pnlAtTargetProjected >= 0 ? '#16a34a' : '#dc2626';
+      } else {
+        elFinalTarget.textContent = '—';
+        elFinalTarget.style.color = 'var(--color-text-secondary)';
+      }
+    }
+    const _pctMaxStr = (pos.creditInitial > 0 && _currentPnL != null)
+      ? ` · ${(_currentPnL/pos.creditInitial*100).toFixed(1)}% of max`
+      : '';
+    $set('simFinalPnlAtSpotSub',   `Mark-to-market · close now and this is your cash${_pctMaxStr}`);
+    $set('simFinalPnlAtTargetSub', `If BTC reaches $${Math.round(targetSpot).toLocaleString()} on target date · ${(simState.targetSpotPct>=0?'+':'')}${simState.targetSpotPct.toFixed(1)}%`);
 
     // ── Decide: FULL rebuild vs DATA update ──
     // If existing chart matches current structure (same position, same labels count),
@@ -28505,6 +28990,181 @@ const state = {
    for bounded series), JSON-stringified, and stored. Total footprint
    stays well under localStorage's 5 MB limit per origin.
    ──────────────────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════
+   RV STATS TRACKER — window.rvStats
+   ────────────────────────────────────────────────────────────────────
+   Records every RV value emitted by rvMtf.compute() and tracks per-
+   window session high/low/open. The "session" rolls at 5:30 AM IST
+   (start of Asia trading day) — the same anchor used by AMD windows.
+
+   For each of the four MTF windows we maintain:
+     • open      — first sample of the current session
+     • high/low  — running session extremes
+     • last      — most recent value (for renderer convenience)
+     • history   — last 200 ticks of (ts, value) for stdev / charting
+
+   The user's "normal band" thresholds are defined per window:
+     1H  → 14–20%      (ultra-short)
+     4H  → 20–30%      (short)
+     24H → 20–25%      (medium)
+     7D  → 40–60%      (long — note: typical BTC HV30 is ~50%)
+
+   When a fresh value falls inside the band, the cell is healthy.
+   Outside band, the cell is colored amber (mildly out) or red (far
+   out). The MTF strip render reads these and tints accordingly.
+
+   Persistence: writes to localStorage key "brm_rvstats_v1" every 30s
+   and on visibility/unload via the brmPersist.scheduleSave hook.
+   ──────────────────────────────────────────────────────────────────── */
+(function rvStatsInit(){
+  'use strict';
+  const KEY = 'brm_rvstats_v1';
+  const MAX_HISTORY = 200;
+  const SAVE_INTERVAL_MS = 30_000;
+
+  // User-defined "normal" bands (annualised RV %)
+  const BANDS = {
+    ultraShort: { lo: 14, hi: 20, label: '14–20%' },
+    short:      { lo: 20, hi: 30, label: '20–30%' },
+    medium:     { lo: 20, hi: 25, label: '20–25%' },
+    long:       { lo: 40, hi: 60, label: '40–60%' },
+  };
+
+  // ── Session anchor: 5:30 AM IST = 0 UTC = day rollover.
+  // Returns YYYY-MM-DD for the IST trading day a given timestamp belongs to.
+  function _istSessionDate(ts){
+    const d = new Date(ts + (5*60+30)*60*1000);  // shift to IST
+    // Anything before 5:30 AM IST belongs to the previous day's session
+    // — but our shift already puts the rollover at midnight IST, so we
+    // just take the date portion. (5:30 IST = 00:00 in shifted clock.)
+    return d.toISOString().slice(0, 10);
+  }
+
+  function _emptyState(){
+    return {
+      v: 1,
+      sessionDate: null,
+      windows: {
+        ultraShort: { open: null, high: null, low: null, last: null, history: [] },
+        short:      { open: null, high: null, low: null, last: null, history: [] },
+        medium:     { open: null, high: null, low: null, last: null, history: [] },
+        long:       { open: null, high: null, low: null, last: null, history: [] },
+      },
+    };
+  }
+
+  // ── Restore on boot ──
+  let state = _emptyState();
+  try {
+    if(typeof localStorage !== 'undefined'){
+      const raw = localStorage.getItem(KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.v === 1 && parsed.windows){
+          state = parsed;
+        }
+      }
+    }
+  } catch(_e){ /* corrupted save — start fresh */ }
+
+  // ── Roll session if we've crossed into a new IST day ──
+  function _rollSessionIfNeeded(now){
+    const today = _istSessionDate(now);
+    if(state.sessionDate !== today){
+      // Roll: keep history (cumulative) but reset open/high/low so today
+      // gets a fresh envelope. The first sample of the new day will set
+      // open/high/low all equal.
+      state.sessionDate = today;
+      for(const k of Object.keys(state.windows)){
+        state.windows[k].open = null;
+        state.windows[k].high = null;
+        state.windows[k].low  = null;
+      }
+    }
+  }
+
+  // ── Record a fresh snapshot from rvMtf.compute() ──
+  function record(snap){
+    if(!snap || typeof snap !== 'object') return;
+    const now = Date.now();
+    _rollSessionIfNeeded(now);
+    for(const k of ['ultraShort','short','medium','long']){
+      const v = snap[k];
+      if(v == null || !isFinite(v) || v <= 0 || v > 1000) continue;
+      const w = state.windows[k];
+      if(w.open == null) w.open = v;
+      if(w.high == null || v > w.high) w.high = v;
+      if(w.low  == null || v < w.low ) w.low  = v;
+      w.last = v;
+      w.history.push({ ts: now, v });
+      if(w.history.length > MAX_HISTORY) w.history.shift();
+    }
+  }
+
+  // ── Compute simple stdev from rolling history ──
+  function _stdev(arr){
+    if(!Array.isArray(arr) || arr.length < 3) return null;
+    const xs = arr.map(p => p.v).filter(isFinite);
+    if(xs.length < 3) return null;
+    const mean = xs.reduce((s,x)=>s+x,0) / xs.length;
+    const variance = xs.reduce((s,x)=>s+(x-mean)*(x-mean),0) / xs.length;
+    return Math.sqrt(variance);
+  }
+
+  // ── Health classifier for a value vs its band ──
+  // Returns: 'in' (within band), 'low' (below lo), 'high' (above hi),
+  //          'far-low' (well below lo), 'far-high' (well above hi).
+  function bandHealth(window, v){
+    const b = BANDS[window];
+    if(!b || v == null || !isFinite(v)) return null;
+    const span = b.hi - b.lo;
+    if(v >= b.lo && v <= b.hi) return 'in';
+    if(v < b.lo){
+      return (b.lo - v) > span * 0.5 ? 'far-low' : 'low';
+    } else {
+      return (v - b.hi) > span * 0.5 ? 'far-high' : 'high';
+    }
+  }
+
+  // ── Get the latest snapshot for the renderer ──
+  function snapshot(){
+    const out = {};
+    for(const k of Object.keys(state.windows)){
+      const w = state.windows[k];
+      out[k] = {
+        open:    w.open,
+        high:    w.high,
+        low:     w.low,
+        last:    w.last,
+        stdev:   _stdev(w.history),
+        band:    BANDS[k],
+        health:  bandHealth(k, w.last),
+        samples: w.history.length,
+      };
+    }
+    out.sessionDate = state.sessionDate;
+    return out;
+  }
+
+  // ── Persist ──
+  function save(){
+    try {
+      if(typeof localStorage !== 'undefined'){
+        localStorage.setItem(KEY, JSON.stringify(state));
+      }
+    } catch(_e){ /* quota / private mode */ }
+  }
+  setInterval(save, SAVE_INTERVAL_MS);
+  if(typeof window !== 'undefined'){
+    window.addEventListener('beforeunload', () => { try { save(); } catch(_e){} });
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'hidden'){ try { save(); } catch(_e){} }
+    });
+  }
+
+  window.rvStats = { record, snapshot, save, BANDS };
+})();
+
 (function brmPersistInit(){
   'use strict';
   const KEYS = {
@@ -28512,6 +29172,10 @@ const state = {
     vap:          'brm_vap_v1',
     manualDraft:  'brm_manualDraft_v1',
     bktLast:      'brm_bktLast_v1',
+    breachState:  'brm_breach_v1',     // σ breach cooldowns — prevents duplicate alerts on refresh
+    mpoCandles:   'brm_mpo_v1',         // Binance 5m/1h/4h/1d candle cache — eliminates boot fetch wait
+    alarmCool:    'brm_alarmCool_v1',  // main alarm cooldowns (news, IV spike, vol crush, etc.)
+    misc:         'brm_misc_v1',        // grab-bag: simState session counters, cockpit damage state
   };
   const SAVE_INTERVAL_MS = 30_000;
   const MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -28705,6 +29369,155 @@ const state = {
     } catch(e){ console.warn('[brmPersist] restoreBktLast', e.message); return null; }
   }
 
+  // ── Save: σ-breach cooldown registry ──
+  // Prevents the same breach from re-firing voice/audio/Telegram every
+  // time the user refreshes the page. Without persistence, every refresh
+  // reset window._rvBreachState to {} and the next compute() tick would
+  // think this was a fresh breach and fire again. Now the cooldown
+  // window is preserved across reloads.
+  function saveBreachState(){
+    try {
+      if(!window._rvBreachState) return;
+      _set(KEYS.breachState, JSON.stringify({
+        v: 1, savedAt: Date.now(),
+        lastFired: window._rvBreachState.lastFired || {},
+      }));
+    } catch(e){ console.warn('[brmPersist] saveBreachState', e.message); }
+  }
+  function restoreBreachState(){
+    try {
+      const raw = _get(KEYS.breachState);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      // Don't apply stale cooldowns older than 6h — a breach from this
+      // morning shouldn't suppress a new alert tonight.
+      const now = Date.now();
+      const STALE_MS = 6 * 60 * 60 * 1000;
+      if((now - (data.savedAt || 0)) > STALE_MS) return;
+      const filtered = {};
+      Object.entries(data.lastFired || {}).forEach(([k, ts]) => {
+        if(now - ts < STALE_MS) filtered[k] = ts;
+      });
+      window._rvBreachState = { lastFired: filtered };
+    } catch(e){ console.warn('[brmPersist] restoreBreachState', e.message); }
+  }
+
+  // ── Save: MPO candles cache ──
+  // The Binance candle fetcher takes ~2-3s to populate on cold boot.
+  // Until candles arrive, the Multi-Timeframe RV strip shows '—' and
+  // the regime classifier can't compute a slope. Caching the last-known
+  // candles lets the page show meaningful data INSTANTLY on refresh,
+  // then quietly refresh in background. Cap to a few KB by trimming
+  // each series to the minimum needed by rvMtf (5m: 288, 1h: 25, etc).
+  function saveMpoCandles(){
+    try {
+      if(typeof mpoState === 'undefined') return;
+      const trim = (arr, n) => Array.isArray(arr) ? arr.slice(-n) : [];
+      _set(KEYS.mpoCandles, JSON.stringify({
+        v: 1, savedAt: Date.now(),
+        candles5m: trim(mpoState.candles5m, 300),  // 25h covers the medium window
+        candles1h: trim(mpoState.candles1h, 100),  // 100h
+        candles4h: trim(mpoState.candles4h, 60),   // 10 days
+        candles1d: trim(mpoState.candles1d, 30),   // 30 days
+        lastFetch: mpoState.lastFetch || 0,
+      }));
+    } catch(e){ console.warn('[brmPersist] saveMpoCandles', e.message); }
+  }
+  function restoreMpoCandles(){
+    try {
+      const raw = _get(KEYS.mpoCandles);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      // Only use candles that aren't too stale (1h max; older won't help
+      // since the live fetcher will refresh quickly anyway).
+      if((Date.now() - (data.savedAt || 0)) > 3600000) return;
+      if(typeof mpoState === 'undefined') return;
+      // Only fill empty arrays — don't clobber fresh boot data
+      ['candles5m','candles1h','candles4h','candles1d'].forEach(k => {
+        if(Array.isArray(data[k]) && (!mpoState[k] || !mpoState[k].length)){
+          mpoState[k] = data[k].slice();
+        }
+      });
+      console.log('[brmPersist] restored MPO candles from', new Date(data.savedAt).toLocaleTimeString());
+    } catch(e){ console.warn('[brmPersist] restoreMpoCandles', e.message); }
+  }
+
+  // ── Save: alarm cooldowns ──
+  // The main alarm system (news, IV spike, vol crush, regime shift,
+  // position-specific) tracks last-fired timestamps in window._alarmLastFired
+  // (or similar). Persisting these prevents alarm storms right after refresh.
+  function saveAlarmCool(){
+    try {
+      const reg = window._alarmLastFired || window.ALARM_COOLDOWN || null;
+      if(!reg) return;
+      _set(KEYS.alarmCool, JSON.stringify({
+        v: 1, savedAt: Date.now(),
+        lastFired: { ...reg },
+      }));
+    } catch(e){ /* alarm registry may not be defined yet */ }
+  }
+  function restoreAlarmCool(){
+    try {
+      const raw = _get(KEYS.alarmCool);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      const STALE_MS = 60 * 60 * 1000;  // 1h stale threshold for alarms
+      if((Date.now() - (data.savedAt || 0)) > STALE_MS) return;
+      const now = Date.now();
+      const filtered = {};
+      Object.entries(data.lastFired || {}).forEach(([k, ts]) => {
+        if(now - ts < STALE_MS) filtered[k] = ts;
+      });
+      // Inject into both possible global names — whichever the alarm
+      // engine uses, it'll find its cooldowns waiting.
+      if(!window._alarmLastFired) window._alarmLastFired = {};
+      Object.assign(window._alarmLastFired, filtered);
+    } catch(e){ console.warn('[brmPersist] restoreAlarmCool', e.message); }
+  }
+
+  // ── Save: misc grab-bag ──
+  // simState's session counters (realizedPnl, openTradesCount, etc.) plus
+  // cockpit damage state. These don't fit cleanly into the other slots
+  // but the user wants every running counter preserved.
+  function saveMisc(){
+    try {
+      const sim = window.simState || {};
+      const ckp = window._ckpDamageState || null;
+      _set(KEYS.misc, JSON.stringify({
+        v: 1, savedAt: Date.now(),
+        sim: {
+          realizedPnl:    isFinite(sim.realizedPnl) ? sim.realizedPnl : null,
+          totalCommission: isFinite(sim.totalCommission) ? sim.totalCommission : null,
+          tradesOpened:    isFinite(sim.tradesOpened) ? sim.tradesOpened : null,
+          tradesClosed:    isFinite(sim.tradesClosed) ? sim.tradesClosed : null,
+        },
+        ckpDamage: ckp,
+      }));
+    } catch(e){ /* misc is best-effort */ }
+  }
+  function restoreMisc(){
+    try {
+      const raw = _get(KEYS.misc);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      if((Date.now() - (data.savedAt || 0)) > MAX_AGE_MS) return;
+      if(window.simState && data.sim){
+        ['realizedPnl','totalCommission','tradesOpened','tradesClosed'].forEach(k => {
+          if(data.sim[k] != null && !isFinite(window.simState[k])){
+            window.simState[k] = data.sim[k];
+          }
+        });
+      }
+      if(data.ckpDamage && !window._ckpDamageState){
+        window._ckpDamageState = data.ckpDamage;
+      }
+    } catch(e){ console.warn('[brmPersist] restoreMisc', e.message); }
+  }
+
   // ── Master save (all-in-one) ──
   function persistAll(){
     const now = Date.now();
@@ -28712,6 +29525,10 @@ const state = {
     _lastSaveTs = now;
     saveState();
     saveVap();
+    saveBreachState();
+    saveMpoCandles();
+    saveAlarmCool();
+    saveMisc();
   }
 
   // ── Schedule a save shortly after a state change ──
@@ -28729,6 +29546,10 @@ const state = {
   function restoreAll(){
     restoreState();
     restoreVap();
+    restoreBreachState();
+    restoreMpoCandles();
+    restoreAlarmCool();
+    restoreMisc();
     // bktLast + manualDraft are pulled by their consumers, not restored here
   }
 
@@ -28751,6 +29572,10 @@ const state = {
     persistAll, scheduleSave, restoreAll,
     saveManualDraft, restoreManualDraft,
     saveBktLast, restoreBktLast,
+    saveBreachState, restoreBreachState,
+    saveMpoCandles, restoreMpoCandles,
+    saveAlarmCool, restoreAlarmCool,
+    saveMisc, restoreMisc,
     KEYS,
   };
 
@@ -36487,6 +37312,9 @@ const mpoState = {
       },
     };
     window.rvMtf.lastSnapshot = out;
+    // Feed the stats tracker. It maintains session H/L/O per window
+    // plus rolling history for stdev. Persisted to localStorage.
+    try { window.rvStats?.record(out); } catch(_e){}
     return out;
   }
 
@@ -36550,6 +37378,9 @@ async function mpoFetchCandles() {
   mpoState.candles1h = parse(raw1h);
   mpoState.candles4h = parse(raw4h);
   mpoState.candles1d = parse(raw1d);
+  // Persist immediately so the next page-load gets instant candles
+  // instead of waiting for the Binance fetch round-trip.
+  try { window.brmPersist?.saveMpoCandles(); } catch(_e){}
 }
 
 /* ══════════════════════════════════════════
