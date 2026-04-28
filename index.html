@@ -1929,13 +1929,54 @@ window._brahmastraADX = _ciComputeADX;
   position:absolute;
   left:50%;
   bottom:14%;
-  width:90px;
-  height:54px;
+  /* Gentleman avatar — taller than wide */
+  width:54px;
+  height:78px;
   transform:translateX(-50%);
   transition:left 0.9s linear, transform 0.6s ease;
   z-index:5;
   filter:drop-shadow(0 6px 8px rgba(0,0,0,0.6));
 }
+
+/* ── "YOU" tag — floats above the gentleman's top hat so it's never
+   confused with the trade-vehicle queue. Lime-yellow chip with a
+   tiny notch pointing down. */
+.ckp-car-you-tag{
+  position:absolute;
+  bottom:84px;            /* just above the top hat (figure ~78px) */
+  left:50%;
+  transform:translateX(-50%);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.12em;
+  padding:2px 8px;
+  border-radius:4px;
+  background:linear-gradient(135deg, #facc15 0%, #eab308 100%);
+  color:#1f2937;
+  white-space:nowrap;
+  pointer-events:none;
+  box-shadow:0 1px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.15);
+  z-index:6;
+  animation:ckp-you-pulse 2s ease-in-out infinite;
+}
+.ckp-car-you-tag::after{
+  /* downward arrow notch pointing at the car */
+  content:"";
+  position:absolute;
+  top:100%;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:4px solid transparent;
+  border-right:4px solid transparent;
+  border-top:4px solid #eab308;
+}
+@keyframes ckp-you-pulse{
+  0%,100%{box-shadow:0 1px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.15), 0 0 6px rgba(250,204,21,0.45)}
+  50%    {box-shadow:0 1px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.15), 0 0 14px rgba(250,204,21,0.85)}
+}
+
 .ckp-car-wrap.tilted-left{transform:translateX(-50%) rotate(-3deg)}
 .ckp-car-wrap.tilted-right{transform:translateX(-50%) rotate(3deg)}
 .ckp-car-wrap.spinning{animation:ckp-spin 1.2s linear infinite}
@@ -2207,6 +2248,104 @@ window._brahmastraADX = _ciComputeADX;
 .ckp-vehicle.ambulance .ckp-vehicle-tag{border-color:#ef4444;color:#fca5a5}
 .ckp-vehicle.police    .ckp-vehicle-tag{border-color:#0ea5e9;color:#7dd3fc}
 .ckp-vehicle.bike      .ckp-vehicle-tag{border-color:#22c55e;color:#86efac}
+
+/* ── TRADE VEHICLES — represent open simulation positions on the road ──
+   Each active trade gets its own vehicle whose type is picked from DTE:
+     ≤ 1 DTE   → 0DTE motorbike  🏍 (red rim, urgent)
+     ≤ 7 DTE   → near-week car   🚗 (cyan rim, weekly position)
+     ≤ 14 DTE  → bi-weekly van   🚐 (teal rim, mid-DTE)
+     ≤ 49 DTE  → monthly bus     🚌 (purple rim, monthlies)
+     ≥ 50 DTE  → quarterly truck 🚛 (gold rim, long-dated)
+   All trade vehicles share a cyan/teal-on-dark colour family so they're
+   visually distinguishable from threat vehicles (red/orange/blue). */
+.ckp-vehicle.trade-bike  .ckp-vehicle-tag{border-color:#f97316;color:#fdba74;background:rgba(15,23,42,0.95)}
+.ckp-vehicle.trade-car   .ckp-vehicle-tag{border-color:#06b6d4;color:#67e8f9;background:rgba(15,23,42,0.95)}
+.ckp-vehicle.trade-van   .ckp-vehicle-tag{border-color:#14b8a6;color:#5eead4;background:rgba(15,23,42,0.95)}
+.ckp-vehicle.trade-bus   .ckp-vehicle-tag{border-color:#a78bfa;color:#c4b5fd;background:rgba(15,23,42,0.95)}
+.ckp-vehicle.trade-truck .ckp-vehicle-tag{border-color:#fbbf24;color:#fcd34d;background:rgba(15,23,42,0.95)}
+
+/* ── Vehicle orientation ──────────────────────────────────────────
+   Standard Unicode car emojis (🚗 🚌 🚐 🚛 🚙 🚓 🚑) face LEFT by
+   default. The cockpit road has the player car anchored at 18% from
+   the LEFT, with the FUTURE running rightward. Two semantic groups:
+
+     • Trade vehicles + expiry markers represent the user's expiries
+       heading TOWARD their expiry date — i.e. driving into the future.
+       These need to face RIGHT (along with traffic flow). We flip
+       them with scaleX(-1).
+
+     • Threat vehicles (news vans, IV buses, ambulances, police, big-
+       candle trucks) represent danger APPROACHING the player from the
+       future side — they should face LEFT (toward the player). We
+       keep their default orientation.
+
+   The ckp-vehicle-tag is positioned by translateX(-50%); flipping
+   the parent would mirror the tag, so we counter-flip the tag with
+   scaleX(-1) to keep the label readable.                              */
+.ckp-vehicle.trade-bike,
+.ckp-vehicle.trade-car,
+.ckp-vehicle.trade-van,
+.ckp-vehicle.trade-bus,
+.ckp-vehicle.trade-truck{
+  /* Flip the emoji to face the right (forward / future direction) */
+  display:inline-block;
+  transform:scaleX(-1);
+}
+/* Counter-flip the label so text reads left-to-right (otherwise it
+   would appear mirrored). The tag's translateX(-50%) centring is
+   preserved by combining both transforms. */
+.ckp-vehicle.trade-bike  .ckp-vehicle-tag,
+.ckp-vehicle.trade-car   .ckp-vehicle-tag,
+.ckp-vehicle.trade-van   .ckp-vehicle-tag,
+.ckp-vehicle.trade-bus   .ckp-vehicle-tag,
+.ckp-vehicle.trade-truck .ckp-vehicle-tag{
+  transform:translateX(-50%) scaleX(-1);
+}
+
+/* ── EXPIRY-MILESTONE vehicles — passive markers for every non-expired
+   expiry the exchange offers. Subdued styling (greyer, dimmer) so they
+   sit in the background and don't compete with active trade vehicles
+   or threat vehicles. The user sees the road's "term structure" laid
+   out: weekly expiries close, monthlies further, quarterlies on the
+   horizon. */
+.ckp-vehicle.expiry-marker{
+  opacity:0.55;
+  filter:grayscale(0.4) drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+}
+.ckp-vehicle.expiry-marker .ckp-vehicle-tag{
+  border-color:rgba(148,163,184,0.55);
+  color:#cbd5e1;
+  background:rgba(15,23,42,0.85);
+  font-weight:600;
+  letter-spacing:.03em;
+}
+.ckp-vehicle.expiry-marker:hover{
+  opacity:1;
+  filter:none;
+}
+/* Expiry markers must NOT inherit the trade-vehicle pulse animation —
+   they're passive backdrop. Override the trade-* rule below. */
+.ckp-vehicle.expiry-marker.trade-bike,
+.ckp-vehicle.expiry-marker.trade-car,
+.ckp-vehicle.expiry-marker.trade-van,
+.ckp-vehicle.expiry-marker.trade-bus,
+.ckp-vehicle.expiry-marker.trade-truck{
+  animation:none;
+}
+
+/* Subtle pulse on all trade vehicles so the user can spot their positions
+   among the surrounding threat traffic */
+.ckp-vehicle.trade-bike,
+.ckp-vehicle.trade-car,
+.ckp-vehicle.trade-van,
+.ckp-vehicle.trade-bus,
+.ckp-vehicle.trade-truck{
+  animation:ckp-trade-pulse 2.4s ease-in-out infinite;
+}
+@keyframes ckp-trade-pulse{
+  0%,100%{filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5)) drop-shadow(0 0 5px rgba(6,182,212,0.45))}
+  50%    {filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(6,182,212,0.85))}
+}
 
 .ckp-vehicle.ambulance, .ckp-vehicle.police{
   animation:ckp-vehicle-flash 0.55s ease-in-out infinite;
@@ -2684,17 +2823,98 @@ window._brahmastraADX = _ciComputeADX;
     <div class="ckp-car-shadow" id="ckpCarShadow"></div>
 
     <!-- The car (re-uses Day Roadmap car SVG, scaled bigger) -->
-    <div class="ckp-car-wrap" id="ckpCarWrap">
-      <svg class="ckp-car-svg" viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 28 L8 22 L18 18 L24 14 L42 14 L48 18 L58 20 L60 28 Z"
-              fill="#ef4444" stroke="#7f1d1d" stroke-width="1.2" stroke-linejoin="round"/>
-        <path d="M22 16 L26 18 L42 18 L46 16 L42 14 L26 14 Z" fill="#0f172a" opacity="0.85"/>
-        <line x1="34" y1="14" x2="34" y2="18" stroke="#7f1d1d" stroke-width="0.6"/>
-        <circle cx="58" cy="24" r="1.6" fill="#fde047"/>
-        <circle cx="16" cy="30" r="5" fill="#1f2937" stroke="#0f172a" stroke-width="1"/>
-        <circle cx="16" cy="30" r="2" fill="#6b7280"/>
-        <circle cx="48" cy="30" r="5" fill="#1f2937" stroke="#0f172a" stroke-width="1"/>
-        <circle cx="48" cy="30" r="2" fill="#6b7280"/>
+    <div class="ckp-car-wrap" id="ckpCarWrap"
+         title="🎩 THIS IS YOU — the gentleman trader.
+─────────────────────────────────
+The man with the top hat is your avatar.
+He is NOT an expiry — he represents YOUR account, standing at 'now'.
+
+What he shows you live:
+• Lean left/right  → position drifting toward put / call wing
+• Spinning         → gamma-driven regime (out of control)
+• Cracks / smoke / fire / 💥 → BTC moved against your strikes
+• Standing tall    → centred, position calm
+
+Vehicles ahead (cyan glow) are YOUR active trades driving toward expiry.
+Faded vehicles further ahead are all expiries available on the exchange.
+Bright vehicles approaching you (red/blue flashing) are threats:
+ambulances = settlement, police = gamma cops, news vans = events.">
+      <!-- Small "YOU" tag so the avatar is unambiguously labelled -->
+      <div class="ckp-car-you-tag">YOU</div>
+      <!-- Gentleman trader avatar — top hat, suit, bow tie, cane.
+           viewBox preserved as 64×40 so the parent dimensions stay
+           consistent with the previous car SVG (90px × 54px wrap). -->
+      <svg class="ckp-car-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+        <!-- Shadow under feet -->
+        <ellipse cx="32" cy="62" rx="14" ry="2" fill="#000" opacity="0.35"/>
+
+        <!-- ── Cane (in right hand, slight forward angle) ── -->
+        <line x1="48" y1="38" x2="52" y2="60" stroke="#78350f" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="48" cy="36" r="1.8" fill="#fbbf24" stroke="#b45309" stroke-width="0.6"/>
+
+        <!-- ── Legs (suit trousers — black) ── -->
+        <path d="M26 44 L24 60 L29 60 L31 46 Z" fill="#1f2937" stroke="#0f172a" stroke-width="0.5"/>
+        <path d="M33 46 L35 60 L40 60 L38 44 Z" fill="#1f2937" stroke="#0f172a" stroke-width="0.5"/>
+        <!-- Shoes (polished black) -->
+        <ellipse cx="26.5" cy="61" rx="3.5" ry="1.2" fill="#0f172a"/>
+        <ellipse cx="37.5" cy="61" rx="3.5" ry="1.2" fill="#0f172a"/>
+
+        <!-- ── Suit jacket (charcoal) ── -->
+        <path d="M22 28 L20 46 L26 46 L28 30 L36 30 L38 46 L44 46 L42 28 Q42 24 38 22 L26 22 Q22 24 22 28 Z"
+              fill="#374151" stroke="#1f2937" stroke-width="0.7" stroke-linejoin="round"/>
+        <!-- Lapels -->
+        <path d="M28 22 L30 30 L32 26 L34 30 L36 22 Z" fill="#1f2937"/>
+        <!-- Shirt (white triangle peeking out) -->
+        <path d="M30 24 L32 30 L34 24 Z" fill="#f1f5f9"/>
+        <!-- Bow tie (red) -->
+        <path d="M29 25 L32 27 L35 25 L34 28 L32 27 L30 28 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="0.4"/>
+        <!-- Pocket square (red triangle) -->
+        <path d="M40 30 L41.5 33 L43 30 Z" fill="#dc2626" opacity="0.85"/>
+        <!-- Buttons -->
+        <circle cx="32" cy="34" r="0.6" fill="#0f172a"/>
+        <circle cx="32" cy="38" r="0.6" fill="#0f172a"/>
+        <circle cx="32" cy="42" r="0.6" fill="#0f172a"/>
+
+        <!-- ── Arms ── -->
+        <!-- Left arm (relaxed) -->
+        <path d="M22 28 L19 38 L21 42 L23 38 L24 30 Z" fill="#374151" stroke="#1f2937" stroke-width="0.5"/>
+        <!-- Right arm (holding cane) -->
+        <path d="M42 28 L46 36 L49 38 L47 32 L44 30 Z" fill="#374151" stroke="#1f2937" stroke-width="0.5"/>
+        <!-- Hands (skin tone) -->
+        <circle cx="20" cy="42" r="1.5" fill="#fcd9b6"/>
+        <circle cx="48" cy="38" r="1.5" fill="#fcd9b6"/>
+
+        <!-- ── Head & neck ── -->
+        <!-- Neck -->
+        <rect x="30.5" y="20" width="3" height="3" fill="#fcd9b6"/>
+        <!-- Face (oval) -->
+        <ellipse cx="32" cy="16" rx="5.5" ry="6" fill="#fcd9b6" stroke="#c08e6e" stroke-width="0.4"/>
+        <!-- Moustache (the gentleman classic) -->
+        <path d="M28.5 17 Q30 18 32 17.5 Q34 18 35.5 17 L35 18.2 Q33.5 18.8 32 18.5 Q30.5 18.8 29 18.2 Z"
+              fill="#1f2937"/>
+        <!-- Mouth (subtle, below moustache) -->
+        <path d="M30 19.4 Q32 20 34 19.4" stroke="#7c2d12" stroke-width="0.5" fill="none" stroke-linecap="round"/>
+        <!-- Eyes -->
+        <circle cx="30" cy="14.5" r="0.7" fill="#0f172a"/>
+        <circle cx="34" cy="14.5" r="0.7" fill="#0f172a"/>
+        <!-- Monocle on right eye (a true gentleman touch) -->
+        <circle cx="34" cy="14.5" r="1.6" fill="none" stroke="#fbbf24" stroke-width="0.5"/>
+        <line x1="35.4" y1="15.6" x2="36.5" y2="18" stroke="#fbbf24" stroke-width="0.4"/>
+        <!-- Eyebrows (a confident slight arch) -->
+        <path d="M28.5 13 Q30 12.4 31.5 13" stroke="#1f2937" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+        <path d="M32.5 13 Q34 12.4 35.5 13" stroke="#1f2937" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+
+        <!-- ── Top hat (tall, black with a band) ── -->
+        <!-- Hat brim (slight curve) -->
+        <ellipse cx="32" cy="9.5" rx="7.5" ry="1.2" fill="#0f172a"/>
+        <!-- Hat crown (tall cylinder) -->
+        <rect x="27.5" y="2" width="9" height="8" fill="#0f172a" stroke="#000" stroke-width="0.4"/>
+        <!-- Hat band (red ribbon) -->
+        <rect x="27.5" y="8" width="9" height="1.4" fill="#dc2626"/>
+        <!-- Hat top edge highlight -->
+        <ellipse cx="32" cy="2" rx="4.5" ry="0.6" fill="#1f2937"/>
+        <!-- Tiny shine on hat -->
+        <line x1="29" y1="3" x2="29" y2="7" stroke="#374151" stroke-width="0.5" opacity="0.7"/>
       </svg>
       <!-- Damage overlay layers — each visibility is gated by .dmg-N class on the parent -->
       <div class="ckp-car-cracks"></div>
@@ -2921,7 +3141,9 @@ window._brahmastraADX = _ciComputeADX;
     <!-- Auto-discovered tiles will be appended here by ckpAutoDiscover() -->
   </div>
 
-  <!-- Multi-Timeframe RV Framework strip — four RV windows with decision use -->
+  <!-- Multi-Timeframe RV Framework strip — four RV windows with decision use
+       PLUS a per-trade IV sub-row showing each open simulation trade's IV
+       with rising/falling slope arrow and net IV−RV (the seller's edge). -->
   <div id="ckpRvMtfStrip"
        title="Multi-Timeframe RV Framework — four annualised RV windows. Ultra-short (1h, 12×5m bars) for real-time regime detection / exit signals. Short (4h, 48×5m bars) for confirming regime shifts / adjustment timing. Medium (24h, 288×5m bars) for session character / entry-skip decisions. Long (7-day rolling) for baseline regime context / strike selection (IV/RV ratio). All values are annualised standard deviation of close-to-close log returns, in % per year."
        style="margin-top:10px;padding:8px 10px;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(15,23,42,0.0) 100%);font-size:10.5px">
@@ -2955,6 +3177,23 @@ window._brahmastraADX = _ciComputeADX;
         <div style="font-size:8.5px;color:var(--color-text-secondary);margin-top:2px">7d rolling · strike selection</div>
         <div style="font-size:9px;font-weight:700;margin-top:3px;padding:1px 5px;border-radius:3px;display:inline-block" id="ckpRvLVerdict">—</div>
       </div>
+    </div>
+
+    <!-- ── PER-TRADE IV ROW ─────────────────────────────────────────
+         One row per active simulation position. Each card shows:
+           • Expiry label + DTE
+           • Current IV with ↑↓→ arrow (slope vs 8-tick reference)
+           • IV − RV (net premium) using the DTE-matched RV window
+             green if ≥ +3pp (rich edge), red if ≤ −3pp (RV eating IV),
+             grey otherwise. This is the "net positive or negative"
+             metric the user asked for.
+         The row hides itself entirely when no positions are open. -->
+    <div id="ckpRvMtfTrades" style="margin-top:8px;padding-top:8px;border-top:0.5px dashed var(--color-border-tertiary);display:none">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+        <span style="font-weight:800;color:var(--color-text-secondary);font-size:9px;text-transform:uppercase;letter-spacing:.06em">🎯 Active Trade IV</span>
+        <span style="font-size:9px;color:var(--color-text-secondary)" id="ckpRvMtfTradesCount">—</span>
+      </div>
+      <div id="ckpRvMtfTradesGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px"></div>
     </div>
   </div>
 
@@ -3461,45 +3700,111 @@ window._brahmastraADX = _ciComputeADX;
   //   IV → vapState.ivHistory  (one push per VAP tick, ATM IV %)
   //   RV → vapState.rv5History (one push per VAP tick, RV5 %)
   // Fallback to state.ivHistory[nearIdx] + 1h-RV if vapState isn't ready.
+  // ΔIV × ΔRV regime classifier — Sinclair / Augen 2x2 matrix.
+  //
+  // Both axes are now properly horizon-matched to the active trade's
+  // expiry, addressing the "wrong-expiry IV vs constant 1h-RV" issue:
+  //
+  //   IV side:  reads state.ivHistory[<trade-expiry-idx>] — the per-expiry
+  //             ATM IV history. When no trade is open, falls back to the
+  //             genuine front-week. (Previously this went through
+  //             vapState.ivHistory which is locked to one specific expiry
+  //             — the 2nd-nearest weekly — so the regime call did not
+  //             reflect your actual position's IV.)
+  //
+  //   RV side:  picks the correct MTF framework window based on the
+  //             trade's DTE:
+  //               • ≤ 7 DTE   → ultraShort (1h)   compared against short (4h)
+  //               • 7-21 DTE  → short (4h)        compared against medium (24h)
+  //               • 21-60 DTE → medium (24h)      compared against long (7d)
+  //               • > 60 DTE  → long (7d)         compared against medium*1.0 baseline
+  //             The ratio (current / baseline) IS the RV slope.
+  //
+  // Why this matters: a 1h price spike means a lot to a 5-DTE strangle but
+  // is noise to a 30-DTE strangle. Matching the RV window to the trade's
+  // horizon makes the regime call materially more useful.
   function getIvRvRegime(){
     try {
-      // ── Pull IV slope ──
-      let ivSeries = (typeof vapState !== 'undefined' && Array.isArray(vapState.ivHistory))
-        ? vapState.ivHistory.slice() : [];
-      if(ivSeries.length < 4){
-        // Fallback to per-expiry IV history
-        const idx = getNearIdx();
-        if(idx >= 0 && state.ivHistory && state.ivHistory[idx] && state.ivHistory[idx].length >= 4){
-          ivSeries = state.ivHistory[idx].slice();
-        }
+      // ── Resolve the expiry-of-interest (trade's expiry, or front week) ──
+      const idx = (typeof getNearIdx === 'function') ? getNearIdx() : -1;
+      const dte = (idx >= 0 && typeof EXPIRIES !== 'undefined' && EXPIRIES[idx])
+        ? EXPIRIES[idx].dte : null;
+
+      // ── Pull IV slope from the EXPIRY-SPECIFIC history ──
+      // This is the key fix: previously we read vapState.ivHistory which
+      // tracks one fixed expiry. Now we read state.ivHistory[idx] which is
+      // populated per-expiry (every expiry has its own ATM-IV time series
+      // pushed each tick).
+      let ivSeries = [];
+      if(idx >= 0 && state.ivHistory && Array.isArray(state.ivHistory[idx])){
+        ivSeries = state.ivHistory[idx].slice();
+      }
+      // Last-resort fallback: vapState.ivHistory (legacy)
+      if(ivSeries.length < 4 && typeof vapState !== 'undefined' && Array.isArray(vapState.ivHistory)){
+        ivSeries = vapState.ivHistory.slice();
       }
       if(ivSeries.length < 3) return null;
 
-      // ── IV slope: same approach as before (8-tick window, mean of first
-      //    half = reference). Robust to single-tick spikes.
+      // ── IV slope: 8-tick window, mean of first half = reference ──
       const ivWin  = ivSeries.slice(-Math.min(8, ivSeries.length));
       const ivRef  = mean(ivWin.slice(0, Math.max(2, Math.floor(ivWin.length/2))));
       const ivLast = ivWin[ivWin.length-1];
       if(!isFinite(ivRef) || ivRef <= 0) return null;
       const dIvPct = (ivLast - ivRef) / ivRef * 100;
 
-      // ── RV slope: PRIMARY source is the Multi-Timeframe RV Framework.
-      //    The spec maps ultra-short (12 × 5m = 1h) to "real-time regime
-      //    detection" and short (48 × 5m = 4h) to "confirm regime shift".
-      //    Their ratio IS the RV slope: ultra-short > short ⇒ RV rising,
-      //    ultra-short < short ⇒ RV falling. This is more responsive and
-      //    less noisy than waiting for VAP-tick history to accumulate.
+      // ── Pick RV windows based on DTE ──
+      // currentName / baselineName are looked up in rvMtf.compute()'s output.
+      // The "current" window is the one most relevant to your trade horizon;
+      // the "baseline" is the next-longer window which serves as the
+      // reference for the slope calculation.
+      let rvCurName = 'ultraShort';
+      let rvBaseName = 'short';
+      let rvHorizonLabel = '1h vs 4h';
+      if(dte == null){
+        // No expiry resolved — use ultra-short as a safe default
+        rvCurName = 'ultraShort'; rvBaseName = 'short'; rvHorizonLabel = '1h vs 4h';
+      } else if(dte <= 7){
+        rvCurName = 'ultraShort'; rvBaseName = 'short';  rvHorizonLabel = '1h vs 4h';
+      } else if(dte <= 21){
+        rvCurName = 'short';      rvBaseName = 'medium'; rvHorizonLabel = '4h vs 24h';
+      } else if(dte <= 60){
+        rvCurName = 'medium';     rvBaseName = 'long';   rvHorizonLabel = '24h vs 7d';
+      } else {
+        // For very long-dated, use long vs medium (inverted) — at this
+        // horizon, medium-term realisation is the meaningful baseline
+        rvCurName = 'long';       rvBaseName = 'medium'; rvHorizonLabel = '7d vs 24h';
+      }
+
       let rvRef  = null;
       let rvLast = null;
-      let rvSource = 'mtf';
+      let rvSource = `mtf-${rvHorizonLabel}`;
+
       if(window.rvMtf && typeof window.rvMtf.compute === 'function'){
         const snap = window.rvMtf.compute();
-        if(snap && snap.ultraShort != null && snap.short != null){
-          rvLast = snap.ultraShort;   // most recent (1h rolling)
-          rvRef  = snap.short;        // baseline (4h rolling)
+        if(snap){
+          const cur  = snap[rvCurName];
+          const base = snap[rvBaseName];
+          if(cur != null && base != null){
+            rvLast = cur;
+            rvRef  = base;
+          } else {
+            // Try progressively shorter windows if the chosen pair isn't
+            // populated yet (boot phase). Order from longest → shortest.
+            const fallbackChain = [
+              ['medium','long'], ['short','medium'], ['ultraShort','short']
+            ];
+            for(const [c,b] of fallbackChain){
+              if(snap[c] != null && snap[b] != null){
+                rvLast = snap[c]; rvRef = snap[b];
+                rvSource = `mtf-${c}/${b} (fallback for DTE ${dte})`;
+                break;
+              }
+            }
+          }
         }
       }
-      // Fallback path: vapState.rv5History tick series
+
+      // Last-ditch fallback: derive from vapState.rv5History tick series
       if(rvRef == null || rvLast == null){
         rvSource = 'vap-history';
         let rvSeries = (typeof vapState !== 'undefined' && Array.isArray(vapState.rv5History))
@@ -3569,7 +3874,11 @@ window._brahmastraADX = _ciComputeADX;
         dIvPct, dRvPct,
         ivDir, rvDir,
         ivRef, ivLast, rvRef, rvLast,
-        rvSource,   // 'mtf' (preferred) or 'vap-history' (fallback)
+        rvSource,                  // 'mtf-1h vs 4h', 'mtf-4h vs 24h', etc.
+        rvHorizonLabel,            // Human-readable horizon (e.g. '4h vs 24h')
+        rvCurName, rvBaseName,     // Window names from rvMtf snapshot
+        ivExpiryIdx: idx,          // Which expiry the IV slope is from
+        ivExpiryDte: dte,          // DTE of that expiry
         samples: { iv: ivSeries.length },
       };
     } catch(e){ return null; }
@@ -4266,6 +4575,9 @@ window._brahmastraADX = _ciComputeADX;
       // full regime label and action by hovering.
       const hazTile = $('ckpTileHazard');
       if(hazTile){
+        const expLbl = (ivRvReg.ivExpiryIdx >= 0 && typeof EXPIRIES !== 'undefined' && EXPIRIES[ivRvReg.ivExpiryIdx])
+          ? EXPIRIES[ivRvReg.ivExpiryIdx].label + ' (' + ivRvReg.ivExpiryDte + 'd)'
+          : 'unknown';
         hazTile.title =
           `Regime: ${ivRvReg.regime}\n` +
           `Action: ${ivRvReg.action}\n\n` +
@@ -4273,8 +4585,9 @@ window._brahmastraADX = _ciComputeADX;
           `ΔRV: ${ivRvReg.rvDir} (${ivRvReg.dRvPct.toFixed(2)}%)\n` +
           `IV ${ivRvReg.ivRef.toFixed(1)}% → ${ivRvReg.ivLast.toFixed(1)}%  |  ` +
           `RV ${ivRvReg.rvRef.toFixed(1)}% → ${ivRvReg.rvLast.toFixed(1)}%\n\n` +
-          `Sinclair / Augen ΔIV × ΔRV classifier · ` +
-          `${ivRvReg.samples.iv} IV samples · RV from ${ivRvReg.rvSource === 'mtf' ? 'MTF framework (1h vs 4h)' : 'vap tick history'}` +
+          `IV source: ${expLbl}\n` +
+          `RV horizon: ${ivRvReg.rvHorizonLabel || '—'} (DTE-matched)\n\n` +
+          `Sinclair / Augen ΔIV × ΔRV classifier · ${ivRvReg.samples.iv} IV samples` +
           (mpo ? `\n\nMPO patterns: ${mpo.label} (${mpo.counts.forming} forming)` : '');
       }
     } else if(mpo){
@@ -4700,54 +5013,125 @@ window._brahmastraADX = _ciComputeADX;
         }catch(e){ return 0; }
       })();
 
-      // Score each potential alarm; highest tier wins
+      // Score each potential alarm; highest tier wins.
+      // Design principles after user feedback (2026-04-28):
+      //   1. NO duplicates — ΔIV/ΔRV regime + MPO + MTF often say the
+      //      same thing 3 different ways. Pick the strongest source per
+      //      category and emit ONE alarm.
+      //   2. POSITION-AWARE — if no trade is open, downgrade gamma
+      //      regime alarms (they're informational; nothing to hamper).
+      //      If a trade is open, only fire gamma alarms when the
+      //      position is actually at risk (drift > 50% toward a strike,
+      //      or DTE-weighted gamma exposure is meaningful).
+      //   3. TIGHTER THRESHOLDS — don't cry "red" for everyday RV.
+      //      RV>80% on BTC is genuinely rare — that's the threshold.
+      //   4. POSITION-CENTRIC ALERTS — when a trade is open, prefer
+      //      strike-distance and DTE-decay alarms over abstract regime
+      //      complaints.
       const alarms = [];
+      const hasOpenPosition = !!greeks;
+
+      // ── PILLAR 1: TIME-BOUND EXTERNAL EVENTS (always relevant) ──
+      // These are real-world events with a known countdown. They don't
+      // overlap with anything else, so they fire as-is.
       if(nextNewsHrs != null && nextNewsHrs < 1)             alarms.push({tier:'red',   why:'Macro event <1h'});
       else if(nextNewsHrs != null && nextNewsHrs < 4)        alarms.push({tier:'amber', why:`News in ${nextNewsHrs.toFixed(1)}h`});
       if(settleHrs != null && settleHrs < 0.5)               alarms.push({tier:'red',   why:'Settle <30m'});
       else if(settleHrs != null && settleHrs < 2)            alarms.push({tier:'amber', why:`Settle ${settleHrs.toFixed(1)}h`});
-      if(rv != null && rv > 80)                               alarms.push({tier:'red',   why:`RV ${rv.toFixed(0)}%`});
-      else if(rv != null && rv > 55)                          alarms.push({tier:'amber', why:`RV ${rv.toFixed(0)}%`});
-      if(ivSpikePts >= 5)                                     alarms.push({tier:'red',   why:`IV +${ivSpikePts.toFixed(1)}pt`});
-      else if(ivSpikePts >= 2)                                alarms.push({tier:'amber', why:`IV +${ivSpikePts.toFixed(1)}pt`});
-      if(vov != null && vov > 12)                             alarms.push({tier:'red',   why:`VoV ${vov.toFixed(1)}`});
-      else if(vov != null && vov > 8)                         alarms.push({tier:'amber', why:`VoV ${vov.toFixed(1)}`});
-      if(mpo && mpo.kind === 'gamma' && mpo.counts.gamma >= 3) alarms.push({tier:'red',   why:'Gamma regime'});
-      else if(mpo && (mpo.kind === 'iv' || mpo.kind === 'mixed')) alarms.push({tier:'amber', why:`${mpo.kind.toUpperCase()} regime`});
 
-      // ── ΔIV × ΔRV slope alarms (Sinclair / Augen) ──
-      if(ivRvReg){
-        if(ivRvReg.kind === 'gamma'){
-          alarms.push({tier:'red', why:`ΔIV↓ ΔRV↑ — gamma-driven trend (stand down)`});
-        } else if(ivRvReg.kind === 'crush'){
-          alarms.push({tier:'red', why:`ΔIV↓ ΔRV↓ — vol crush (no new entries)`});
-        } else if(ivRvReg.kind === 'event'){
-          alarms.push({tier:'amber', why:`ΔIV↑ ΔRV↑ — event-driven (wait)`});
-        }
-        // 'iv' (best entry) and 'neutral' do NOT alarm — they're fine for sellers
-      }
-
-      // ── Multi-Timeframe RV alarms ──
-      // The user's spec maps each window to a specific decision use:
-      //   Ultra-short = exit signal · Short = adjustment timing
-      //   Medium = entry/skip · Long = strike/baseline context
-      // We trigger alarms that match those decision uses.
+      // ── PILLAR 2: VOL SHOCK (one canonical source) ──
+      // Decide which vol-shock signal is strongest, fire only that one.
+      // Priority: IV spike > RV blowout > VoV > RV1h ratio.
+      // (Previously we fired all of them at once; that was the noise.)
+      const volAlarms = [];
+      if(ivSpikePts >= 5)         volAlarms.push({tier:'red',   why:`IV +${ivSpikePts.toFixed(1)}pt in 10m`,  prio: 5});
+      else if(ivSpikePts >= 2)    volAlarms.push({tier:'amber', why:`IV +${ivSpikePts.toFixed(1)}pt in 10m`,  prio: 4});
+      if(rv != null && rv > 100)  volAlarms.push({tier:'red',   why:`RV ${rv.toFixed(0)}% — extreme`,         prio: 5});
+      else if(rv != null && rv > 80) volAlarms.push({tier:'amber', why:`RV ${rv.toFixed(0)}% — elevated`,     prio: 3});
+      if(vov != null && vov > 15) volAlarms.push({tier:'red',   why:`VoV ${vov.toFixed(1)} — vol of vol`,     prio: 4});
+      else if(vov != null && vov > 10) volAlarms.push({tier:'amber', why:`VoV ${vov.toFixed(1)}`,             prio: 2});
+      // MTF RV1h vs baseline — but ONLY if we don't already have a vol alarm
       try {
         const mtf = window.rvMtf?.lastSnapshot;
-        if(mtf && mtf.ultraShort != null && mtf.long != null){
+        if(volAlarms.length === 0 && mtf && mtf.ultraShort != null && mtf.long != null){
           const rUSL = mtf.ultraShort / mtf.long;
-          if(rUSL > 1.50)      alarms.push({tier:'red',   why:`RV1h ${(rUSL).toFixed(1)}× baseline — exit`});
-          else if(rUSL > 1.20) alarms.push({tier:'amber', why:`RV1h ${(rUSL).toFixed(1)}× baseline — watch`});
-        }
-        if(mtf && mtf.short != null && mtf.medium != null){
-          const rSM = mtf.short / mtf.medium;
-          if(rSM > 1.30)       alarms.push({tier:'amber', why:`RV4h ${rSM.toFixed(1)}× session — adjust`});
-        }
-        if(mtf && mtf.medium != null && mtf.long != null){
-          const rML = mtf.medium / mtf.long;
-          if(rML > 1.30)       alarms.push({tier:'amber', why:`RV24h ${rML.toFixed(1)}× baseline — skip new entries`});
+          if(rUSL > 1.80)      volAlarms.push({tier:'red',   why:`RV1h ${rUSL.toFixed(1)}× baseline`, prio: 3});
+          else if(rUSL > 1.40) volAlarms.push({tier:'amber', why:`RV1h ${rUSL.toFixed(1)}× baseline`, prio: 1});
         }
       } catch(_e){}
+      // Pick the highest-priority single vol alarm
+      volAlarms.sort((a,b) => (b.tier==='red'?100:0) + b.prio - ((a.tier==='red'?100:0) + a.prio));
+      if(volAlarms.length) alarms.push({ tier: volAlarms[0].tier, why: volAlarms[0].why });
+
+      // ── PILLAR 3: REGIME (gamma vs IV vs event-driven) ──
+      // The ΔIV/ΔRV classifier is the canonical regime source.
+      // MPO patterns and MTF term-structure get IGNORED here since they
+      // typically just echo the same thing.
+      //
+      // The user's specific feedback: "those gamma which can really
+      // hamper any new position or existing it's creating unnecessary
+      // noise". So gamma alarms ONLY fire if they would actually impact
+      // the user's situation:
+      //   • If a position is open: gamma alarm only when delta drift is
+      //     past 40% toward a strike (otherwise it's an academic concern)
+      //   • If NO position: gamma regime is amber (informational), not
+      //     red — there's nothing to actively hamper
+      if(ivRvReg){
+        const driftPct = (greeks && greeks.callK && greeks.putK)
+          ? Math.abs(spot - (greeks.callK + greeks.putK)/2) / ((greeks.callK - greeks.putK)/2) * 100
+          : 0;
+        if(ivRvReg.kind === 'gamma'){
+          if(hasOpenPosition && driftPct >= 40){
+            // Position is actively threatened — fire red
+            alarms.push({tier:'red', why:`Gamma trend & ${driftPct.toFixed(0)}% drift — strangle at risk`});
+          } else if(hasOpenPosition){
+            // Position open but drift is fine — informational amber
+            alarms.push({tier:'amber', why:'Gamma trend regime (drift OK so far)'});
+          } else {
+            // No position — just informational
+            alarms.push({tier:'amber', why:'Gamma trend — wait for IV-driven entry'});
+          }
+        } else if(ivRvReg.kind === 'crush'){
+          // Vol crush only matters for new entries (no edge); existing
+          // positions can run on theta. So amber for both cases.
+          if(!hasOpenPosition) alarms.push({tier:'amber', why:'Vol crush — no fresh entry edge'});
+          // (When position is open, vol crush is actually GOOD for sellers,
+          // so we don't alarm at all.)
+        } else if(ivRvReg.kind === 'event'){
+          alarms.push({tier:'amber', why:'Event-driven (both vols rising)'});
+        }
+        // 'iv' (best entry) and 'neutral' don't alarm
+      }
+
+      // ── PILLAR 4: POSITION-SPECIFIC RISKS ──
+      // These only fire when a trade is open. Strike proximity and DTE
+      // decay are the two risks that genuinely "hamper" an existing
+      // position regardless of the macro regime.
+      if(hasOpenPosition && greeks){
+        // Strike proximity — drift toward either strike
+        if(greeks.callK && greeks.putK){
+          const halfWidth = (greeks.callK - greeks.putK)/2;
+          const driftPct = halfWidth > 0
+            ? Math.abs(spot - (greeks.callK + greeks.putK)/2) / halfWidth * 100
+            : 0;
+          if(driftPct >= 90)      alarms.push({tier:'red', why:`Drift ${driftPct.toFixed(0)}% — strike near`});
+          else if(driftPct >= 70) alarms.push({tier:'amber', why:`Drift ${driftPct.toFixed(0)}% — leg tested`});
+        }
+        // DTE cliff
+        if(dteRemain != null){
+          if(dteRemain <= 0.5)      alarms.push({tier:'red',   why:`DTE ${dteRemain.toFixed(1)}d — settle today`});
+          else if(dteRemain <= 1.5) alarms.push({tier:'amber', why:`DTE ${dteRemain.toFixed(1)}d — gamma cliff`});
+        }
+      }
+
+      // De-dupe identical alarm reasons (defensive)
+      {
+        const seen = new Set();
+        for(let i = alarms.length - 1; i >= 0; i--){
+          if(seen.has(alarms[i].why)) alarms.splice(i, 1);
+          else seen.add(alarms[i].why);
+        }
+      }
 
       // Resolve worst tier
       let tier = 'green', why = 'All clear ahead';
@@ -5158,7 +5542,157 @@ window._brahmastraADX = _ciComputeADX;
           }
         }
 
-        // 7. Decorative ambient traffic — when nothing dramatic is happening
+        // ── DTE-to-leftPct scale (shared by milestone + trade blocks) ─
+        // Both expiry milestones and active trade vehicles need to be
+        // placed by calendar-distance-to-expiry, NOT by hours-of-today.
+        // This scale is independent of the session ribbon's clock axis,
+        // which prevents the previous bug where a 10-DTE trade appeared
+        // to land in tomorrow's Asia session band.
+        //
+        //   shortest non-expired DTE   → just right of car (~23%)
+        //   longest available DTE      → near the right edge (~95%)
+        //   intermediate DTEs          → spaced logarithmically between
+        const _futureRoadStart  = CAR_ANCHOR_PCT + 5;     // ~23% — just right of car
+        const _futureRoadEnd    = 95;                     // far right edge
+        const _futureRoadSpan   = _futureRoadEnd - _futureRoadStart;
+        const _allDtes = (typeof EXPIRIES !== 'undefined' ? EXPIRIES : [])
+          .filter(e => e && !e.expired && isFinite(e.dte) && e.dte >= 0)
+          .map(e => e.dte)
+          .sort((a,b) => a-b);
+        const _minDte = _allDtes.length ? _allDtes[0]                : 0;
+        const _maxDte = _allDtes.length ? _allDtes[_allDtes.length-1] : 60;
+        function _dteToLeftPct(dte){
+          if(dte <= _minDte) return _futureRoadStart;
+          if(dte >= _maxDte) return _futureRoadEnd;
+          const lo = Math.log(1 + _minDte);
+          const hi = Math.log(1 + _maxDte);
+          const me = Math.log(1 + dte);
+          const norm = (me - lo) / (hi - lo);
+          return _futureRoadStart + norm * _futureRoadSpan;
+        }
+
+        // 6c. ── EXPIRY MILESTONES ────────────────────────────────
+        // One subdued marker per non-expired expiry available on the
+        // exchange — even ones the user hasn't traded. Lets the trader
+        // see the full term-structure laid out as a road of expiries:
+        // weekly close, biweekly further, monthly on the horizon, etc.
+        // Active trades (next block) override these with brighter
+        // styling using the same DTE→vehicle mapping.
+        try {
+          if(typeof EXPIRIES !== 'undefined' && Array.isArray(EXPIRIES)){
+            // Build a Set of expiry-labels we'll override with active trades,
+            // so we don't double-render. Active-trade block runs after this.
+            const activeLabels = new Set(
+              (window.simState?.positions || [])
+                .filter(p => p && p.call && p.put && p.expiry)
+                .map(p => p.expiry)
+            );
+            EXPIRIES.forEach((ex, idx) => {
+              if(!ex || ex.expired) return;
+              if(ex.dte == null || ex.dte < 0) return;
+              if(activeLabels.has(ex.label)) return;   // active trade renders this one
+
+              // Same DTE→vehicle mapping as active trades (for visual consistency)
+              const dte = ex.dte;
+              let vClass, emoji, banner;
+              if(dte <= 1)       { vClass = 'trade-bike';  emoji = '🏍'; banner = `${ex.label} 0DTE`; }
+              else if(dte <= 7)  { vClass = 'trade-car';   emoji = '🚗'; banner = `${ex.label} ${dte}d`; }
+              else if(dte <= 14) { vClass = 'trade-van';   emoji = '🚐'; banner = `${ex.label} ${dte}d`; }
+              else if(dte <= 49) { vClass = 'trade-bus';   emoji = '🚌'; banner = `${ex.label} ${dte}d`; }
+              else               { vClass = 'trade-truck'; emoji = '🚛'; banner = `${ex.label} ${dte}d`; }
+
+              // Use the same calendar-distance scale as trade vehicles
+              // (helper hoisted above this block). Independent of the
+              // session ribbon's clock-of-today axis.
+              const leftPct = _dteToLeftPct(dte);
+
+              // Stagger lanes by index so adjacent expiries don't overlap.
+              // Use lane-3 (top) for milestones so they sit behind threat
+              // vehicles which prefer lanes 1-2.
+              const laneCycle = [3, 2, 3, 1, 3, 2];
+              const lane = laneCycle[idx % laneCycle.length];
+
+              // IV from state.ivHistory[idx]
+              let ivStr = '—';
+              if(state?.ivHistory?.[idx]?.length){
+                const iv = state.ivHistory[idx].at(-1);
+                if(isFinite(iv)) ivStr = iv.toFixed(1) + '%';
+              }
+              const tip =
+                `${emoji} EXPIRY: ${ex.label} (${dte} DTE)\n` +
+                `ATM IV: ${ivStr}\n` +
+                (ex.note ? `Note: ${ex.note}\n` : '') +
+                `\nClick to drill into this expiry's chain.`;
+
+              fleet.push({
+                _directLeftPct: leftPct,    // bypass hrs→pct
+                hrs: 0,                      // placeholder
+                type: vClass + ' expiry-marker',
+                lane,
+                emoji,
+                label: banner,
+                tip,
+              });
+            });
+          }
+        } catch(_e){ /* expiry milestones never break render */ }
+
+        // 7. ── TRADE VEHICLES ────────────────────────────────────
+        // One vehicle per active simulation position. Each is placed
+        // ahead of the player at a position proportional to its DTE
+        // RELATIVE TO ALL AVAILABLE EXPIRIES — NOT the session-ribbon
+        // clock. Uses the _dteToLeftPct helper hoisted above block 6c.
+        try {
+          const positions = (window.simState?.positions || []).filter(p => p && p.call && p.put);
+          positions.forEach((p, tradeIdx) => {
+            if(!p.expiry || typeof EXPIRIES === 'undefined') return;
+            const ex = EXPIRIES.find(e => e.label === p.expiry);
+            if(!ex) return;
+            const dte = ex.dte;
+            if(dte == null || dte < 0) return;
+
+            // ── DTE → vehicle class & emoji ──
+            let vClass, emoji, banner;
+            if(dte <= 1)       { vClass = 'trade-bike';  emoji = '🏍';  banner = '0DTE'; }
+            else if(dte <= 7)  { vClass = 'trade-car';   emoji = '🚗';  banner = `${dte}d weekly`; }
+            else if(dte <= 14) { vClass = 'trade-van';   emoji = '🚐';  banner = `${dte}d`; }
+            else if(dte <= 49) { vClass = 'trade-bus';   emoji = '🚌';  banner = `${dte}d monthly`; }
+            else               { vClass = 'trade-truck'; emoji = '🚛';  banner = `${dte}d quarterly`; }
+
+            const leftPct = _dteToLeftPct(dte);
+
+            // ── Lane stagger so multiple trades don't overlap ──
+            const lane = (tradeIdx % 3) + 1;
+
+            // ── Tooltip with current IV + trade essentials ──
+            let ivStr = '—';
+            const idx = EXPIRIES.findIndex(e => e.label === p.expiry && !e.expired);
+            if(idx >= 0 && state?.ivHistory?.[idx]?.length){
+              const iv = state.ivHistory[idx].at(-1);
+              if(isFinite(iv)) ivStr = iv.toFixed(1) + '%';
+            }
+            const credit = isFinite(p.creditInitial) ? p.creditInitial : null;
+            const tip =
+              `${emoji} TRADE: ${p.expiry} (${dte} DTE)\n` +
+              `Strikes: ${p.put?.strike?.toLocaleString('en-US')} P  /  ${p.call?.strike?.toLocaleString('en-US')} C\n` +
+              `IV now: ${ivStr}\n` +
+              (credit != null ? `Net ${credit>=0?'credit':'debit'}: $${Math.abs(credit).toFixed(2)}\n` : '') +
+              `\nVehicle type by DTE:\n` +
+              `🏍 ≤1d · 🚗 ≤7d · 🚐 ≤14d · 🚌 ≤49d · 🚛 ≥50d`;
+
+            fleet.push({
+              _directLeftPct: leftPct,   // bypass hrs→pct conversion
+              hrs: 0,                    // placeholder (unused when _directLeftPct is set)
+              type: vClass,
+              lane,
+              emoji,
+              label: banner,
+              tip,
+            });
+          });
+        } catch(_e){ /* trade vehicles never break render */ }
+
+        // 8. Decorative ambient traffic — when nothing dramatic is happening
         //    we still spawn one slow car at +8h so the road never looks empty.
         //    This was the user's "road structure not attractive" complaint.
         if(fleet.length === 0){
@@ -5183,7 +5717,15 @@ window._brahmastraADX = _ciComputeADX;
         let _hasNearPolice    = false;
         let _hasNearAmbulance = false;
         fleet.forEach(v => {
-          const leftPct = CAR_ANCHOR_PCT + v.hrs * PCT_PER_HOUR;
+          // Vehicles with an explicit `_directLeftPct` (trade vehicles +
+          // expiry milestones) bypass the hrs→pct conversion. This keeps
+          // their x-axis (calendar distance to expiry) independent of the
+          // session ribbon's clock-of-today x-axis. Threat vehicles
+          // (news, ambulance, big-truck, etc.) keep using `hrs` since
+          // those genuinely represent hours-from-now.
+          const leftPct = (v._directLeftPct != null)
+            ? v._directLeftPct
+            : (CAR_ANCHOR_PCT + v.hrs * PCT_PER_HOUR);
           if(leftPct < CAR_ANCHOR_PCT - 0.5 || leftPct > 100) return; // off-screen
           const el = document.createElement('div');
           el.className = 'ckp-vehicle ' + v.type + ' lane-' + (v.lane||2);
@@ -5537,9 +6079,12 @@ window._brahmastraADX = _ciComputeADX;
         const dArr = (d) => d > 1 ? '↑' : d < -1 ? '↓' : '→';
         const dCol = (d) => d > 1 ? '#16a34a' : d < -1 ? '#dc2626' : '#94a3b8';
         const ivArr = dArr(ivRvReg.dIvPct), rvArr = dArr(ivRvReg.dRvPct);
+        const horizonLbl = ivRvReg.rvHorizonLabel
+          ? `<span style="font-size:9px;color:var(--color-text-secondary);font-weight:500"> [${ivRvReg.rvHorizonLabel}]</span>`
+          : '';
         rgArrows.innerHTML =
           `IV <b style="color:${dCol(ivRvReg.dIvPct)}">${ivArr} ${ivRvReg.dIvPct>=0?'+':''}${ivRvReg.dIvPct.toFixed(1)}%</b> · ` +
-          `RV <b style="color:${dCol(ivRvReg.dRvPct)}">${rvArr} ${ivRvReg.dRvPct>=0?'+':''}${ivRvReg.dRvPct.toFixed(1)}%</b>`;
+          `RV <b style="color:${dCol(ivRvReg.dRvPct)}">${rvArr} ${ivRvReg.dRvPct>=0?'+':''}${ivRvReg.dRvPct.toFixed(1)}%</b>${horizonLbl}`;
 
         // Action pill — color matches kind
         rgAction.textContent = ivRvReg.action;
@@ -5626,6 +6171,121 @@ window._brahmastraADX = _ciComputeADX;
         if(srcEl){
           srcEl.textContent = `5m:${mtf.sources.c5m} · 1h:${mtf.sources.c1h} · 1d:${mtf.sources.c1d}`;
         }
+
+        // ── Per-trade IV cards ─────────────────────────────────────
+        // For every active simulation trade, render a compact card with:
+        //   · expiry · DTE
+        //   · current IV with ↑↓→ slope arrow (8-tick reference window)
+        //   · net IV − RV using the DTE-matched RV window from the framework
+        try {
+          const tradesWrap = $('ckpRvMtfTrades');
+          const tradesGrid = $('ckpRvMtfTradesGrid');
+          const tradesCount = $('ckpRvMtfTradesCount');
+          if(tradesWrap && tradesGrid){
+            const positions = (window.simState?.positions || []).filter(p => p && p.call && p.put);
+            if(!positions.length){
+              tradesWrap.style.display = 'none';
+              tradesGrid.innerHTML = '';
+            } else {
+              tradesWrap.style.display = '';
+              if(tradesCount){
+                tradesCount.textContent = positions.length === 1
+                  ? '1 active position'
+                  : `${positions.length} active positions`;
+              }
+
+              // Build cards
+              const cards = positions.map(p => {
+                if(typeof EXPIRIES === 'undefined') return '';
+                const idx = EXPIRIES.findIndex(e => e.label === p.expiry && !e.expired);
+                if(idx < 0) return '';
+                const ex = EXPIRIES[idx];
+                const dte = ex.dte;
+                const ivHist = state?.ivHistory?.[idx];
+                if(!Array.isArray(ivHist) || ivHist.length === 0) return '';
+                const ivLast = ivHist[ivHist.length - 1];
+                if(!isFinite(ivLast)) return '';
+
+                // ── Slope (rising / falling / flat) ──
+                // 8-tick window, mean of first half = reference. ±1% relative
+                // change is the dead-band → 'flat'.
+                let slopePct = null;
+                if(ivHist.length >= 3){
+                  const win = ivHist.slice(-Math.min(8, ivHist.length));
+                  const refSize = Math.max(2, Math.floor(win.length/2));
+                  const ref = win.slice(0, refSize).reduce((s,v)=>s+v,0) / refSize;
+                  if(isFinite(ref) && ref > 0){
+                    slopePct = (ivLast - ref) / ref * 100;
+                  }
+                }
+                let arrow = '→', slopeColor = '#94a3b8', slopeLbl = 'flat';
+                if(slopePct != null){
+                  if(slopePct > 1)      { arrow = '↑'; slopeColor = '#16a34a'; slopeLbl = 'rising'; }
+                  else if(slopePct < -1){ arrow = '↓'; slopeColor = '#dc2626'; slopeLbl = 'falling'; }
+                }
+
+                // ── Pick DTE-matched RV window from MTF snapshot ──
+                let rvVal, rvLbl;
+                if(dte <= 7)       { rvVal = mtf.ultraShort; rvLbl = '1h RV'; }
+                else if(dte <= 21) { rvVal = mtf.short;      rvLbl = '4h RV'; }
+                else if(dte <= 60) { rvVal = mtf.medium;     rvLbl = '24h RV'; }
+                else               { rvVal = mtf.long;       rvLbl = '7d RV'; }
+
+                // ── Net IV − RV (the seller's edge metric) ──
+                let netStr = '—', netColor = 'var(--color-text-secondary)', netSign = '';
+                if(rvVal != null && isFinite(rvVal)){
+                  const net = ivLast - rvVal;
+                  netSign = net >= 0 ? '+' : '';
+                  netStr = `${netSign}${net.toFixed(1)}pp`;
+                  if(net >= 3)       netColor = '#16a34a';   // rich premium edge
+                  else if(net <= -3) netColor = '#dc2626';   // RV eating IV
+                  else               netColor = '#94a3b8';   // neutral
+                }
+
+                // ── Tone for whole card ──
+                // Net positive AND IV not in free-fall = good for sellers
+                // Net negative OR IV falling fast = bad for sellers
+                let cardBorder = 'var(--color-border-tertiary)';
+                let cardBg = 'var(--color-background-secondary)';
+                if(netColor === '#16a34a' && slopeLbl !== 'falling'){
+                  cardBorder = 'rgba(22,163,74,0.45)';
+                  cardBg = 'color-mix(in srgb, #16a34a 5%, var(--color-background-secondary))';
+                } else if(netColor === '#dc2626' || slopeLbl === 'falling'){
+                  cardBorder = 'rgba(220,38,38,0.45)';
+                  cardBg = 'color-mix(in srgb, #dc2626 5%, var(--color-background-secondary))';
+                }
+
+                const tip =
+                  `${p.expiry} · DTE ${dte}\n` +
+                  `IV: ${ivLast.toFixed(2)}% (${slopeLbl}${slopePct!=null ? ', '+(slopePct>=0?'+':'')+slopePct.toFixed(2)+'% over 8 ticks' : ''})\n` +
+                  `${rvLbl}: ${rvVal!=null?rvVal.toFixed(1)+'%':'—'}\n` +
+                  `Net IV − RV: ${netStr}\n\n` +
+                  `Net positive (≥+3pp) = seller's edge\n` +
+                  `Net negative (≤−3pp) = RV eating premium`;
+
+                return `
+                  <div title="${tip.replace(/"/g,'&quot;')}" style="padding:6px 8px;border-radius:6px;background:${cardBg};border:0.5px solid ${cardBorder};display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <span style="font-size:9.5px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums">${p.expiry}</span>
+                      <span style="font-size:8.5px;color:var(--color-text-secondary);font-weight:600">${dte}d</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:6px">
+                      <span style="font-size:13px;font-weight:800;color:var(--color-text-primary);font-variant-numeric:tabular-nums">${ivLast.toFixed(1)}%</span>
+                      <span style="font-size:11px;font-weight:800;color:${slopeColor}">${arrow}</span>
+                      <span style="font-size:8.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:700">${slopeLbl}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                      <span style="font-size:8.5px;color:var(--color-text-secondary);font-weight:600">vs ${rvLbl} ${rvVal!=null?rvVal.toFixed(1)+'%':'—'}</span>
+                      <span style="font-size:10px;font-weight:800;color:${netColor};font-variant-numeric:tabular-nums">${netStr}</span>
+                    </div>
+                  </div>
+                `;
+              }).filter(Boolean).join('');
+
+              tradesGrid.innerHTML = cards || '<div style="font-size:9.5px;color:var(--color-text-secondary);padding:6px">Trade(s) found but per-expiry IV history not yet populated.</div>';
+            }
+          }
+        } catch(_e){ /* per-trade row is decorative, never break render */ }
       }
     } catch(_e){ /* MTF strip is decorative, never break render */ }
   }
@@ -5890,6 +6550,10 @@ window._brahmastraADX = _ciComputeADX;
       'sdpWrap', 'sdpAltWrap', 'simPosRosterWrap',
       'plnBktExitDateWrap','plnBktExitDaysWrap','plnBktExitDowWrap',
       'plnBktExitHoursWrap','plnBktExitTimeWrap','plnBktExpiryPresetWrap',
+      // Inline UI panels — these are interactive widgets inside the chain
+      // page, not standalone dashboard panels. Auto-discovering them would
+      // dump dozens of useless "🔗 OPEN" tiles into the cockpit.
+      'simManualTradePanel',
     ]);
 
     // Friendly icon + label dictionary. New panels can extend this just
@@ -5941,8 +6605,21 @@ window._brahmastraADX = _ciComputeADX;
         const cluster = document.getElementById('ckpCluster');
         if(!cluster) return;
 
-        // Find every element with id ending in 'Panel' or 'Desk'
-        const candidates = document.querySelectorAll('[id$="Panel"], [id$="Desk"]');
+        // Find every element with id ending in 'Panel' or 'Desk', BUT
+        // exclude any element that is itself a cockpit auto-tile (those
+        // have ids starting with 'ckpTileAuto_' — without this guard
+        // the auto-tile id ending in 'Panel' would get re-discovered
+        // every 30 seconds, doubling the tile count each tick).
+        const all = document.querySelectorAll('[id$="Panel"], [id$="Desk"]');
+        const candidates = Array.from(all).filter(el => {
+          if(!el.id) return false;
+          // Exclude auto-tiles themselves
+          if(el.id.startsWith('ckpTileAuto_')) return false;
+          // Exclude anything nested inside the cockpit cluster (auto-tiles
+          // and their children would otherwise match)
+          if(cluster.contains(el)) return false;
+          return true;
+        });
         const seen = new Set();
         candidates.forEach(panel => {
           const id = panel.id;
@@ -5966,7 +6643,10 @@ window._brahmastraADX = _ciComputeADX;
           // Build the tile DOM by hand (avoids HTML injection of titles)
           const tile = document.createElement('div');
           tile.className = 'ckp-tile';
-          tile.id = 'ckpTileAuto_' + id;
+          // Use a suffix-stripped id so this auto-tile's own id does NOT
+          // end in 'Panel' (otherwise the next discovery tick would match
+          // it as a panel and create yet another tile — infinite loop).
+          tile.id = 'ckpAutoTile_' + id.replace(/(Panel|Desk)$/,'_$1_');
           tile.setAttribute('data-target', id);
           tile.setAttribute('onclick', 'window.__ckpJump(this)');
           tile.style.opacity = '0.85';
@@ -6002,8 +6682,22 @@ window._brahmastraADX = _ciComputeADX;
       } catch(e){ /* never break the cockpit on auto-discover */ }
     }
 
+    // One-time cleanup: remove any stale auto-tiles from the previous
+    // buggy version of this file (they had ids starting 'ckpTileAuto_'
+    // which created an infinite recursion). The new version uses
+    // 'ckpAutoTile_' prefix instead.
+    function purgeStaleAutoTiles(){
+      try {
+        const cluster = document.getElementById('ckpCluster');
+        if(!cluster) return;
+        const stale = cluster.querySelectorAll('[id^="ckpTileAuto_"]');
+        stale.forEach(el => el.remove());
+      } catch(_e){}
+    }
+
     // Run once shortly after boot (so all panels have time to render),
     // then again every 30s in case a panel is lazily injected later.
+    purgeStaleAutoTiles();
     setTimeout(discover, 4000);
     setInterval(discover, 30000);
   })();
@@ -6910,46 +7604,11 @@ window._brahmastraADX = _ciComputeADX;
       <div style="position:relative;height:110px"><canvas id="tvAdxCanvas"></canvas></div>
     </div>
 
-    <!-- IV Percentile sub-pane (HV-based percentile, 252-bar lookback) -->
-    <div id="tvIvpPane" style="margin-top:8px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;font-variant-numeric:tabular-nums">
-          <b style="color:var(--color-text-primary);letter-spacing:.02em">IV PERCENTILE</b>
-          <span id="tvIvpTfBadge" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(59,130,246,0.12);color:#2563eb;border:0.5px solid rgba(59,130,246,0.3)">—</span>
-          <span id="tvIvpVal" style="color:#2563eb;font-weight:700">—</span>
-          <span style="display:inline-flex;align-items:center;gap:4px"><span style="color:var(--color-text-secondary);font-weight:500">HV(<span id="tvIvpHvLen">30</span>)</span><span id="tvIvpHvVal" style="color:var(--color-text-primary);font-weight:700">—</span><span style="color:var(--color-text-secondary);font-size:9px">%</span></span>
-          <span id="tvIvpSignal" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em">—</span>
-        </div>
-        <div style="font-size:9px;color:var(--color-text-secondary);white-space:nowrap" id="tvIvpSourceLbl">HV(30) percentile · 252-bar window</div>
-      </div>
-      <!-- TF + Lookback controls -->
-      <div id="tvIvpCtrlRow" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">TF:</span>
-        <select id="tvIvpTfSelect" class="adx-select" onchange="window._brmSetIvpTf(this.value)">
-          <option value="auto" selected>🔗 Auto</option>
-          <option value="15">15m</option>
-          <option value="30">30m</option>
-          <option value="60">1H</option>
-          <option value="240">4H</option>
-          <option value="D">1D</option>
-        </select>
-        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;margin-right:2px">Lookback:</span>
-        <select id="tvIvpLookbackSelect" class="adx-select" onchange="window._brmSetIvpLookback(parseInt(this.value,10))">
-          <option value="60">60</option>
-          <option value="100">100</option>
-          <option value="252" selected>252</option>
-          <option value="365">365</option>
-        </select>
-        <span style="font-size:8px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;margin-right:2px">HV Len:</span>
-        <select id="tvIvpHvLenSelect" class="adx-select" onchange="window._brmSetIvpHvLen(parseInt(this.value,10))">
-          <option value="14">14</option>
-          <option value="20">20</option>
-          <option value="30" selected>30</option>
-          <option value="60">60</option>
-        </select>
-      </div>
-      <div style="position:relative;height:110px"><canvas id="tvIvpCanvas"></canvas></div>
-    </div>
+    <!-- IV Percentile sub-pane removed (2026-04-28 user request) — the
+         Multi-Timeframe RV strip in the cockpit now displays per-trade IV
+         with rising/falling indicators and IV-RV net premium. The IVP
+         engine code below is left intact (dead) so any other panel that
+         referenced its globals doesn't break. -->
 
   </div><!-- end tvChartWrap -->
 
@@ -8678,6 +9337,14 @@ window._brahmastraADX = _ciComputeADX;
         <!-- Trade-by-trade table (collapsible) -->
         <details class="planner-bkt-trades-wrap">
           <summary id="plnBktTradesSummary">View all trades (—)</summary>
+          <div style="display:flex;justify-content:flex-end;gap:6px;margin:6px 0;flex-wrap:wrap">
+            <button onclick="window.plnBktDownloadCSV && window.plnBktDownloadCSV()"
+                    title="Download every trade as a CSV file — open in Excel/Sheets/Python for further analysis"
+                    style="font-size:10px;font-weight:700;padding:4px 11px;border-radius:5px;border:0.5px solid #16a34a;background:transparent;color:#16a34a;cursor:pointer;letter-spacing:.04em">⬇ Download CSV</button>
+            <button onclick="window.plnBktCopyJSON && window.plnBktCopyJSON()"
+                    title="Copy raw trade objects as JSON — for advanced users"
+                    style="font-size:10px;font-weight:700;padding:4px 11px;border-radius:5px;border:0.5px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-secondary);cursor:pointer;letter-spacing:.04em">📋 Copy JSON</button>
+          </div>
           <div class="planner-bkt-trades-scroll" id="plnBktTrades-list"></div>
         </details>
       </div>
@@ -10076,7 +10743,98 @@ window._brahmastraADX = _ciComputeADX;
   let _bktHistoryCache = null;     // {ts, candles:[{t,o,h,l,c}], yearsRequested}
   let _bktEquityChart  = null;
   let _bktDrawdownChart = null;
+  let _bktLastResult = null;        // last bktRun() output — for CSV/JSON export
+  let _bktLastOpts   = null;        // strategy/mode label
   const BKT_CACHE_MS   = 60 * 60 * 1000;  // 1 hour
+
+  // Helpers exposed to onclick handlers
+  function _bktBuildCSV(){
+    if(!_bktLastResult || !Array.isArray(_bktLastResult.trades)) return null;
+    const rows = ['EntryDate,EntryISO,ExitDate,ExitISO,HoldHours,Reason,EntryS,ExitS,SpotChgPct,EntryHV%,Credit,PnL'];
+    _bktLastResult.trades.forEach(t => {
+      const entryISO = t.entryMs ? new Date(t.entryMs).toISOString() : '';
+      const exitISO  = t.exitMs  ? new Date(t.exitMs).toISOString()  : '';
+      const spotChg = t.entryS > 0 ? (((t.exitS - t.entryS)/t.entryS) * 100).toFixed(3) : '';
+      const row = [
+        t.entryDate || '',
+        entryISO,
+        t.exitDate || '',
+        exitISO,
+        isFinite(t.holdHours) ? t.holdHours.toFixed(2) : (t.holdDays||''),
+        (t.reason || '').replace(/,/g,';'),
+        t.entryS,
+        t.exitS,
+        spotChg,
+        isFinite(t.entryHV) ? t.entryHV.toFixed(2) : '',
+        isFinite(t.credit) ? t.credit.toFixed(2) : '',
+        isFinite(t.pnl) ? t.pnl.toFixed(2) : '',
+      ];
+      rows.push(row.join(','));
+    });
+    return rows.join('\n');
+  }
+
+  // Helper: ensure _bktLastResult is populated, restoring from persistence
+  // if needed. Returns true if a result is available, false otherwise.
+  function _bktEnsureLast(){
+    if(_bktLastResult && Array.isArray(_bktLastResult.trades)) return true;
+    try {
+      const restored = window.brmPersist?.restoreBktLast();
+      if(restored && restored.result && Array.isArray(restored.result.trades)){
+        _bktLastResult = restored.result;
+        _bktLastOpts   = restored.opts;
+        return true;
+      }
+    } catch(_e){}
+    return false;
+  }
+
+  window.plnBktDownloadCSV = function(){
+    if(!_bktEnsureLast()){
+      alert('Run a backtest first — then download trades as CSV.');
+      return;
+    }
+    const csv = _bktBuildCSV();
+    if(!csv){
+      alert('Run a backtest first — then download trades as CSV.');
+      return;
+    }
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const stratLbl = (_bktLastOpts?.strategy || 'backtest').replace(/[^a-z0-9]/gi,'_');
+    a.href = url;
+    a.download = `brahmastra_${stratLbl}_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch(_e){} }, 100);
+  };
+
+  window.plnBktCopyJSON = async function(){
+    if(!_bktEnsureLast()){
+      alert('Run a backtest first — then copy trades as JSON.');
+      return;
+    }
+    const json = JSON.stringify({
+      strategy: _bktLastOpts?.strategy,
+      modeLabel: _bktLastOpts?.modeLabel,
+      summary: _bktLastResult.summary,
+      trades: _bktLastResult.trades,
+    }, null, 2);
+    try {
+      await navigator.clipboard.writeText(json);
+      // Brief inline confirmation
+      const btn = document.querySelector("button[onclick*='plnBktCopyJSON']");
+      if(btn){
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(()=>{ btn.textContent = orig; }, 1200);
+      }
+    } catch(_e){
+      alert('Could not copy to clipboard. Try Download CSV instead.');
+    }
+  };
 
   // Fetch daily BTC OHLC from Binance. The /klines endpoint caps at 1000
   // candles per call; for 5Y we need 2 paginated calls.
@@ -10635,6 +11393,11 @@ window._brahmastraADX = _ciComputeADX;
   // since both produce the same {trades, equity, summary} shape.
   function bktRenderResults(result, opts){
     $('plnBktResults').style.display = 'block';
+    // Stash for CSV/JSON exporters
+    _bktLastResult = result;
+    _bktLastOpts   = opts;
+    // Persist so CSV/JSON exports still work after refresh
+    try { window.brmPersist?.saveBktLast(result, opts); } catch(_e){}
     const {trades, equity, summary} = result;
 
     const fmt = (n, d=2) => isFinite(n) ? n.toFixed(d) : '—';
@@ -13361,28 +14124,96 @@ function _minsToSlot(absMin){
 function _getLiveIV(){
   let iv = 44;
   if(typeof state !== 'undefined'){
-    const nearIdx = (typeof EXPIRIES!=='undefined') ? EXPIRIES.findIndex((e,i)=>!e.expired&&i>0) : -1;
+    // Use the genuine front weekly (no longer skips index 0)
+    const nearIdx = (typeof EXPIRIES!=='undefined') ? EXPIRIES.findIndex(e=>!e.expired) : -1;
     if(nearIdx >= 0 && state.ivHistory?.[nearIdx]?.length) iv = state.ivHistory[nearIdx].at(-1);
     else iv = state.dvolBase || 44;
   }
   return parseFloat((iv||44).toFixed(2));
 }
 
+// Returns one entry per ACTIVE simulation trade with the trade's expiry IV
+// + DTE. Empty array when no positions are open. Used by the 24h IV chart
+// to overlay per-trade IV lines.
+function _getActiveTradeIVs(){
+  try {
+    if(typeof window.simState === 'undefined' || !Array.isArray(window.simState.positions)) return [];
+    const positions = window.simState.positions.filter(p => p && p.call && p.put);
+    if(!positions.length) return [];
+    const out = [];
+    positions.forEach(p => {
+      if(!p.expiry || typeof EXPIRIES === 'undefined') return;
+      const idx = EXPIRIES.findIndex(e => e.label === p.expiry && !e.expired);
+      if(idx < 0) return;
+      let iv = null;
+      if(state.ivHistory?.[idx]?.length){
+        iv = parseFloat(state.ivHistory[idx].at(-1).toFixed(2));
+      } else if(EXPIRIES[idx].base){
+        iv = EXPIRIES[idx].base;
+      }
+      if(iv == null || !isFinite(iv)) return;
+      out.push({
+        id:     p.id || p.expiry,
+        expiry: p.expiry,
+        dte:    EXPIRIES[idx].dte,
+        iv,
+      });
+    });
+    return out;
+  } catch(_e){ return []; }
+}
+
+// Snapshot the current MTF RV windows. Returns null if framework not ready.
+function _getRvSnapshot(){
+  try {
+    if(window.rvMtf && typeof window.rvMtf.compute === 'function'){
+      const s = window.rvMtf.compute();
+      if(!s) return null;
+      return {
+        rv1h:  s.ultraShort != null ? parseFloat(s.ultraShort.toFixed(2)) : null,
+        rv4h:  s.short      != null ? parseFloat(s.short.toFixed(2))      : null,
+        rv24h: s.medium     != null ? parseFloat(s.medium.toFixed(2))     : null,
+        rv7d:  s.long       != null ? parseFloat(s.long.toFixed(2))       : null,
+      };
+    }
+  } catch(_e){}
+  return null;
+}
+
 /* ── Record IV entry with IST timestamp ──
    Records into BOTH the per-phase log (only when inside an AMD window)
-   AND the continuous liveLog (always, so chart never goes blank). */
+   AND the continuous liveLog (always, so chart never goes blank).
+
+   Each liveLog entry now carries:
+     • iv      — legacy single IV (front weekly) — kept for backward compat
+     • spot    — BTC spot at sample time
+     • rv1h, rv4h, rv24h, rv7d — MTF RV windows (annualised %) — null if MTF
+                  framework hasn't populated yet
+     • trades  — array of {expiry, dte, iv} for every active simulation
+                 position. The 24h chart renders one extra line per entry.
+*/
 function recordAMDPhaseIV(){
   const m = _istMins();
   const spot = (typeof state!=='undefined') ? (state.btcSpotLive||state.btcBase||85000) : 85000;
   const iv = _getLiveIV();
+  const rv = _getRvSnapshot();
+  const trades = _getActiveTradeIVs();
 
   // Continuous live log — always records, regardless of phase
   const live = amdState.liveLog;
+  const entry = {
+    istMins: m, iv, spot, ts: Date.now(),
+    rv1h:  rv?.rv1h  ?? null,
+    rv4h:  rv?.rv4h  ?? null,
+    rv24h: rv?.rv24h ?? null,
+    rv7d:  rv?.rv7d  ?? null,
+    trades,           // [] when no positions open
+  };
   if(!live.length || live.at(-1).istMins !== m){
-    live.push({ istMins:m, iv, spot, ts:Date.now() });
+    live.push(entry);
     if(live.length > amdState.MAX_LIVE_LOG) live.shift();
   } else {
-    live[live.length-1] = { istMins:m, iv, spot, ts:Date.now() };
+    live[live.length-1] = entry;
   }
 
   // Per-phase log — only inside an AMD window (wrap-aware for NY's midnight cross)
@@ -14868,7 +15699,11 @@ function _amdscFriendOrEnemy(controller, sessions, b){
       label:  'Regime',
       val:    m.val,
       tone:   m.tone,
-      detail: m.detail + (regimeInfo._fallback ? ' (session-derived)' : ''),
+      detail: (regimeInfo._fallback
+                 ? m.detail + ' (session-derived)'
+                 : (regimeInfo.rvHorizonLabel
+                    ? m.detail.replace(/^(ΔIV[↑↓→]\s*ΔRV[↑↓→])(\s*·\s*)/, `$1 · ${regimeInfo.rvHorizonLabel}$2`)
+                    : m.detail)),
     });
     if(m.reason){
       reasons.push({ tone: (m.delta > 0 ? 'good' : m.delta < 0 ? 'bad' : 'neutral'), txt: m.reason });
@@ -15199,10 +16034,16 @@ function _amdscRenderFriendOrEnemy(foe){
     </div>`;
 }
 
-/* ─── 24h IV Timeline chart (Chart.js singleton) ─────────────────
+/* ─── 24h IV/RV Timeline chart (Chart.js singleton) ─────────────────
    Renders the full 24h IV path from amdState.liveLog with session
-   bands behind the line. Singleton instance to avoid recreation
-   churn on every panel render — we just update the data. */
+   bands behind the line. Now overlays:
+     • Front-week IV (purple, base layer)
+     • RV1h (orange, the realised vol the IV is being measured against)
+     • Per-active-trade IV (one extra line per open simulation position,
+       coloured cyan/green/pink depending on trade index)
+   Multiple lines let you SEE the IV vs RV gap (≈ vol risk premium) and
+   compare your trade's expiry IV vs the front weekly IV at a glance.
+   Singleton instance to avoid recreation churn — we just update data. */
 let _amdsc24hChart = null;
 
 function _amdscRender24hChart(){
@@ -15210,19 +16051,21 @@ function _amdscRender24hChart(){
     <div class="amdsc-iv24">
       <div class="amdsc-iv24-head">
         <div>
-          <div class="amdsc-iv24-tag">📈 24h IV Timeline</div>
-          <div class="amdsc-iv24-title">Implied volatility · last 24 hours · all sessions</div>
+          <div class="amdsc-iv24-tag">📈 24h IV / RV Timeline</div>
+          <div class="amdsc-iv24-title">Implied vs Realised volatility · per-trade overlays · last 24h</div>
         </div>
         <div class="amdsc-iv24-stats" id="amdsc24hStats"></div>
       </div>
       <div class="amdsc-iv24-canvas-wrap" id="amdsc24hWrap">
         <canvas id="amdsc24hCanvas"></canvas>
       </div>
-      <div class="amdsc-iv24-legend">
+      <div class="amdsc-iv24-legend" id="amdsc24hLegend">
         <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#3b82f6;opacity:.5"></span>Asia</span>
         <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#f59e0b;opacity:.5"></span>London</span>
         <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#ef4444;opacity:.5"></span>NY</span>
-        <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#7c3aed"></span>Live IV</span>
+        <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#7c3aed"></span>Front IV</span>
+        <span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:#f97316"></span>RV 1h</span>
+        <span class="amdsc-iv24-legend-item" id="amdsc24hTradeLegend" style="display:contents"></span>
         <span class="amdsc-iv24-legend-item" id="amdsc24hSampleCount" style="margin-left:auto;color:var(--color-text-tertiary)"></span>
       </div>
     </div>`;
@@ -15244,7 +16087,10 @@ function _amdscPaint24hChart(){
     const countEl = document.getElementById('amdsc24hSampleCount');
     if(countEl) countEl.textContent = `${samples.length} samples · 24h window`;
 
-    // Update min/max stats
+    // Update IV / RV / VRP stats — the differentiation the trader needs.
+    // VRP (volatility risk premium) = current IV − current RV1h, in %
+    // points. Positive = seller has edge; negative = realised eating
+    // through premium (the gamma-driven trend signal).
     const statsEl = document.getElementById('amdsc24hStats');
     if(statsEl){
       if(samples.length >= 2){
@@ -15254,10 +16100,23 @@ function _amdscPaint24hChart(){
         const delta = last - first;
         const dCls = delta > 0.5 ? 'red' : delta < -0.5 ? 'green' : 'muted';
         const dSign = delta >= 0 ? '+' : '';
+        // Find the most recent sample with a non-null RV1h
+        let lastRv1h = null;
+        for(let i = samples.length - 1; i >= 0; i--){
+          if(samples[i].rv1h != null){ lastRv1h = samples[i].rv1h; break; }
+        }
+        const vrp = (lastRv1h != null) ? (last - lastRv1h) : null;
+        const vrpCls = vrp == null ? 'muted'
+                     : vrp >  3 ? 'green'   // rich premium
+                     : vrp < -3 ? 'red'     // RV eating IV — gamma risk
+                     : 'muted';
+        const vrpSign = vrp == null ? '' : (vrp >= 0 ? '+' : '');
+        const vrpStr  = vrp == null ? '—' : `${vrpSign}${vrp.toFixed(1)}pp`;
         statsEl.innerHTML = `
-          <div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">24h Δ</div><div class="amdsc-iv24-stat-val ${dCls}">${dSign}${delta.toFixed(2)}%</div></div>
-          <div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">Now</div><div class="amdsc-iv24-stat-val">${last.toFixed(2)}%</div></div>
-          <div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">Range</div><div class="amdsc-iv24-stat-val muted">${min.toFixed(1)}–${max.toFixed(1)}%</div></div>`;
+          <div class="amdsc-iv24-stat" title="Vol Risk Premium = current IV − current 1h RV. Positive means the market is pricing more vol than is being realised (seller's edge)."><div class="amdsc-iv24-stat-lbl">VRP (IV−RV1h)</div><div class="amdsc-iv24-stat-val ${vrpCls}">${vrpStr}</div></div>
+          <div class="amdsc-iv24-stat" title="IV change over the last 24h"><div class="amdsc-iv24-stat-lbl">IV 24h Δ</div><div class="amdsc-iv24-stat-val ${dCls}">${dSign}${delta.toFixed(2)}%</div></div>
+          <div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">IV Now</div><div class="amdsc-iv24-stat-val">${last.toFixed(2)}%</div></div>
+          <div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">RV 1h</div><div class="amdsc-iv24-stat-val muted">${lastRv1h != null ? lastRv1h.toFixed(1)+'%' : '—'}</div></div>`;
       } else {
         statsEl.innerHTML = `<div class="amdsc-iv24-stat"><div class="amdsc-iv24-stat-lbl">Status</div><div class="amdsc-iv24-stat-val muted">building…</div></div>`;
       }
@@ -15276,6 +16135,102 @@ function _amdscPaint24hChart(){
       return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
     });
     const data = samples.map(s => s.iv);
+    // RV1h series — same x-axis as IV. null when no MTF data was captured yet.
+    const rv1hData = samples.map(s => (s.rv1h != null ? s.rv1h : null));
+
+    // ── Per-active-trade IV datasets ──
+    // For each currently-open simulation position, build a dense series
+    // from state.ivHistory[<that-expiry's-idx>] aligned to the visible
+    // sample timeline. We use state.ivHistory directly (rather than
+    // walking samples[].trades) for two reasons:
+    //   1. liveLog.trades was only added in a recent patch — historical
+    //      samples don't have it, so chart was empty. state.ivHistory
+    //      has been populated for every expiry since boot.
+    //   2. state.ivHistory ticks at chain-refresh cadence (~5s), much
+    //      finer than liveLog's 1-min cadence.
+    // Alignment: state.ivHistory is a flat array with no timestamps. We
+    // assume the latest entry corresponds to NOW and earlier entries are
+    // approximately one chain-refresh apart. We resample by mapping the
+    // last N values onto the last N visible samples (best-effort).
+    const tradeKeyMap = new Map();
+    try {
+      const activeTrades = (typeof _getActiveTradeIVs === 'function')
+        ? _getActiveTradeIVs() : [];
+      activeTrades.forEach(t => {
+        if(typeof EXPIRIES === 'undefined') return;
+        const exIdx = EXPIRIES.findIndex(e => e.label === t.expiry && !e.expired);
+        if(exIdx < 0) return;
+        const ivHist = state?.ivHistory?.[exIdx];
+        if(!Array.isArray(ivHist) || !ivHist.length) return;
+
+        // Build per-sample data array. For each visible sample, pick the
+        // closest ivHistory value:
+        //   • If liveLog.trades has an entry for this trade-id at sample
+        //     idx, prefer that (most accurate timestamp match).
+        //   • Otherwise, project from ivHistory by ratio: latest sample
+        //     gets the latest ivHistory value, oldest gets ivHistory[0]
+        //     (or null if ivHistory is shorter than the window).
+        const data = new Array(samples.length).fill(null);
+
+        // Pass 1: fill in samples that have explicit trade data
+        samples.forEach((s, idx) => {
+          if(!Array.isArray(s.trades)) return;
+          const match = s.trades.find(tr => tr && tr.id === t.id);
+          if(match && isFinite(match.iv)) data[idx] = match.iv;
+        });
+
+        // Pass 2: for samples without explicit trade data, fall back to
+        // the latest ivHistory value. We only fill from the last data
+        // point backward — earlier samples might predate the trade open.
+        // This makes the line appear from the moment the trade was opened
+        // (or from the start of the visible window if the trade is older).
+        const latestIv = ivHist[ivHist.length - 1];
+        if(isFinite(latestIv)){
+          // Find the entry-time index in the sample window
+          const entryTs = (window.simState?.positions || [])
+            .find(p => p && (p.id || p.expiry) === t.id)?.entryTs;
+          if(entryTs){
+            // Mark all samples from entry-time onward with the latest IV
+            // (best-effort: we don't have per-sample IV history with
+            // timestamps, so we use latest as a proxy for "current").
+            samples.forEach((s, idx) => {
+              if(data[idx] == null && s.ts >= entryTs) data[idx] = latestIv;
+            });
+          } else {
+            // No entry-time available — just paint the last sample so
+            // there's at least one visible point per trade
+            data[samples.length - 1] = latestIv;
+          }
+        }
+
+        // Only include trades that ended up with at least 2 visible points
+        const validCount = data.filter(v => v != null).length;
+        if(validCount >= 1){
+          tradeKeyMap.set(t.id, {
+            id: t.id,
+            expiry: t.expiry,
+            dte: t.dte,
+            data,
+            validCount,
+          });
+        }
+      });
+    } catch(_e){ /* trade-IV overlay is decorative */ }
+
+    const tradeSeries = Array.from(tradeKeyMap.values());
+    // Distinct hue per trade index — picked to be visually distinct from
+    // the front-IV purple and RV1h orange
+    const TRADE_PALETTE = ['#06b6d4','#22c55e','#ec4899','#eab308','#a78bfa','#f43f5e'];
+
+    // Update legend with active-trade chips
+    const tradeLegendEl = document.getElementById('amdsc24hTradeLegend');
+    if(tradeLegendEl){
+      tradeLegendEl.innerHTML = tradeSeries.map((t, i) => {
+        const col = TRADE_PALETTE[i % TRADE_PALETTE.length];
+        const lbl = t.expiry || ('Trade ' + (i+1));
+        return `<span class="amdsc-iv24-legend-item"><span class="amdsc-iv24-legend-dot" style="background:${col}"></span>${lbl} (${t.dte}d)</span>`;
+      }).join('');
+    }
 
     // Detect session for each sample so we can color points by session
     const istMinForTs = (ts) => {
@@ -15320,15 +16275,69 @@ function _amdscPaint24hChart(){
       }
     };
 
+    // ── Build the canonical datasets array (used for both fresh creation
+    // and singleton update path). Order matters — front IV first so it
+    // gets the area-fill, then RV1h, then per-trade overlays on top.
+    const buildDatasets = () => {
+      const ds = [
+        {
+          label: 'Front IV %',
+          data,
+          borderColor: '#7c3aed',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#7c3aed',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 1.5,
+          tension: 0.25,
+          fill: true,
+          backgroundColor: 'rgba(124,58,237,0.07)',
+          spanGaps: false,
+        },
+        {
+          label: 'RV 1h %',
+          data: rv1hData,
+          borderColor: '#f97316',
+          borderWidth: 1.6,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointHoverBackgroundColor: '#f97316',
+          tension: 0.25,
+          fill: false,
+          spanGaps: true,
+        },
+      ];
+      tradeSeries.forEach((t, i) => {
+        const col = TRADE_PALETTE[i % TRADE_PALETTE.length];
+        ds.push({
+          label: `IV ${t.expiry} (${t.dte}d)`,
+          data: t.data,
+          borderColor: col,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointHoverBackgroundColor: col,
+          tension: 0.25,
+          fill: false,
+          spanGaps: false,   // gap when trade wasn't open
+        });
+      });
+      return ds;
+    };
+
     // Determine if Chart instance exists & is still attached to the live canvas.
     // The AMD panel uses innerHTML on each tick which replaces the canvas DOM
     // node — so a stale singleton's internal canvas reference becomes detached.
     // We check if the singleton's canvas is the same node currently in the DOM.
     const liveCanvas = document.getElementById('amdsc24hCanvas');
     if(_amdsc24hChart && _amdsc24hChart.canvas === liveCanvas){
-      // Same canvas — just update data smoothly
+      // Same canvas — just update data smoothly. We REPLACE datasets entirely
+      // to handle the case where the trade count changed (new trade opened
+      // mid-session, or trade was closed). Chart.js handles dataset diff.
       _amdsc24hChart.data.labels = labels;
-      _amdsc24hChart.data.datasets[0].data = data;
+      _amdsc24hChart.data.datasets = buildDatasets();
       _amdsc24hChart.update('none');
       return;
     }
@@ -15349,20 +16358,7 @@ function _amdscPaint24hChart(){
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: 'IV %',
-          data,
-          borderColor: '#7c3aed',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          pointHoverBackgroundColor: '#7c3aed',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 1.5,
-          tension: 0.25,
-          fill: true,
-          backgroundColor: 'rgba(124,58,237,0.07)',
-        }]
+        datasets: buildDatasets(),
       },
       options: {
         responsive: true,
@@ -15376,11 +16372,32 @@ function _amdscPaint24hChart(){
             titleFont: { size: 10 },
             bodyFont: { size: 11 },
             padding: 8,
-            displayColors: false,
+            mode: 'index',
+            intersect: false,
+            // Show colour swatches so user can match each row to its line
+            displayColors: true,
             callbacks: {
               title: (items) => items[0].label + ' IST',
-              label: (item) => `IV: ${item.parsed.y.toFixed(2)}%`,
-            }
+              // Use each dataset's own label (set in buildDatasets) and
+              // skip rows with null values so trade lines that weren't
+              // open at this timestamp don't show as "Trade X: null".
+              label: (item) => {
+                const v = item.parsed.y;
+                if(v == null || !isFinite(v)) return null;
+                const dsLabel = item.dataset.label || 'Series';
+                return `${dsLabel}: ${v.toFixed(2)}%`;
+              },
+              // Hide entirely-null rows
+              labelColor: (item) => ({
+                borderColor: item.dataset.borderColor,
+                backgroundColor: item.dataset.borderColor,
+              }),
+            },
+            // Filter out null-valued series from the tooltip body
+            filter: (item) => {
+              const v = item.parsed.y;
+              return v != null && isFinite(v);
+            },
           }
         },
         scales: {
@@ -16883,9 +17900,21 @@ function vapUpdate(){
   try{
     // ── Pull current state values ──
     const atm_iv = (()=>{
-      // Try nearset non-expired expiry IV from state
+      // Prefer the active simulation trade's expiry IV if a position is open;
+      // otherwise use the genuine front weekly. (Previously this used `i>0`
+      // which skipped the front weekly unconditionally.)
       if(typeof state==='undefined') return 44;
-      const idx = typeof EXPIRIES!=='undefined'? EXPIRIES.findIndex((e,i)=>!e.expired&&i>0) : -1;
+      let idx = -1;
+      try {
+        const pos = (window.simState?.positions || []).filter(p => p && p.call && p.put);
+        if(pos.length){
+          const active = pos.sort((a,b) => (b.entryTs||0)-(a.entryTs||0))[0];
+          if(active.expiry && typeof EXPIRIES !== 'undefined'){
+            idx = EXPIRIES.findIndex(e => e.label === active.expiry && !e.expired);
+          }
+        }
+      } catch(_e){}
+      if(idx < 0) idx = (typeof EXPIRIES !== 'undefined') ? EXPIRIES.findIndex(e => !e.expired) : -1;
       if(idx>=0 && state.ivHistory?.[idx]?.length){
         const v = state.ivHistory[idx].at(-1);
         if(v>5&&v<200) return v;
@@ -23469,6 +24498,19 @@ setTimeout(()=>{
   // stubbed to keep the rest of the dashboard happy.
   const _simManual = { legs: [] };
 
+  // ── Restore draft from persistence ──
+  // If the user had legs in the manual trade builder when they closed/
+  // refreshed, bring them back. Saved drafts older than 24h are ignored
+  // by brmPersist itself.
+  try {
+    const draftLegs = window.brmPersist?.restoreManualDraft();
+    if(Array.isArray(draftLegs) && draftLegs.length){
+      _simManual.legs = draftLegs;
+      // Defer initial render so chain has had time to load (we need quotes)
+      setTimeout(() => { try { _simManualRender(); } catch(_e){} }, 1500);
+    }
+  } catch(_e){}
+
   window.simManualAddLeg = function(strike, type){
     if(!simState.chain || !simState.currentExpiry) return;
     const ex = simState.chain.expiries[simState.currentExpiry];
@@ -23545,6 +24587,9 @@ setTimeout(()=>{
     const netEl  = $('simManualNetLabel');
     const btn    = $('simManualExecBtn');
     if(!panel || !legsEl) return;
+
+    // Persist current draft so it survives refresh / tab close
+    try { window.brmPersist?.saveManualDraft(_simManual.legs); } catch(_e){}
 
     // Show panel when at least one leg exists
     panel.style.display = _simManual.legs.length ? '' : 'none';
@@ -27256,6 +28301,298 @@ const state = {
   trendConf: EXPIRIES.map(()=>'neutral'),
   ivLiveFetchTs: EXPIRIES.map(()=>0),   // timestamp when each expiry last got live IV
 };
+
+/* ════════════════════════════════════════════════════════════════════
+   UNIFIED PERSISTENCE LAYER — window.brmPersist
+   ────────────────────────────────────────────────────────────────────
+   The user's requirement: "every data should be saved compulsory" so
+   nothing vanishes on refresh or close. This module owns all the
+   non-IndexedDB persistence (sim positions are still in IDB via
+   simDBSave). It targets localStorage with these slots:
+
+     brm_state_v1       → state.ivHistory + btcHistory + session H/L
+     brm_vap_v1         → vapState rolling histories (60 each)
+     brm_manualDraft_v1 → in-progress manual trade legs
+     brm_bktLast_v1     → last backtest result snapshot
+
+   Persistence cadence:
+     • Every 30 seconds (idle save)
+     • On 'beforeunload' (browser/tab closing)
+     • On 'visibilitychange' to hidden (mobile background)
+     • After every meaningful state change (best-effort)
+
+   Restoration: once at boot, just before main render kicks in. Each
+   slot is independent — corruption in one doesn't block the rest.
+
+   Size discipline: every slot is capped to last 24h (or fixed length
+   for bounded series), JSON-stringified, and stored. Total footprint
+   stays well under localStorage's 5 MB limit per origin.
+   ──────────────────────────────────────────────────────────────────── */
+(function brmPersistInit(){
+  'use strict';
+  const KEYS = {
+    state:        'brm_state_v1',
+    vap:          'brm_vap_v1',
+    manualDraft:  'brm_manualDraft_v1',
+    bktLast:      'brm_bktLast_v1',
+  };
+  const SAVE_INTERVAL_MS = 30_000;
+  const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+  let _lastSaveTs = 0;
+  let _saveScheduled = false;
+
+  // ── Safe localStorage helpers ──
+  function _set(k, v){
+    try {
+      if(typeof localStorage === 'undefined') return false;
+      localStorage.setItem(k, v);
+      return true;
+    } catch(_e){ return false; /* quota / private mode */ }
+  }
+  function _get(k){
+    try {
+      if(typeof localStorage === 'undefined') return null;
+      return localStorage.getItem(k);
+    } catch(_e){ return null; }
+  }
+
+  // ── Save: state.ivHistory + btcHistory + session highs/lows ──
+  function saveState(){
+    try {
+      if(typeof state === 'undefined') return;
+      const payload = {
+        v: 1,
+        savedAt: Date.now(),
+        // Per-expiry IV history (cap each to last 200 ticks ~ 17 minutes
+        // at 5s cadence; full series stays in memory while live)
+        ivHistory: Array.isArray(state.ivHistory)
+          ? state.ivHistory.map(arr => Array.isArray(arr) ? arr.slice(-200) : [])
+          : [],
+        ivSessionHigh: state.ivSessionHigh,
+        ivSessionLow:  state.ivSessionLow,
+        ivOpen:        state.ivOpen,
+        // Spot history (cap to last 200)
+        btcHistory: Array.isArray(state.btcHistory) ? state.btcHistory.slice(-200) : [],
+        btcOpen:    state.btcOpen,
+        btcPrev:    state.btcPrev,
+        // VoV / HV
+        vovHistory: Array.isArray(state.vovHistory) ? state.vovHistory.slice(-200) : [],
+        hv30:       state.hv30,
+        dvolBase:   state.dvolBase,
+        // Expiry list snapshot (so we can validate ivHistory[i] alignment)
+        expiries: (typeof EXPIRIES !== 'undefined') ? EXPIRIES.map(e => ({
+          label: e.label, dte: e.dte, expired: !!e.expired,
+        })) : null,
+      };
+      _set(KEYS.state, JSON.stringify(payload));
+    } catch(e){ console.warn('[brmPersist] saveState', e.message); }
+  }
+
+  // ── Save: vapState rolling histories ──
+  function saveVap(){
+    try {
+      if(typeof vapState === 'undefined') return;
+      const payload = {
+        v: 1,
+        savedAt: Date.now(),
+        ivHistory:    vapState.ivHistory?.slice() || [],
+        rv5History:   vapState.rv5History?.slice() || [],
+        hv30History:  vapState.hv30History?.slice() || [],
+        vrpHistory:   vapState.vrpHistory?.slice() || [],
+        vovHistory:   vapState.vovHistory?.slice() || [],
+        timestamps:   vapState.timestamps?.slice() || [],
+        zScoreWindow: vapState.zScoreWindow?.slice() || [],
+      };
+      _set(KEYS.vap, JSON.stringify(payload));
+    } catch(e){ console.warn('[brmPersist] saveVap', e.message); }
+  }
+
+  // ── Save: manual trade builder draft ──
+  function saveManualDraft(legs){
+    try {
+      if(!legs || !legs.length){
+        // Clear key when legs empty
+        try { localStorage.removeItem(KEYS.manualDraft); } catch(_e){}
+        return;
+      }
+      _set(KEYS.manualDraft, JSON.stringify({
+        v: 1, savedAt: Date.now(), legs,
+      }));
+    } catch(e){ console.warn('[brmPersist] saveManualDraft', e.message); }
+  }
+
+  // ── Save: backtest last result (so CSV download survives refresh) ──
+  function saveBktLast(result, opts){
+    try {
+      if(!result || !Array.isArray(result.trades)) return;
+      // Cap trade list — backtest can have 1000s of trades, we only need
+      // enough for CSV/JSON export. Keep all trades since they're useful;
+      // strip equity curve to save space (it's regenerable from trades).
+      const slim = {
+        v: 1,
+        savedAt: Date.now(),
+        opts: opts || null,
+        result: {
+          summary: result.summary,
+          trades:  result.trades,
+          // Skip equity[] — sometimes 5000+ entries. Skip drawdown too.
+        },
+      };
+      _set(KEYS.bktLast, JSON.stringify(slim));
+    } catch(e){ console.warn('[brmPersist] saveBktLast', e.message); }
+  }
+
+  // ── Restore: state ──
+  function restoreState(){
+    try {
+      const raw = _get(KEYS.state);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      // Stale check
+      if((Date.now() - (data.savedAt || 0)) > MAX_AGE_MS) return;
+      // ivHistory: validate length matches current EXPIRIES (otherwise we'd
+      // misalign). If lengths differ we skip — modern bootcode rebuilds it.
+      if(typeof state !== 'undefined' && typeof EXPIRIES !== 'undefined'){
+        if(Array.isArray(data.ivHistory) && data.ivHistory.length === EXPIRIES.length){
+          // Only fill empty slots so we don't clobber fresh boot-time data
+          for(let i = 0; i < data.ivHistory.length; i++){
+            if(!Array.isArray(state.ivHistory[i]) || state.ivHistory[i].length === 0){
+              state.ivHistory[i] = Array.isArray(data.ivHistory[i]) ? data.ivHistory[i].slice() : [];
+            }
+          }
+        }
+        if(Array.isArray(data.ivSessionHigh) && data.ivSessionHigh.length === EXPIRIES.length){
+          state.ivSessionHigh = data.ivSessionHigh.slice();
+        }
+        if(Array.isArray(data.ivSessionLow) && data.ivSessionLow.length === EXPIRIES.length){
+          state.ivSessionLow = data.ivSessionLow.slice();
+        }
+        if(Array.isArray(data.ivOpen) && data.ivOpen.length === EXPIRIES.length){
+          state.ivOpen = data.ivOpen.slice();
+        }
+        if(Array.isArray(data.btcHistory) && (!state.btcHistory || !state.btcHistory.length)){
+          state.btcHistory = data.btcHistory.slice();
+        }
+        if(isFinite(data.btcOpen)) state.btcOpen = data.btcOpen;
+        if(isFinite(data.btcPrev)) state.btcPrev = data.btcPrev;
+        if(Array.isArray(data.vovHistory) && (!state.vovHistory || !state.vovHistory.length)){
+          state.vovHistory = data.vovHistory.slice();
+        }
+        if(isFinite(data.hv30))     state.hv30     = data.hv30;
+        if(isFinite(data.dvolBase)) state.dvolBase = data.dvolBase;
+      }
+      console.log('[brmPersist] restored state from', new Date(data.savedAt).toLocaleTimeString());
+    } catch(e){ console.warn('[brmPersist] restoreState', e.message); }
+  }
+
+  function restoreVap(){
+    try {
+      const raw = _get(KEYS.vap);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return;
+      if((Date.now() - (data.savedAt || 0)) > MAX_AGE_MS) return;
+      if(typeof vapState === 'undefined') return;
+      // Only fill empty slots
+      ['ivHistory','rv5History','hv30History','vrpHistory','vovHistory','timestamps','zScoreWindow'].forEach(k => {
+        if(Array.isArray(data[k]) && (!vapState[k] || !vapState[k].length)){
+          vapState[k] = data[k].slice();
+        }
+      });
+      console.log('[brmPersist] restored vapState from', new Date(data.savedAt).toLocaleTimeString());
+    } catch(e){ console.warn('[brmPersist] restoreVap', e.message); }
+  }
+
+  function restoreManualDraft(){
+    try {
+      const raw = _get(KEYS.manualDraft);
+      if(!raw) return null;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return null;
+      if((Date.now() - (data.savedAt || 0)) > MAX_AGE_MS) return null;
+      if(!Array.isArray(data.legs) || !data.legs.length) return null;
+      return data.legs;
+    } catch(e){ console.warn('[brmPersist] restoreManualDraft', e.message); return null; }
+  }
+
+  function restoreBktLast(){
+    try {
+      const raw = _get(KEYS.bktLast);
+      if(!raw) return null;
+      const data = JSON.parse(raw);
+      if(!data || data.v !== 1) return null;
+      // Backtest results don't expire — user might come back days later
+      // wanting to download the last run. Capped via localStorage size.
+      return { result: data.result, opts: data.opts };
+    } catch(e){ console.warn('[brmPersist] restoreBktLast', e.message); return null; }
+  }
+
+  // ── Master save (all-in-one) ──
+  function persistAll(){
+    const now = Date.now();
+    if(now - _lastSaveTs < 1000) return;   // hard rate limit
+    _lastSaveTs = now;
+    saveState();
+    saveVap();
+  }
+
+  // ── Schedule a save shortly after a state change ──
+  // (Coalesces rapid changes into one persist cycle.)
+  function scheduleSave(){
+    if(_saveScheduled) return;
+    _saveScheduled = true;
+    setTimeout(() => {
+      _saveScheduled = false;
+      persistAll();
+    }, 2000);
+  }
+
+  // ── Master restore (boot-time) ──
+  function restoreAll(){
+    restoreState();
+    restoreVap();
+    // bktLast + manualDraft are pulled by their consumers, not restored here
+  }
+
+  // ── Hook lifecycle events ──
+  // 1. Fixed-cadence interval (catches everything between explicit changes)
+  setInterval(persistAll, SAVE_INTERVAL_MS);
+  // 2. Browser-close / refresh
+  window.addEventListener('beforeunload', () => {
+    try { persistAll(); } catch(_e){}
+  });
+  // 3. Tab background (mobile especially — beforeunload doesn't always fire)
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'hidden'){
+      try { persistAll(); } catch(_e){}
+    }
+  });
+
+  // ── Expose for cross-module use ──
+  window.brmPersist = {
+    persistAll, scheduleSave, restoreAll,
+    saveManualDraft, restoreManualDraft,
+    saveBktLast, restoreBktLast,
+    KEYS,
+  };
+
+  // Boot restore — fires once DOM is ready. By then both `state` and
+  // `vapState` are guaranteed to have been declared (they're top-level
+  // module scope). We deliberately wait rather than running synchronously
+  // because vapState is declared further down the file than state.
+  function _bootRestore(){
+    try { restoreAll(); } catch(_e){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _bootRestore, { once: true });
+  } else {
+    // Document is already past loading — vapState may or may not be ready;
+    // try now, retry once 50ms later for safety.
+    _bootRestore();
+    setTimeout(_bootRestore, 50);
+  }
+})();
 
 let btcChart, vovChart, termChart;
 const sparkCharts = {};
