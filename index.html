@@ -1,19 +1,5 @@
 <!doctype html>
 <!--
-  v106 (13 Oct 2026, preview, not deployed): Signal bars in the header (style#v106Css + script[data-module=v106], last in body; window.v106).
-  Six network-tower bars replace the phase pill #ph89 (hidden; its text moves into the bars' sheet). Score = checks passing:
-  1 Leading signals (v104 tiles, none against; Event and Gamma left out) · 2 Speed vs IV (last two closed 15 m blocks ≤ 1×)
-  · 3 Edge ≥ +3 · Range < 1.5× · ADX(14, 15 m) falling · 4 IV/RV/VoV/DVOL none rising, ≥ 3 falling · 5 flow thermometer within ±0.35
-  · 6 Option buyers quiet: real − clock ≤ +0.8 and Deribit last 1 h not ≥ 15 % net bought (≥ 15 trades). 5–6 green, 3–4 amber, 0–2 red.
-  Vetoes (live, all bars red): LOADED = 2 h range ≤ 30th pct of weekday 2 h ranges (7 d; starting value) + net γ ≤ −0.1 + flip within 1 %;
-  NEWS = high-impact release within 2 h or until the first 15 m candle after it closes; IMPULSE = impulse meter at Impulse (checked every 3 s; clears after 15 min below Fast).
-  v106.1: quick to warn, slow to clear (each check fails on 1 closed candle past its line, clears after 2 inside a safer line);
-  bar 3 also fails on IV rising or Range rising 2 candles.
-  v106.2: decision order 1 Real · 2 Speed · 3 Range·ADX · 4 Edge · 5 Flow·Deribit·Leading · 6 vol direction; Entry / Exit sheet
-  (Exit when v99.trade() shows an open strangle) with tiers (bold decides, plain supports, faded confirms) and one Action line. Score set once per closed 15 m candle;
-  tap = sheet with each check's live reading, vetoes and the phase. Log: localStorage v106_bars_log (2000 rows).
--->
-<!--
   v105.15 (12 Oct 2026, preview, not deployed): Edge follows N2N, instant master switch, less phone work.
   · Edge: a fresh listing was blanked for 3 h; the N2N daily lists at the 17:30 roll, so Edge showed nothing for N2N until 20:30.
     Now only its first 20 min are skipped; up to 3 h a quote counts if within max(6 pts, 25 %) of the expiry before it
@@ -20107,67 +20093,27 @@ function bands(start){const out=[];const N0=nyOf(start+6*HR);if(!N0)return out;
   out.push({a:start,b:data,c:'--faint',l:'17:30 settle · new daily'},{a:data,b:ny,c:'--amber',l:'US data '+hm(data)},{a:ny,b:EW(ny).a,c:'--neg',l:'NY open · peak'},{a:EW(ny).a,b:EW(ny).b,c:'--pos',l:'⅓ window'},
     {a:EW(ny).b,b:nyEnd,c:'--ny',l:'late NY · fixing'},{a:nyEnd,b:tok,c:'--night',l:'after US'},{a:tok,b:ld,c:'--asia',l:'Asia · RV trough 10:30'},{a:ld,b:start+DAY-30*MIN,c:'--london',l:'London · Deribit 13:30'},{a:start+DAY-30*MIN,b:start+DAY,c:'--pos',l:'exit'});
   return out;}
-/* v107 · Tonight rail redrawn (13 Oct 2026): the IV line is red where it is above the clock path (fear being bought) and green where
-   it is below (fear fading), with the gap shaded; a status line says which side IV is on and since when; a hairline follows the
-   finger / mouse and reads time · IV · clock · real at that moment. Same data as before (R from railData). */
-const RL={G:null,hov:null,until:0,bound:false};
-function rlInterp(a,t){const n=a.length;if(!n)return null;if(t<=a[0][0])return a[0][1];if(t>=a[n-1][0])return a[n-1][1];let lo=0,hi=n-1;while(hi-lo>1){const m=(lo+hi)>>1;if(a[m][0]<=t)lo=m;else hi=m;}
-  const A=a[lo],B=a[hi];return B[0]===A[0]?A[1]:A[1]+(B[1]-A[1])*(t-A[0])/(B[0]-A[0]);}
-function rlRuns(pts,clk){const P=pts.filter(p=>p[1]!=null).slice().sort((a,b)=>a[0]-b[0]),runs=[];if(!P.length||!clk.length)return runs;
-  const d=P.map(p=>p[1]-rlInterp(clk,p[0]));let sg0=d[0]>=0,cur={up:sg0,a:[[P[0][0],P[0][1]]]};
-  for(let k=1;k<P.length;k++){const s1=d[k]>0?true:d[k]<0?false:sg0;if(s1!==sg0){const f=d[k-1]/(d[k-1]-d[k]),t=P[k-1][0]+(P[k][0]-P[k-1][0])*f,v=rlInterp(clk,t);cur.a.push([t,v]);runs.push(cur);cur={up:s1,a:[[t,v]]};sg0=s1;}cur.a.push([P[k][0],P[k][1]]);}
-  runs.push(cur);return runs;}
-function rlHair(){const G=RL.G,el=$('v89Rail');if(!G||!el)return;const svg=el.querySelector('svg.rl2');if(!svg)return;let g=svg.querySelector('#rlHair');if(!g){g=D.createElementNS('http://www.w3.org/2000/svg','g');g.id='rlHair';svg.appendChild(g);}
-  if(RL.hov==null||(RL.until&&Date.now()>RL.until)){g.innerHTML='';RL.hov=null;svg.classList.remove('hov');return;}svg.classList.add('hov');
-  const t=Math.max(G.start,Math.min(G.end,RL.hov)),xx=G.x(t),c=rlInterp(G.clk,t),inIv=G.pts.length&&t>=G.pts[0][0]&&t<=G.pts[G.pts.length-1][0],v=inIv?rlInterp(G.pts,t):null,r=v!=null&&c!=null?v-c:null;
-  const col=r==null?'var(--muted)':r>0?'var(--neg)':'var(--pos)',lab=`${hm(t)}${v!=null?' · IV '+f1(v):''}${c!=null?' · clk '+f1(c):''}${r!=null?' · '+sg(r):''}`,lw=lab.length*6.4+12,lx=Math.max(2,Math.min(G.W-lw-2,xx-lw/2));
-  g.innerHTML=`<line x1="${xx.toFixed(1)}" x2="${xx.toFixed(1)}" y1="${G.top-2}" y2="${G.bot}" style="stroke:var(--text);stroke-width:1;opacity:.55;stroke-dasharray:2 2"/>`+
-    (c!=null?`<circle cx="${xx.toFixed(1)}" cy="${G.y(c).toFixed(1)}" style="r:3.5px;fill:var(--rv);stroke:var(--panel);stroke-width:1.5px;filter:none"/>`:'')+
-    (v!=null?`<circle cx="${xx.toFixed(1)}" cy="${G.y(v).toFixed(1)}" style="r:4.5px;fill:${col};stroke:var(--panel);stroke-width:2px;filter:none"/>`:'')+
-    `<rect x="${lx.toFixed(1)}" y="${G.top-21}" width="${lw.toFixed(1)}" height="19" rx="9.5" style="fill:var(--panel);stroke:${col};stroke-width:1.4px;filter:none"/><text x="${(lx+lw/2).toFixed(1)}" y="${G.top-8}" text-anchor="middle" font-size="11" font-weight="700" fill="${col}" font-family="var(--mono)">${lab}</text>`;}
-function rlBind(el){if(RL.bound)return;RL.bound=true;const at=e=>{const svg=el.querySelector('svg.rl2');if(!svg||!RL.G)return null;const b=svg.getBoundingClientRect();if(!b.width)return null;const fx=(e.clientX-b.left)/b.width*RL.G.W;return RL.G.start+fx/RL.G.W*(RL.G.end-RL.G.start);};
-  el.addEventListener('pointermove',e=>{if(!e.target.closest||!e.target.closest('svg.rl2'))return;if(e.pointerType!=='mouse'&&!RL.down)return;const t=at(e);if(t==null)return;RL.hov=t;RL.until=0;rlHair();});
-  el.addEventListener('pointerdown',e=>{if(!e.target.closest||!e.target.closest('svg.rl2'))return;RL.down=true;const t=at(e);if(t==null)return;RL.hov=t;RL.until=0;rlHair();});
-  const up=e=>{RL.down=false;if(e.pointerType!=='mouse'&&RL.hov!=null){RL.until=Date.now()+5000;setTimeout(rlHair,5100);}};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
-  el.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'){RL.hov=null;rlHair();}});}
-function renderRail(now,R,ctx){const el=$('v89Rail');if(!el)return;const P=plan();rlBind(el);
-  const up=R&&R.real!=null?R.real>0:null;el.classList.toggle('rl-up',up===true);el.classList.toggle('rl-dn',up===false);
-  const head=`<div class="h89">⏱ Tonight<span class="s">${R&&R.isBid?'bid':'mark'} IV vs the clock path · ${SLOT_NAME[ctx.slot]} ${ctx.e?ctx.e.slice(5):''}</span><span class="r">`+
-    (R&&R.real!=null?`<span class="k89 big ${R.real<=-0.5?'ok':R.real>0?'bad':''}">real ${sg(R.real)}</span>`:'')+(P?`<span class="k89">flat by ${hm(P.lifeEnd)}</span>`:'')+`</span></div>`;
-  if(!R){RL.G=null;el.innerHTML=head+`<div class="f89" style="border:0">Waiting for tonight's IV of the plan expiry (recorded from the 17:30 listing).</div>`;return;}
-  const clk=R.clock.filter(p=>p[1]!=null).slice().sort((a,b)=>a[0]-b[0]),pts=R.pts.filter(p=>p[1]!=null).slice().sort((a,b)=>a[0]-b[0]),runs=rlRuns(pts,clk);
-  const phone=innerWidth<=760,Wd=Math.max(300,Math.round((el.clientWidth||1000)-14)),H=phone?190:214,top=46,bot=H-18,x=t=>(t-R.start)/(R.end-R.start)*Wd;
-  const all=[...pts.map(p=>p[1]),...clk.map(p=>p[1]),...R.av.map(p=>p[1])];let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<2){const m=(hi+lo)/2;lo=m-1;hi=m+1;}const pad=(hi-lo)*0.1;lo-=pad;hi+=pad;
-  const y=v=>bot-(v-lo)/(hi-lo)*(bot-top),path=a=>a.map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
-  let s=`<svg class="rl2" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" role="img" aria-label="Tonight's IV against the clock path; red where IV is above the clock" style="touch-action:pan-y">`;
-  // session strip
-  const B=bands(R.start);let lastEnd=-1;B.forEach(b=>{const xa=x(Math.max(b.a,R.start)),xb=x(Math.min(b.b,R.end));if(xb<=xa)return;
-    s+=`<rect x="${(xa+1).toFixed(1)}" y="15" width="${Math.max(1,xb-xa-2).toFixed(1)}" height="7" rx="3.5" style="fill:var(${b.c.replace(/^var\(|\)$/g,'')});opacity:.55;filter:none"><title>${esc(b.l)} ${hm(b.a)}–${hm(b.b)}</title></rect>`;
-    const lab=phone?b.l.split(' · ')[0]:b.l,need=lab.length*5.4+6;if(xa>=lastEnd&&xb-xa>=Math.min(need,90)){s+=`<text x="${(xa+3).toFixed(1)}" y="10" font-size="10" font-weight="600" fill="var(--muted)" font-family="var(--font)">${esc(lab)}</text>`;lastEnd=xa+need;}});
-  // grid
-  const stepH=phone?6:3;for(let k=0;k<=24;k+=stepH){const t=R.start+k*HR,xx=x(t);s+=`<line x1="${xx.toFixed(1)}" x2="${xx.toFixed(1)}" y1="${top}" y2="${bot}" style="stroke:var(--line);stroke-width:1;opacity:.6"/>`;if(k<24)s+=`<text x="${(xx+3).toFixed(1)}" y="${H-4}" font-size="10" fill="var(--faint)" font-family="var(--mono)">${hm(t)}</text>`;}
-  for(const v of [lo+pad,(lo+hi)/2,hi-pad])s+=`<text x="${Wd-3}" y="${(y(v)-3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--faint)" font-family="var(--mono)">${v.toFixed(1)}</text>`;
-  // shaded gap between IV and clock, by side
-  for(const r of runs){if(r.a.length<2)continue;const back=r.a.slice().reverse().map(p=>[p[0],rlInterp(clk,p[0])]);
-    s+=`<path d="${path(r.a)} ${back.map(p=>'L'+x(p[0]).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ')} Z" style="fill:${r.up?'var(--neg)':'var(--pos)'};opacity:${r.up?.18:.13};stroke:none;filter:none"/>`;}
-  if(R.av.length)s+=`<path d="${path(R.av.filter(p=>p[1]!=null))}" fill="none" style="stroke:var(--faint);stroke-width:1.4px;stroke-dasharray:1.5 3.5;filter:none;opacity:.8"/>`;
-  s+=`<path d="${path(clk)}" fill="none" style="stroke:var(--rv);stroke-width:2.2px;stroke-dasharray:7 5;filter:none;stroke-linecap:round"/>`;
-  for(const r of runs)if(r.a.length>1)s+=`<path d="${path(r.a)}" fill="none" style="stroke:${r.up?'var(--neg)':'var(--pos)'};stroke-width:3px;filter:none;stroke-linecap:round;stroke-linejoin:round"/>`;
-  // crossings
-  for(let k=1;k<runs.length;k++){const c=runs[k].a[0];s+=`<circle cx="${x(c[0]).toFixed(1)}" cy="${y(c[1]).toFixed(1)}" style="r:3px;fill:var(--panel);stroke:${runs[k].up?'var(--neg)':'var(--pos)'};stroke-width:2px;filter:none"><title>crossed ${runs[k].up?'above':'below'} the clock at ${hm(c[0])}</title></circle>`;}
-  // now
-  const xn=x(Math.min(now,R.end)),yn=y(R.vNow),nc=up?'var(--neg)':'var(--pos)';
-  s+=`<line x1="${xn.toFixed(1)}" x2="${xn.toFixed(1)}" y1="${top-6}" y2="${bot}" style="stroke:var(--text);stroke-width:1.4px;opacity:.85"/><circle cx="${xn.toFixed(1)}" cy="${yn.toFixed(1)}" style="r:5.5px;fill:${nc};stroke:var(--panel);stroke-width:2.5px;filter:none"/>`;
-  const lbl=`${f1(R.vNow)} · clk ${f1(R.cNow)} · ${sg(R.real)}`,lw=lbl.length*6.6+14,lx=xn>Wd-lw-10?xn-lw-8:xn+8,ly=Math.min(bot-20,Math.max(top,yn-10));
-  s+=`<g class="rl-nl"><rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${lw.toFixed(1)}" height="20" rx="10" style="fill:var(--panel);stroke:${nc};stroke-width:1.5px;filter:none"/><text x="${(lx+lw/2).toFixed(1)}" y="${(ly+14).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${nc}" font-family="var(--mono)">${lbl}</text></g>`;
+function renderRail(now,R,ctx){const el=$('v89Rail');if(!el)return;const P=plan();
+  const head=`<div class="h89">⏱ Tonight<span class="s">17:30 → 17:30 IST · ${R&&R.isBid?'bid':'mark'} IV vs the clock path · ${SLOT_NAME[ctx.slot]} ${ctx.e?ctx.e.slice(5):''}</span><span class="r">`+
+    (R&&R.real!=null?`<span class="k89 ${R.real<=-0.5?'ok':R.real>=0.8?'bad':''}">real ${sg(R.real)}</span>`:'')+(P?`<span class="k89">flat by ${hm(P.lifeEnd)}</span>`:'')+`</span></div>`;
+  if(!R){el.innerHTML=head+`<div class="f89" style="border:0">Waiting for tonight's IV of the plan expiry (recorded from the 17:30 listing).</div>`;return;}
+  const phone=innerWidth<=760,Wd=Math.max(300,Math.round((el.clientWidth||1000)-20)),H=phone?108:122,top=phone?30:34,bot=H-14,x=t=>(t-R.start)/(R.end-R.start)*Wd;
+  const all=[...R.pts.map(p=>p[1]),...R.clock.map(p=>p[1]).filter(v=>v!=null),...R.av.map(p=>p[1])];let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<2){const m=(hi+lo)/2;lo=m-1;hi=m+1;}const pad=(hi-lo)*0.12;lo-=pad;hi+=pad;
+  const y=v=>bot-(v-lo)/(hi-lo)*(bot-top),path=a=>a.filter(p=>p[1]!=null).map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
+  const cv=n=>`var(${n})`;let s=`<svg viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" role="img" aria-label="Tonight's IV against the clock path">`;
+  const B=bands(R.start);let lastEnd=-1;B.forEach((b,i)=>{const xa=x(Math.max(b.a,R.start)),xb=x(Math.min(b.b,R.end));if(xb<=xa)return;
+    s+=`<rect x="${xa.toFixed(1)}" y="14" width="${(xb-xa).toFixed(1)}" height="8" fill="${cv(b.c)}" opacity=".4"><title>${esc(b.l)} ${hm(b.a)}–${hm(b.b)}</title></rect>`;
+    const lab=phone?b.l.split(' · ')[0]:b.l,need=lab.length*5.2+6;if(xa>=lastEnd&&xb-xa>=Math.min(need,90)){s+=`<text x="${(xa+2).toFixed(1)}" y="10" font-size="9.5" fill="var(--muted)" font-family="var(--font)">${esc(lab)}</text>`;lastEnd=xa+need;}});
+  const stepH=phone?6:3;for(let k=0;k<=24;k+=stepH){const t=R.start+k*HR,xx=x(t);s+=`<line x1="${xx.toFixed(1)}" x2="${xx.toFixed(1)}" y1="${top}" y2="${bot}" stroke="var(--line)" stroke-width="1"/>`;if(k<24)s+=`<text x="${(xx+2).toFixed(1)}" y="${H-2}" font-size="9" fill="var(--faint)" font-family="var(--mono)">${hm(t)}</text>`;}
+  for(const v of [lo+pad,(lo+hi)/2,hi-pad])s+=`<text x="${Wd-2}" y="${(y(v)-2).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--faint)" font-family="var(--mono)">${v.toFixed(1)}</text>`;
+  if(R.av.length)s+=`<path d="${path(R.av)}" fill="none" stroke="var(--faint)" stroke-width="1.3" stroke-dasharray="1.5 3"/>`;
+  s+=`<path d="${path(R.clock)}" fill="none" stroke="var(--rv)" stroke-width="1.6" stroke-dasharray="6 4"/>`;
+  s+=`<path d="${path(R.pts)}" fill="none" stroke="${R.isBid?'var(--pos)':'var(--iv)'}" stroke-width="2.1"/>`;
+  const xn=x(Math.min(now,R.end)),yn=y(R.vNow);s+=`<line x1="${xn}" x2="${xn}" y1="12" y2="${bot}" stroke="var(--text)" stroke-width="1.2"/><circle cx="${xn}" cy="${yn}" r="3.5" fill="${R.isBid?'var(--pos)':'var(--iv)'}"/>`;
+  const lbl=phone?`${f1(R.vNow)} · clk ${f1(R.cNow)} · ${sg(R.real)}`:`now ${f1(R.vNow)} · clock ${f1(R.cNow)} · real ${sg(R.real)}`,lw=phone?128:182,lx=xn>Wd-lw-8?xn-lw-6:xn+6;s+=`<rect x="${lx}" y="${Math.min(bot-16,Math.max(top,yn-8))}" width="${lw}" height="15" rx="2" fill="var(--panel2)" stroke="var(--line2)"/><text x="${lx+5}" y="${Math.min(bot-16,Math.max(top,yn-8))+11}" font-size="10" fill="var(--text)" font-family="var(--mono)">${lbl}</text>`;
   s+='</svg>';
-  RL.G={W:Wd,start:R.start,end:R.end,top,bot,x,y,clk,pts};
-  // status line: which side, since when
-  let st='';if(up!=null&&runs.length){const last=runs[runs.length-1],since=last.a[0][0],mins=Math.round((now-since)/MIN),dur=mins>=60?Math.floor(mins/60)+' h '+(mins%60)+' min':mins+' min';
-    st=`<div class="rl-st ${up?'up':'dn'}"><b>${up?'▲ IV above the clock':'▼ IV below the clock'}</b><span>${up?'fear being bought':'fear fading'} · since ${hm(since)} (${dur})</span></div>`;}
   const lift=ctx.lift;
-  el.innerHTML=head+st+s+`<div class="lg89"><span><i class="lk89 rl-u"></i>IV above clock</span><span><i class="lk89 rl-d"></i>IV below clock</span><span><i class="lk89 d"></i>clock path: IV if nothing is repriced</span>${R.av.length?`<span><i class="lk89 f"></i>avg last ${R.days} weekdays</span>`:''}${lift!=null?`<span>clock lift ${ctx.liftFrom?hm(ctx.liftFrom):'05:30'} → ${ctx.exitAt?hm(ctx.exitAt):'17:00'} <b>${sg(lift)}</b></span>`:''}${R.note?`<span class="am">${esc(R.note)}</span>`:''}<span class="dst">${phone?'touch and drag to read any time':'hover to read any time'}</span></div>`;
-  rlHair();}
+  el.innerHTML=head+s+`<div class="lg89"><span><i class="lk89 ${R.isBid?'':'m'}"></i>${R.isBid?'bid':'mark'} IV tonight</span><span><i class="lk89 d"></i>clock path — what IV does if nothing is repriced</span>${R.av.length?`<span><i class="lk89 f"></i>avg last ${R.days} weekdays</span>`:''}${lift!=null?`<span>clock lift ${ctx.liftFrom?hm(ctx.liftFrom):'05:30'} → ${ctx.exitAt?hm(ctx.exitAt):'17:00'} <b>${sg(lift)}</b></span>`:''}${R.note?`<span class="am">${esc(R.note)}</span>`:''}<span class="dst">${LEAD()==='NEW YORK'?'NY times follow US daylight saving (+1 h IST from 1 Nov)':'timing follows the session leader: '+LNAME[LEAD()]}</span></div>`;}
 
 /* ---------------- mini vol charts ---------------- */
 function spark(vals,cls){if(!vals||vals.length<3)return '<svg></svg>';const Wd=240,H=70,lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;
@@ -20306,7 +20252,7 @@ function boot(){if(!mount()){setTimeout(boot,500);return;}run(true);
   try{W.desk80&&W.desk80.on&&W.desk80.on('signal',()=>setTimeout(()=>run(false),200));W.desk80.on('visible',d=>{if(d&&!d.hidden)run(true);});W.desk80.on('theme',()=>{LN.key='';run(true);});}catch(e){}
   new MutationObserver(()=>{if(D.body.dataset.page==='pgDesk')run(true);}).observe(D.body,{attributes:true,attributeFilter:['data-page']});}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,800));else setTimeout(boot,800);
-W.v89={state:()=>ST,checks:()=>({C:ST.C||[],T:ST.T||[],real:ST.R?ST.R.real:null}),rise:()=>{try{const P=plan(),slot=P?P.slot:1,e=P?P.expiry:expOf(slot);return riseCheck(Date.now(),{e,pane:paneOf(slot),real:ST.R?ST.R.real:null});}catch(x){return String(x);}},run:()=>run(true),phase,ladder:()=>ST.L,rail:()=>ST.R,clockIv,__rail:renderRail};
+W.v89={state:()=>ST,checks:()=>({C:ST.C||[],T:ST.T||[],real:ST.R?ST.R.real:null}),rise:()=>{try{const P=plan(),slot=P?P.slot:1,e=P?P.expiry:expOf(slot);return riseCheck(Date.now(),{e,pane:paneOf(slot),real:ST.R?ST.R.real:null});}catch(x){return String(x);}},run:()=>run(true),phase,ladder:()=>ST.L,rail:()=>ST.R,clockIv};
 })();
 </script>
 
@@ -22431,252 +22377,5 @@ new MutationObserver(()=>{if(D.body.classList.contains('gfs')||D.fullscreenEleme
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(hook,600));else setTimeout(hook,600);
 })();
 </script>
-<style id="v106Css">
-/* v106 · signal bars in the header (replace the phase pill #ph89, which stays in the DOM, hidden) */
-#ph89{display:none!important}
-.v106-bars{display:inline-flex;align-items:center;gap:9px;height:40px;padding:0 12px 0 10px;margin-left:10px;border-radius:12px;
-  border:2px solid var(--v106c,#9a968c);background:color-mix(in srgb,var(--v106c,#9a968c) 12%,var(--panel,#fff));color:var(--text,#1c1c1a);
-  font:inherit;cursor:pointer;white-space:nowrap;flex:none}
-.v106-bars:focus-visible{outline:2px solid var(--focus,#3b5bdb);outline-offset:2px}
-.v106-bars .b6{display:flex;align-items:flex-end;gap:3px;height:33px}
-.v106-bars .b6 i{display:block;width:7px;border-radius:2px;background:var(--line2,#d6d3cc)}
-.v106-bars .b6 i.on{background:var(--v106c,#9a968c)}
-.v106-bars .lb{font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:700;font-size:15px;color:var(--v106c,#55534e)}
-.v106-bars .lb .x{display:inline}
-.v106-bars[data-s="g"]{--v106c:#1f7a4a}.v106-bars[data-s="a"]{--v106c:#a8700c}.v106-bars[data-s="r"],.v106-bars[data-s="v"]{--v106c:#b3261e}
-.v106-pop{position:fixed;z-index:9000;width:min(380px,94vw);max-height:78vh;overflow:auto;background:var(--panel,#fff);color:var(--text,#1c1c1a);
-  border:1px solid var(--line2,#d6d3cc);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:12px 14px;font-size:13px}
-.v106-pop[hidden]{display:none}
-.v106-pop h3{margin:0 0 2px;font-size:14px}
-.v106-pop .ph{color:var(--muted,#6b6963);font-size:12px;margin:0 0 10px}
-.v106-pop .r{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:7px 0;border-top:1px solid var(--line,#e6e3dc)}
-.v106-pop .r b{font-weight:600}
-.v106-pop .r .m{font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:700;font-size:12px}
-.v106-pop .r .d{grid-column:1/-1;color:var(--muted,#6b6963);font-size:12px}
-
-.v106-pop .sec{margin:10px 0 0;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#6b6963)}
-.v106-pop .ft{margin:10px 0 0;color:var(--muted,#6b6963);font-size:11.5px;line-height:1.45}
-.v106-pop .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 8px}.v106-pop .hd .ph{margin:0}
-.v106-pop .r{grid-template-columns:18px 1fr auto;align-items:center;border-top:0;border-radius:10px;padding:7px 8px;margin:3px 0}
-.v106-pop .r .n{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--muted,#6b6963)}
-.v106-pop .r .d{grid-column:2/-1}
-.v106-pop .r.t1{background:color-mix(in srgb,var(--text,#1c1c1a) 4%,transparent);padding:10px 8px}.v106-pop .r.t1 b{font-size:15px;font-weight:700}
-.v106-pop .r.t1.hl-g{background:color-mix(in srgb,#1f7a4a 12%,transparent);outline:2px solid color-mix(in srgb,#1f7a4a 55%,transparent)}
-.v106-pop .r.t1.hl-r{background:color-mix(in srgb,#b3261e 12%,transparent);outline:2px solid color-mix(in srgb,#b3261e 60%,transparent)}
-.v106-pop .r.t2 b{font-weight:600}.v106-pop .r.t3{opacity:.55}.v106-pop .r.t3 b{font-weight:500}
-.v106-pop .m{padding:2px 7px;border-radius:6px;color:#fff!important;font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:700;font-size:11.5px}
-.v106-pop .m.p{background:#1f7a4a}.v106-pop .m.f{background:#b3261e}.v106-pop .m.a{background:#a8700c}.v106-pop .m.n{background:#8a8780}
-.v106-pop .act{margin:10px 0 0;padding:10px 12px;border-radius:12px;color:#fff;display:flex;flex-direction:column;gap:2px}
-.v106-pop .act span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85}.v106-pop .act b{font-size:14.5px}
-.v106-pop .act.a-g{background:#1f7a4a}.v106-pop .act.a-a{background:#a8700c}.v106-pop .act.a-r{background:#b3261e}.v106-pop .act.a-{background:#55534e}
-@media (max-width:760px){
-  .v106-bars{margin-left:auto;height:36px;padding:0 8px;gap:6px}
-  .v106-bars .b6{height:28px;gap:2px}.v106-bars .b6 i{width:6px}
-  .v106-bars .lb{font-size:13px}.v106-bars .lb .x{display:none}
-}
-/* v107 · Tonight rail */
-#v89Rail.rl-up{box-shadow:0 0 0 2px color-mix(in srgb,var(--neg) 55%,transparent),0 8px 22px -14px color-mix(in srgb,var(--neg) 70%,transparent)!important}
-#v89Rail.rl-dn{box-shadow:0 0 0 2px color-mix(in srgb,var(--pos) 45%,transparent)!important}
-#v89Rail .k89.big{height:24px;font-size:13px;padding:0 11px}
-#v89Rail .rl-st{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 2px 6px;font-size:13px}
-#v89Rail .rl-st b{font-size:15px;font-weight:800;letter-spacing:.01em}#v89Rail .rl-st span{color:var(--muted)}
-#v89Rail .rl-st.up b{color:var(--neg)}#v89Rail .rl-st.dn b{color:var(--pos)}
-#v89Rail svg.rl2{cursor:crosshair;user-select:none;-webkit-user-select:none}#v89Rail svg.rl2.hov .rl-nl{opacity:.25}
-#v89Rail .lk89.rl-u{border-top:3px solid var(--neg)}#v89Rail .lk89.rl-d{border-top:3px solid var(--pos)}
-</style>
-<script data-module="v106">
-/* =====================================================================
-   v106 · Signal bars (13 Oct 2026, preview)
-   Six checks shown as network-tower bars in the header, in place of the phase pill (#ph89 is hidden; its
-   text moves into the bars' sheet). Score = checks passing. 5–6 green, 3–4 amber, 0–2 red. Two vetoes turn
-   every bar red whatever the score: LOADED (quiet 2 h + dealers short gamma + flip within 1 % of spot) and
-   NEWS (high-impact release within 2 h, or until the first 15 m candle after it has closed).
-   Quick to warn, slow to clear: each check fails on one closed 15 m candle past its danger line and passes again only
-   after 2 closed candles in a row inside a safer clearing line (no flip-flop). Vetoes are live.
-   v106.2 (13 Oct): bars and sheet in decision order — 1 Real · 2 Speed vs IV (decide, bold) · 3 Range·ADX · 4 Edge (support)
-   · 5 Flow·Deribit·Leading · 6 IV/RV/VoV/DVOL (confirm, faded). Real is its own check: fails above +0.8, clears below 0 or below
-   +0.5 while falling (values taken at each candle close). The sheet is the Entry sheet with no trade, the Exit sheet when
-   v99.trade() (Delta read-only key) shows an open strangle; each ends in one Action line. Entry: all vetoes clear and checks
-   1–4 passing → sell half; 2 more such candles → sell the rest. The list below is the v106.1 wording, kept for history.
-   Checks (master expiry where it applies) and their thresholds — all the desk's own except one:
-     1 Leading signals   v104 tiles: none "against" (Event and Dealer gamma left out: they are the vetoes)
-     2 Speed vs IV       last 2 closed 15 m blocks ≤ 1× (v84 Carry: BTC realised ÷ ATM IV; 1× is the card's own line)
-     3 Edge · Range · ADX  fails: Edge < +3, IV rising, Range > 1.5× or rising 2 candles, ADX(14, 15 m) rising;
-                         clears: Edge ≥ +3.5, IV not rising, Range < 1.3× and not rising, ADX falling
-     4 Vol falling       IV, RV, VoV (v100 closed block) and DVOL (15 m): none rising, at least 3 falling
-     5 Futures flow      order-flow thermometer within ±0.35 (OrderFlow "balanced")
-     6 Option buyers quiet  real − clock ≤ +0.8 (v89 exit residual) AND Deribit last 1 h: takers not ≥ 15 % net
-                         buying calls or puts with ≥ 15 trades (the flow tape's own "side leads" rule)
-     Veto IMPULSE  impulse meter (v49) at Impulse: last 5 min top 1 % of minutes and ≥ 2.5× normal for the hour; checked every 3 s
-     Veto LOADED quiet = 2 h BTC range at or below the 30th percentile of weekday 2 h ranges over 7 d
-                 (STARTING VALUE, not yet tested), net γ ≤ −0.1 (v104 "Short γ"), |spot − flip| ≤ 1 % of spot
-   Every commit is logged (localStorage v106_bars_log, 2000 rows) so the thresholds can be tested later.
-   Reads the engine only; writes its own DOM. window.v106.
-   ===================================================================== */
-(function v106(){
-'use strict';
-const W=window,D=document,MIN=60000,HR=3600000,DAY=86400000,Q=15*MIN,IST=19800000;
-const $=id=>D.getElementById(id);
-const fin=x=>typeof x==='number'&&isFinite(x);
-const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const p2=n=>String(n).padStart(2,'0');
-const hm=ms=>{const d=new Date(ms+IST);return p2(d.getUTCHours())+':'+p2(d.getUTCMinutes());};
-const f1=x=>fin(x)?x.toFixed(1):'—',sg=(x,d)=>fin(x)?(x>=0?'+':'−')+Math.abs(x).toFixed(d==null?1:d):'—';
-const wkday=t=>{const g=new Date(t).getUTCDay();return g!==0&&g!==6;};          // desk rule: weekend = UTC Sat–Sun
-const median=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);return s[s.length>>1];};
-
-/* ---------------- 15 m BTC candles from the 5-min index store ---------------- */
-const C15={key:'',c:[]};
-function candles(){let L=null;try{L=W.rvIndexLong&&W.rvIndexLong();}catch(e){}if(!L||!L.bars||!L.bars.size)return null;
-  const key=L.ver+'|'+L.bars.size;if(C15.key===key)return C15.c;
-  const m=new Map();for(const b of L.bars.values()){if(!b||!(b.h>0)||!(b.l>0)||!(b.c>0))continue;const k=Math.floor(b.t/Q)*Q;let c=m.get(k);
-    if(!c){c={t:k,o:b.o>0?b.o:b.c,h:b.h,l:b.l,c:b.c,n:1,first:b.t,last:b.t};m.set(k,c);}else{if(b.t<c.first){c.o=b.o>0?b.o:c.o;c.first=b.t;}c.h=Math.max(c.h,b.h);c.l=Math.min(c.l,b.l);if(b.t>=c.last){c.c=b.c;c.last=b.t;}c.n++;}}
-  C15.c=[...m.values()].sort((a,b)=>a.t-b.t);C15.key=key;return C15.c;}
-function closed(now){const c=candles();if(!c)return null;const out=c.filter(x=>x.t+Q<=now);return out.length?out:null;}
-function adx14(cl){const n=cl.length;if(n<40)return null;const P=14,tr=[],pdm=[],mdm=[];
-  for(let i=1;i<n;i++){const c=cl[i],p=cl[i-1];tr.push(Math.max(c.h-c.l,Math.abs(c.h-p.c),Math.abs(c.l-p.c)));const up=c.h-p.h,dn=p.l-c.l;pdm.push(up>dn&&up>0?up:0);mdm.push(dn>up&&dn>0?dn:0);}
-  let atr=0,pd=0,md=0;for(let i=0;i<P;i++){atr+=tr[i];pd+=pdm[i];md+=mdm[i];}const dx=[];
-  for(let i=P;i<tr.length;i++){atr=atr-atr/P+tr[i];pd=pd-pd/P+pdm[i];md=md-md/P+mdm[i];const pi=atr>0?100*pd/atr:0,mi=atr>0?100*md/atr:0;dx.push(pi+mi>0?100*Math.abs(pi-mi)/(pi+mi):0);}
-  if(dx.length<P+2)return null;let a=0;for(let i=0;i<P;i++)a+=dx[i];a/=P;const out=[a];for(let i=P;i<dx.length;i++){a=(a*(P-1)+dx[i])/P;out.push(a);}
-  return {now:out[out.length-1],prev:out[out.length-2]};}
-
-/* ---------------- the six checks ---------------- */
-function cSpeed(){const r={k:'speed',n:'Speed vs IV',tier:1,fail:null,safe:null,d:'Speed vs IV blocks not computed yet'};let R=null;try{R=W.Carry&&W.Carry.state?W.Carry.state():null;}catch(e){}
-  if(!R||!Array.isArray(R.blocks))return r;const cl=R.blocks.filter(b=>!b.live&&b.r!=null&&!b.near);if(cl.length<2)return r;
-  const a=cl[cl.length-1],b=cl[cl.length-2];r.a=a.r;r.b=b.r;r.fail=a.r>1;r.safe=a.r<=0.9;r.d=`${b.r.toFixed(2)}× and ${a.r.toFixed(2)}× on the last two 15 m blocks (${R.label||'master'}) · under 1× = moving less than you are paid`;return r;}
-function ivDirs(){let VS=null;try{VS=W.v100&&W.v100.vs?W.v100.vs():null;}catch(e){}return VS&&VS.state!=='na'&&VS.dirs&&VS.closed>=0?{d0:VS.dirs[VS.closed],d1:VS.dirs[VS.closed-1]}:null;}
-function realNow(){let R=null;try{R=W.v89&&W.v89.rail?W.v89.rail():null;}catch(e){}return R&&fin(R.real)?{real:R.real,cNow:R.cNow}:null;}
-function cReal(b){const r={k:'real',n:'Real (IV vs clock)',tier:1,fail:null,safe:null,d:'clock path loading'};const x=realNow();if(!x)return r;
-  if(!ST.realH.has(b)){ST.realH.set(b,x.real);for(const k of ST.realH.keys())if(k<b-8)ST.realH.delete(k);}   // value at each candle close
-  const r0=ST.realH.get(b),r1=ST.realH.get(b-1),r2=ST.realH.get(b-2),fall=fin(r1)&&r0<r1,fall2=fall&&fin(r2)&&r1<r2;r.v=x.real;
-  r.fail=r0>0.8;r.safe=r0<0||(r0<0.5&&fall);
-  r.d=`${sg(x.real)} now${fin(r1)?` · ${fall2?'falling 2 candles':fall?'falling':'rising'} (${sg(r1)} → ${sg(r0)} at the closes)`:''} · below 0 = fear fading, above +0.8 = fear being bought`;return r;}
-function cRange(now){const r={k:'range',n:'Range · ADX',tier:2,fail:null,safe:null,d:'Range pane not loaded'};const k1=Math.floor(now/Q)*Q-Q,at=k=>{try{return W.v105&&W.v105.rangeAt?W.v105.rangeAt(k+Q-1):null;}catch(e){return null;}};
-  const R1=at(k1),R2=at(k1-Q),R3=at(k1-2*Q),cl=closed(now),A=cl?adx14(cl):null;const rRise=fin(R1)&&fin(R2)&&fin(R3)&&R1>R2&&R2>R3,rUp=fin(R1)&&fin(R2)&&R1>R2,adxUp=A?A.now>A.prev:null;
-  r.d=`Range ${fin(R1)?R1.toFixed(2)+'×':'—'}${rRise?' rising 2 candles':rUp?' ▲':fin(R1)&&fin(R2)?(R1<R2?' ▼':' ▸'):''} · ADX ${A?A.now.toFixed(1)+(adxUp?' ▲':' ▼'):'—'} · both falling = the move is over`;
-  if(!fin(R1)||adxUp==null)return r;r.fail=R1>1.5||rRise||adxUp;r.safe=R1<1.3&&!rUp&&!adxUp;return r;}
-function cEdge(now){const r={k:'edge',n:'Edge',tier:2,fail:null,safe:null,d:'Edge pane not loaded'};const k1=Math.floor(now/Q)*Q-Q;let E1=null;try{E1=W.v105&&W.v105.edgeAt?W.v105.edgeAt(k1+Q-1):null;}catch(e){}
-  const I=ivDirs(),ivUp=!!(I&&I.d0&&I.d0.iv>0);r.d=`${fin(E1)?sg(E1):'—'}${ivUp?' · IV rising, so not counted':''} · +3 or more = premium worth selling`;
-  if(!fin(E1))return r;r.fail=E1<3||ivUp;r.safe=E1>=3.5&&!ivUp;return r;}
-function cConfirm(now){const r={k:'conf',n:'Flow · Deribit · Leading',tier:3,fail:null,safe:null,d:'order flow / tiles loading'};let s=null,T=null;
-  try{s=W.OrderFlow&&W.OrderFlow.state?W.OrderFlow.state():null;}catch(e){}try{T=W.v104&&W.v104.tiles?W.v104.tiles():null;}catch(e){}const F=deribit1h(now);
-  const th=s&&s.ready&&fin(s.therm)?s.therm:null,use=Array.isArray(T)?T.filter(t=>t.k!=='event'&&t.k!=='gamma'&&t.st!=='na'):[],bad=use.filter(t=>t.st==='bad');
-  const pc=x=>x==null?'—':(x>=0?'+':'−')+Math.round(Math.abs(x)*100)+'%';const parts=[];
-  parts.push('flow '+(th==null?'—':sg(th,2)));parts.push(F?(F.n<15?`Deribit ${F.n} trades`:`Deribit calls ${pc(F.nc)} · puts ${pc(F.np)}${F.buying?' (buyers lead)':''}`):'Deribit —');
-  parts.push(use.length?(bad.length?'against: '+bad.map(t=>t.n).join(', '):'no tile against'):'tiles —');r.d=parts.join(' · ');
-  if(th==null||!F||!use.length)return r;const a=Math.abs(th);r.fail=a>0.35||F.buying||bad.length>0;r.safe=a<=0.25&&!F.buying&&!bad.length;return r;}
-function cVol(){const r={k:'vol',n:'IV · RV · VoV · DVOL',tier:3,fail:null,safe:null,d:'vol turn not computed yet'};const legs=[];const I=ivDirs(),dr=I&&I.d0;if(dr){legs.push(['IV',dr.iv],['RV',dr.rv],['VoV',dr.vov]);}
-  try{const a=W.dvolStore&&W.dvolStore.minutes&&W.dvolStore.minutes();if(a&&a.length>16){const L=a[a.length-1];let j=a.length-1;while(j>0&&a[j][0]>L[0]-Q)j--;const ch=L[4]-a[j][4];legs.push(['DVOL',Math.abs(ch)<0.05?0:Math.sign(ch)]);}}catch(e){}
-  if(legs.length<3)return r;const ar=d=>d<0?'▼':d>0?'▲':'▸',down=legs.filter(x=>x[1]<0).length,up=legs.filter(x=>x[1]>0).length;
-  r.fail=up>0;r.safe=up===0&&down>=3;r.d=legs.map(x=>x[0]+' '+ar(x[1])).join(' · ')+' · fails on any leg rising, clears with none rising and 3+ falling';return r;}
-function deribit1h(now){let S=null;try{S=W.OrderFlow&&W.OrderFlow.__test?W.OrderFlow.__test.S:null;}catch(e){}if(!S||!S.tape)return null;
-  const cut=now-HR,o={cb:0,cs:0,pb:0,ps:0,n:0,from:now,blkBuy:0};for(const x of S.tape.values()){if(!x||x.t<cut)continue;o.n++;if(x.t<o.from)o.from=x.t;
-    const call=/-C$/.test(x.ins),put=/-P$/.test(x.ins);if(x.dir==='buy'){if(call)o.cb+=x.amt;else if(put)o.pb+=x.amt;if(x.block)o.blkBuy++;}else{if(call)o.cs+=x.amt;else if(put)o.ps+=x.amt;}}
-  const net=(b,s)=>b+s>0?(b-s)/(b+s):null;o.nc=net(o.cb,o.cs);o.np=net(o.pb,o.ps);o.buying=o.n>=15&&((o.nc!=null&&o.nc>=0.15)||(o.np!=null&&o.np>=0.15));return o;}
-/* ---------------- vetoes ---------------- */
-function quiet2h(now){const cl=closed(now);if(!cl||cl.length<200)return null;const win=8,rg=[];
-  for(let i=win-1;i<cl.length;i++){const s=cl[i-win+1];if(cl[i].t-s.t!==(win-1)*Q)continue;if(cl[i].t<now-7*DAY||!wkday(cl[i].t))continue;let h=-Infinity,l=Infinity;for(let j=i-win+1;j<=i;j++){h=Math.max(h,cl[j].h);l=Math.min(l,cl[j].l);}rg.push(h-l);}
-  if(rg.length<60)return null;const last=cl.slice(-win);let h=-Infinity,l=Infinity;for(const x of last){h=Math.max(h,x.h);l=Math.min(l,x.l);}const now2=h-l;
-  const s=rg.slice().sort((a,b)=>a-b),p30=s[Math.floor(s.length*0.3)],rank=s.filter(v=>v<=now2).length/s.length;return {rng:now2,p30,rank,quiet:now2<=p30};}
-function vLoaded(now){const r={k:'loaded',n:'Loaded: quiet + short γ near flip',on:false,d:'gamma or BTC history not loaded'};let C=null;try{C=typeof desk!=='undefined'?desk.check:null;}catch(e){}
-  const G=C&&C.G,S=C&&C.spot,q=quiet2h(now);const parts=[];
-  parts.push(q?`2 h range ${Math.round(q.rng)} pts (${Math.round(q.rank*100)}th pct, quiet ≤ 30th)`:'2 h range —');
-  if(G&&fin(G.r))parts.push('net γ '+(G.r<=-0.1?'short':G.r>=0.1?'long':'balanced'));
-  const dist=G&&G.flip!=null&&fin(S)&&S>0?Math.abs(S-G.flip)/S*100:null;parts.push('flip '+(G&&G.flip!=null?Math.round(G.flip).toLocaleString('en-US')+(dist!=null?' ('+dist.toFixed(2)+'% away)':''):'—'));
-  r.d=parts.join(' · ');if(!q||!G||!fin(G.r))return r;r.on=q.quiet&&G.r<=-0.1&&dist!=null&&dist<=1;return r;}
-function releases(a,b){try{const E=W.Events24;if(!E||!E.inLife)return null;return E.inLife(a,b).filter(e=>(e.imp||0)>=3&&!e.unscheduled&&!/deribit|delta|expiry|fund|news|hack/i.test((e.src||'')+' '+(e.code||''))).sort((x,y)=>x.t-y.t);}catch(e){return null;}}
-function vNews(now){const r={k:'news',n:'News within 2 h',on:false,d:'event calendar loading'};const L=releases(now-2*HR,now+2*HR);if(L===null)return r;
-  const nm=e=>e.name||e.title||e.code||'release';
-  const past=L.filter(e=>e.t<=now&&now<Math.floor(e.t/Q)*Q+Q).pop();if(past){r.on=true;r.d=`${nm(past)} printed ${hm(past.t)} IST · bars return after the ${hm(Math.floor(past.t/Q)*Q+Q)} candle closes`;r.ev=past;return r;}
-  const nx=L.find(e=>e.t>now);if(nx){const m=Math.round((nx.t-now)/MIN);r.on=true;r.d=`${nm(nx)} at ${hm(nx.t)} IST (in ${m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'})`;r.ev=nx;return r;}
-  r.d='no high-impact release within 2 h';return r;}
-
-const IMP={on:false,below:null};
-function vImpulse(){const r={k:'impulse',n:'Impulse: BTC bursting now',on:false,d:'impulse meter waiting for 1-minute history'};let x=null;try{x=typeof W.impulseRead==='function'?W.impulseRead():null;}catch(e){}
-  if(!x||!x.ok){if(x&&x.behind)r.d='BTC index feed is behind';r.on=IMP.on;return r;}const NM=['calm','normal','fast','impulse'],now=Date.now();
-  if(x.st===3){IMP.on=true;IMP.below=null;}else if(IMP.on){if(x.st<2){if(IMP.below==null)IMP.below=now;if(now-IMP.below>=15*MIN){IMP.on=false;IMP.below=null;}}else IMP.below=null;}
-  r.on=IMP.on;r.d=`last 5 min ${fin(x.r)?x.r.toFixed(1)+'×':'—'} normal for this hour (${NM[x.st]||'—'})${x.oneWay&&x.st>=1?' · '+(x.dir>0?'▲':'▼')+' one-way':''} · on at Impulse (top 1 % and 2.5×)`+(IMP.on?(IMP.below!=null?` · clears in ${Math.max(1,Math.ceil((15*MIN-(now-IMP.below))/MIN))} min if it stays below Fast`:' · clears after 15 min below Fast'):'');return r;}
-/* ---------------- commit + paint ---------------- */
-// Each check is a small state machine stepped once per closed 15 m candle: one candle past its danger line fails it at once;
-// it passes again only after 2 closed candles in a row inside its (safer) clearing line. No flip-flop around one line.
-const ST={shown:null,live:null,M:{},logged:-1,realH:new Map(),entry:{b:-1,run:0}};
-const LOGK='v106_bars_log';
-function logRow(s){try{const a=JSON.parse(localStorage.getItem(LOGK)||'[]');a.push({t:s.at,sc:s.score,ch:s.checks.map(c=>c.pass==null?'-':c.pass?'1':'0').join(''),raw:s.checks.map(c=>c.fail==null?'-':c.fail?'f':c.safe?'s':'m').join(''),ld:s.veto.loaded.on?1:0,nw:s.veto.news.on?1:0,im:s.veto.impulse&&s.veto.impulse.on?1:0});while(a.length>2000)a.shift();localStorage.setItem(LOGK,JSON.stringify(a));}catch(e){}}
-function step(c,b){const m=ST.M[c.k]||(ST.M[c.k]={st:null,run:0,b:-1});
-  if(c.fail==null){c.pass=null;c.run=0;return;}
-  if(m.b!==b){m.b=b;if(c.fail){m.st='f';m.run=0;}else if(m.st==null){m.st=c.safe?'p':'f';m.run=0;}else if(m.st==='f'){m.run=c.safe?m.run+1:0;if(m.run>=2){m.st='p';m.run=0;}}}
-  c.pass=m.st==='p';c.run=m.run;}
-function compute(now){const b=Math.floor((now-20000)/Q);const checks=[cReal(b),cSpeed(),cRange(now),cEdge(now),cConfirm(now),cVol()];for(const c of checks)step(c,b);   // bar order = decision order
-  const score=checks.filter(c=>c.pass===true).length;
-  const veto={loaded:vLoaded(now),news:vNews(now),impulse:vImpulse()},core=checks.slice(0,4),ok=!veto.loaded.on&&!veto.news.on&&!veto.impulse.on&&core.every(c=>c.pass===true);
-  if(ST.entry.b!==b){ST.entry.b=b;ST.entry.run=ok?ST.entry.run+1:0;}else if(!ok)ST.entry.run=0;   // candles in a row with every veto clear and checks 1–4 passing
-  return {at:now,b,checks,score,known:checks.filter(c=>c.pass!=null).length,veto,entryOk:ok,entryRun:ST.entry.run};}
-function tick(){const now=Date.now();let s;try{s=compute(now);}catch(e){console.warn('v106',e);return;}ST.live=s;ST.shown=s;   // pass / fail only move on a candle close (state machine); the detail text is live
-  if(s.known===6&&ST.logged!==s.b){logRow(s);ST.logged=s.b;}
-  paint();if(POP&&!POP.hidden)sheet();}
-let BTN=null,POP=null;
-function mount(){if(BTN&&BTN.isConnected)return true;const ph=$('ph89');const nav=$('nav');if(!ph&&!nav)return false;
-  BTN=D.createElement('button');BTN.type='button';BTN.id='v106Bars';BTN.className='v106-bars';BTN.setAttribute('aria-haspopup','dialog');
-  BTN.innerHTML='<span class="b6" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lb"></span>';
-  (ph||nav).after(BTN);const hs=[8,13,18,23,28,33];BTN.querySelectorAll('.b6 i').forEach((x,i)=>{x.style.height=hs[i]+'px';});
-  BTN.addEventListener('click',e=>{e.stopPropagation();toggle();});
-  POP=D.createElement('div');POP.className='v106-pop';POP.id='v106Pop';POP.setAttribute('role','dialog');POP.setAttribute('aria-label','Signal bars detail');POP.hidden=true;D.body.appendChild(POP);
-  POP.addEventListener('click',e=>e.stopPropagation());D.addEventListener('click',()=>{if(POP&&!POP.hidden)POP.hidden=true;});
-  D.addEventListener('keydown',e=>{if(e.key==='Escape'&&POP&&!POP.hidden){POP.hidden=true;BTN.focus();}});
-  W.addEventListener('resize',()=>{if(POP&&!POP.hidden)place();});
-  // v100's master switch is placed after #ph89; keep the bars right after the (hidden) pill so the master switch stays on their right
-  return true;}
-function state(){const s=ST.shown,L=ST.live;if(!s||!L)return null;const veto=L.veto.news.on?'news':L.veto.impulse&&L.veto.impulse.on?'impulse':L.veto.loaded.on?'loaded':null;
-  const sc=s.score,k=veto?'v':s.known<3?'n':sc>=5?'g':sc>=3?'a':'r';return {s,L,veto,sc,k};}
-function paint(){if(!mount())return;{const ph=$('ph89');if(ph&&BTN.previousElementSibling!==ph)ph.after(BTN);}   // bars sit right after the hidden pill, before the master switch
-  const z=state();if(!z){BTN.dataset.s='n';BTN.querySelector('.lb').textContent='…';BTN.setAttribute('aria-label','Signal bars loading');return;}
-  const {sc,k,veto}=z;BTN.dataset.s=k;BTN.querySelectorAll('.b6 i').forEach((x,i)=>x.classList.toggle('on',veto?true:i<sc));
-  const word=k==='g'?'SELL OK ':k==='a'?'WAIT ':k==='r'?'OUT ':'';
-  const VW={news:'NEWS',impulse:'IMPULSE',loaded:'LOADED'};const html=veto?`× <span class="x">${VW[veto]}</span>`:k==='n'?'—':`<span class="x">${word}</span>${sc}/6`;
-  const lb=BTN.querySelector('.lb');if(lb.innerHTML!==html)lb.innerHTML=html;
-  BTN.setAttribute('aria-label',veto?`Veto: ${veto==='news'?'high-impact news':veto==='impulse'?'BTC impulse now':'market loaded'}. Tap for detail`:`Signal ${sc} of 6. Tap for detail`);}
-function place(){const r=BTN.getBoundingClientRect(),w=POP.offsetWidth||360;let x=Math.min(Math.max(8,r.right-w),innerWidth-w-8);POP.style.left=x+'px';POP.style.top=Math.round(r.bottom+6)+'px';}
-function toggle(){if(!POP)return;if(POP.hidden){sheet();POP.hidden=false;place();}else POP.hidden=true;}
-function tradeNow(){try{const t=W.v99&&W.v99.trade?W.v99.trade():null;if(!t)return null;let P=null;try{P=W.v99.posNow?W.v99.posNow():null;}catch(e){}return {t,P};}catch(e){return null;}}
-function row(n,name,mark,cls,d,tier,hl){return `<div class="r t${tier}${hl?' hl-'+hl:''}"><span class="n">${n}</span><b>${esc(name)}</b><span class="m ${cls}">${mark}</span><span class="d">${esc(d)}</span></div>`;}
-function sheet(){const z=state();if(!z){POP.innerHTML='<p class="ph">Reading the desk…</p>';return;}const {L}=z,now=Date.now();
-  let ph={t:'—',s:''};try{ph=W.v89&&W.v89.phase?W.v89.phase(now):ph;}catch(e){}const C={};for(const c of L.checks)C[c.k]=c;
-  const pm=c=>c.pass==null?['—','n']:c.pass?['PASS','p']:c.run===1?['1 of 2','a']:['FAIL','f'];const V=L.veto,vOn=[V.news,V.impulse,V.loaded].filter(v=>v&&v.on);
-  const TR=tradeNow();let h='',act='',actC='';
-  if(!TR){   // ---------------- Entry sheet ----------------
-    h+=`<div class="hd"><h3>Entry · ${L.score}/6</h3><span class="ph">${esc(ph.t)}</span></div>`;
-    h+=row('0','Vetoes',vOn.length?'ON':'CLEAR',vOn.length?'f':'p',vOn.length?vOn.map(v=>v.d).join(' · '):'news none in 2 h · impulse calm · not loaded',1,vOn.length?'r':'g');
-    [['1',C.real],['2',C.speed],['3',C.range],['4',C.edge],['5',C.conf],['6',C.vol]].forEach(([n,c])=>{const [m,k]=pm(c);h+=row(n,c.n,m,k,c.d+(c.pass===true&&c.fail?' · past its line now':''),c.tier,c.tier===1?(c.pass===true?'g':c.pass===false?'r':''):'');});
-    const firstBad=[C.real,C.speed,C.range,C.edge].find(c=>c.pass!==true);
-    if(vOn.length){act='No entry · '+vOn[0].n.split(':')[0];actC='r';}
-    else if(firstBad){act=`Wait · ${firstBad.n}${firstBad.pass==null?' has no data yet':firstBad.run===1?' is clearing (1 of 2 calm candles)':' is against'}`;actC=firstBad.tier===1?'r':'a';}
-    else if(L.entryRun>=3){act='Sell the REST now · calm has held 2 more candles';actC='g';}
-    else{const nx=hm(Math.floor((now-20000)/Q)*Q+Q*(3-L.entryRun));act=`Sell HALF now · the rest after 2 calm candles (by the ${nx} close)`;actC='g';}
-  }else{     // ---------------- Exit sheet ----------------
-    const {t,P}=TR;h+=`<div class="hd"><h3>Exit watch</h3><span class="ph">${esc(ph.t)}</span></div>`;
-    const imp=V.impulse||{on:false,d:'—'},nw=V.news;
-    h+=row('1','Impulse · News',imp.on||nw.on?'EXIT':'CLEAR',imp.on||nw.on?'f':'p',(imp.on?imp.d:nw.on?nw.d:imp.d),1,imp.on||nw.on?'r':'');
-    const rl=C.real,rx=fin(rl.v)&&rl.v>0.8;h+=row('2','Real (IV vs clock)',rl.v==null?'—':rx?'EXIT':'OK',rl.v==null?'n':rx?'f':'p',rl.d,1,rx?'r':'');
-    const sp=C.speed,s2=fin(sp.a)&&fin(sp.b)&&sp.a>1&&sp.b>1,s1=fin(sp.a)&&sp.a>1;h+=row('3','Speed vs IV',sp.a==null?'—':s2?'EXIT':s1?'1 of 2':'OK',sp.a==null?'n':s2?'f':s1?'a':'p',sp.d+(s1&&!s2?' · exit if the next block is above 1× too':''),1,s2?'r':'');
-    const dP=P&&fin(P.dP)?P.dP:null,dC=P&&fin(P.dC)?P.dC:null,dm=Math.max(dP||0,dC||0),dk=dP==null&&dC==null?['—','n']:dm>=0.25?['HEDGE','f']:dm>=0.2?['WATCH','a']:['OK','p'];
-    h+=row('4','Leg delta',dk[0],dk[1],`put ${dP==null?'—':dP.toFixed(2)} · call ${dC==null?'—':dC.toFixed(2)} · hedge with the perp at 0.25`,2,'');
-    const xa=t.exitAt||null,left=xa?xa-now:null;h+=row('5','Time',xa==null?'—':left<=0?'EXIT':'OK',xa==null?'n':left<=0?'f':'p',xa?(left<=0?'exit time reached ('+hm(xa)+')':`exit ${hm(xa)} · in ${Math.floor(left/HR)} h ${Math.round(left%HR/MIN)} min`):'no exit time on the trade',2,'');
-    h+=row('6',C.conf.n,'INFO','n',C.conf.d,3,'');
-    if(imp.on){act='Impulse: hedge or exit now';actC='r';}else if(nw.on){act='News within 2 h: flat or hedged before it';actC='r';}
-    else if(rx){act='Real above +0.8: fear is back. Hedge with the perp or exit';actC='r';}else if(s2){act='Speed above 1× for 2 blocks: the move is eating your premium. Exit or hedge';actC='r';}
-    else if(dm>=0.25){act=`${dP>=dC?'Put':'Call'} leg at ${dm.toFixed(2)} delta: hedge with the perp`;actC='r';}else if(left!=null&&left<=0){act='Exit time: close the strangle';actC='a';}
-    else if(s1||dm>=0.2){act='Hold, but watch: '+(s1?'Speed above 1× on the last block':'a leg near 0.25 delta');actC='a';}else{act='Hold · nothing triggered';actC='g';}
-  }
-  h+=`<div class="act a-${actC}"><span>Action</span><b>${esc(act)}</b></div>`;
-  h+=`<p class="ft">Read top-down: bold rows decide, plain rows support, faded rows only confirm. Each check fails on one closed 15 m candle past its danger line and passes again after 2 closed candles inside its clearing line. Danger lines are the desk's own; the clearing lines and the 30th-percentile "quiet" cut are starting values, logged every 15 m for testing.</p>`;
-  if(POP.innerHTML!==h)POP.innerHTML=h;}
-function start(){if(!mount()){setTimeout(start,1500);return;}tick();setInterval(tick,15000);
-  setInterval(()=>{if(!ST.live)return;const v=vImpulse(),was=ST.live.veto.impulse&&ST.live.veto.impulse.on;ST.live.veto.impulse=v;if(v.on!==was){paint();if(POP&&!POP.hidden)sheet();}},3000);   // the impulse veto is checked every 3 s
-  W.addEventListener('v100:master',()=>setTimeout(()=>{ST.shown=null;ST.M={};/* new master expiry: every check starts afresh */tick();},800));}   // a new master expiry re-scores at once
-if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(start,2500));else setTimeout(start,2500);
-W.v106={state:()=>ST,compute:()=>compute(Date.now()),log:()=>{try{return JSON.parse(localStorage.getItem(LOGK)||'[]');}catch(e){return [];}},refresh:tick,__test:{candles,closed,adx14,quiet2h,deribit1h,step,ST}};
-})();
-</script>
-
 </body>
 </html>
