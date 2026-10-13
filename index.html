@@ -1,5 +1,16 @@
 <!doctype html>
 <!--
+  v105.16 (13 Oct 2026, preview, not deployed): mobile / tablet / desktop repair. CSS only (style#v105_16Css, last in body);
+  no script, data or feature changed.
+  · Header 761–1365 px: page nav (Trade / Flow / Events / Settings) shrank to 0 px and theme / full-screen buttons fell off
+    the right edge (tablets, landscape phones, small laptops). Nav no longer shrinks; UTC + session clock hide below 1366,
+    session-pill detail below 1181, brand name below 981.
+  · Session pill ends in "…" instead of being cut mid-word; on phones ≤420 px the brand name gives way so the pill is readable.
+  · Empty "— closes —" price tag at the left of panes with no data (Range): a Flow pill rule (.lp-tag) overrode its display:none.
+  · BTC chart: duplicate left-edge γ flip / call wall / put wall names hidden (price-scale names and lines stay).
+  · Flow page status strip wraps on phones instead of being cut off.
+-->
+<!--
   v105.15 (12 Oct 2026, preview, not deployed): Edge follows N2N, instant master switch, less phone work.
   · Edge: a fresh listing was blanked for 3 h; the N2N daily lists at the 17:30 roll, so Edge showed nothing for N2N until 20:30.
     Now only its first 20 min are skipped; up to 3 h a quote counts if within max(6 pts, 25 %) of the expiry before it
@@ -22377,5 +22388,45 @@ new MutationObserver(()=>{if(D.body.classList.contains('gfs')||D.fullscreenEleme
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(hook,600));else setTimeout(hook,600);
 })();
 </script>
+<style id="v105_16Css">
+/* v105.16 repair (13 Oct 2026) · layout fixes for phone, tablet and laptop widths. CSS only, nothing removed. */
+/* 1. A legacy pill rule (.lp-tag{display:inline-block}, used by the Flow "what happened" pills) also matched the live
+      price tags, so an empty "— closes —" tag sat at the left edge of panes with no data (Range). */
+div.lp-tag{display:none}
+div.lp-tag.on{display:block}
+/* 2. Session pill: the text is a bare flex item, so it was cut mid-word ("ASIA · E"). Block layout lets it end in "…". */
+#ph89{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:26px}
+#ph89 i{display:inline-block;vertical-align:middle;margin:-2px 7px 0 0}
+#ph89 span{margin-left:5px}
+@media (max-width:760px){#ph89{line-height:24px;flex:1 1 auto;max-width:none}#ph89:empty{display:none}}
+/* small phones: the brand name took the pill's room (it showed only "•…" at 360 px); the brand mark stays */
+@media (max-width:420px){.top h1.brand .n{display:none}#ph89{margin-left:4px}}
+/* 3. Header between 761 and 1365 px (tablets, landscape phones, small laptops): the page nav shrank to 0 px, so
+      Trade / Flow / Events / Settings disappeared, and the theme and full-screen buttons were pushed off the screen. */
+@media (min-width:761px){
+  #nav{flex:0 0 auto;min-width:max-content}
+  #v100Master{flex:0 0 auto}
+  header.top.hdr .top-actions{flex:0 0 auto;min-width:0}
+  #ph89{flex:0 1 auto}
+}
+@media (min-width:761px) and (max-width:1365px){
+  #hdrClock span:nth-child(2),#hdrSess{display:none}
+}
+@media (min-width:761px) and (max-width:1180px){
+  #ph89 span{display:none}
+  .top.hdr{gap:8px}
+  #nav{margin-left:0}
+  #nav button{padding:6px 8px}
+}
+@media (min-width:761px) and (max-width:980px){
+  .top h1.brand .n{display:none}
+  #badge.pill{max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+/* 4. BTC chart: γ flip / call wall / put wall names were written twice — at the left edge, on top of the candles and the
+      session-box labels, and again on the price scale. Keep the price-scale names; the coloured 3D lines stay. */
+svg.v105-bsig text{display:none}
+/* 5. Flow page status strip was cut off on phones ("Neutral W2 Neutral O"): let it wrap. */
+@media (max-width:760px){#edgeLine{flex-wrap:wrap;row-gap:4px;overflow:visible;white-space:normal}#edgeLine .edge-live{flex:1 0 100%}#edgeLine .edge-txt{display:flex;flex-wrap:wrap;gap:5px 6px;min-width:0;flex:1 1 100%}#edgeLine .edge-txt>span{white-space:nowrap}#edgeLine .sep{display:none}}
+</style>
 </body>
 </html>
