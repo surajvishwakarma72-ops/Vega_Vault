@@ -1,5 +1,53 @@
 <!doctype html>
 <!--
+  v105.23 (14 Oct 2026): chart is the core on desktop — BTC candle pane 208 → 358 px at 1440×900 (350 → 506 at 1920×1080):
+    ADX strip 84–120 px (was 150), Edge/Range clamp(62,7.6vh,92), Speed vs IV 60 px; side column 296–360 px and can be
+    hidden (button#v23Tog, localStorage v23_side_hidden) to give the chart the full width.
+  v105.22 (14 Oct 2026): chart first — the desk always opens on Trade at the top (script#v105_22Arrange, #v22Top): desktop
+    (1360 px+) puts the BTC chart with Speed vs IV / Edge / Range / ADX on the left at full height and a scrolling side column
+    (My trade, Leading signals 2-across, Tonight) on the right; Edge/Range panes shorter so the candles get the room; phone and
+    tablet show the chart first, then My trade, Leading, Tonight. Edge/Range open from a 3-day localStorage copy
+    (v105_22_grid) at once, the full IDB snapshot is asked for at load and kept up to 10 days, and a save never shrinks it.
+    Delta key card shows Delta's own answer, the IP Delta saw and this device's IP (ipify) with the fix for IP whitelists.
+  v105.21 (14 Oct 2026): Flow page — "Which expiry for this life" and "Best short strangle" removed (style#v105_21Css hides #xvSec,
+    #rkSec; their phrases dropped from the Flow status line). 24×7 clock: new views Speed vs IV and Edge (from stored 5-min BTC
+    + master-expiry IV), live views Range / Impulse / Tonight / Leading (recorded every 15 min, IDB v105_21:clocklive, 180 d),
+    IV tab renamed ATM IV, trade life drawn as one amber line above the hours, a read line under the grid.
+-->
+<!--
+  v105.20 (14 Oct 2026, preview): floating live P&L (#v18Float: desktop card bottom-right, draggable, collapsible, ⧉ pop-out
+    via Document Picture-in-Picture on Chrome/Edge; phone pill above the tab bar, tap = causes, drag up/down; position in
+    v18_fp_pos), P&L refresh every 20 s while a trade is open. Delta sync (v100 dget) now tries the route that last worked and
+    then the other (direct ↔ api/delta-proxy) instead of locking onto a missing proxy; clearer error and setup help.
+-->
+<!--
+  v105.19 (14 Oct 2026, preview, not deployed): the Deribit option flow, order-flow thermometer, positioning, vol turn,
+    24×7 clock and Events panels were hidden on any device that never had the old console's "more" button pressed
+    (body.v89-more, localStorage v89_more) — so a fresh PC or a fresh Vercel visit showed none of them. Now shown by
+    default (v89_more '0' still hides). Desktop: order-flow row 2 × 2 below 1800 px, 4 across above; equal-height cards,
+    one edge and gap for all Trade-page panels (style#v105_19Css).
+-->
+<!--
+  v105.18 (14 Oct 2026, preview, not deployed): Trade lab. Settings: Delta read-only key (v100 connect card), trade log
+    (auto from Delta; CSV / JSON export, restore) and "What the desk learned" (unlocks at 20 closed trades). Trade page top,
+    only while a strangle is open: "What moved my P&L" — P&L split into time / price / IV / other per minute (each leg at its
+    live size, Black-Scholes greeks from Delta's mark IV), 15-min blocks tagged with the desk's readings, Act 4 warnings and
+    your size changes. Store: IndexedDB v18:lab (+ localStorage v18_cur). style#v105_18Css + script[data-module=v105_18].
+-->
+<!--
+  v105.17 (13 Oct 2026, preview, not deployed): fast start + smooth scrolling. No signal, number or layout changed.
+  · script#v105_17Early (first script in head): phones draw charts at ≤2× pixel density; timers started while the page is
+    still being read wait for DOMContentLoaded (page read 3× sooner); on phones timers pause while the page is gliding and
+    run once when it stops; history downloads (long candle / DVOL / kline ranges) use a slow lane — ≤2 per site at a
+    time, ~8 starts/s on phones, live data first, IV charts before studies, paused while scrolling, nothing waits > 5 s.
+  · Leading signals: the last complete board (localStorage v105_17_lead, ≤12 h old) is drawn the moment the Trade page
+    starts; tiles still loading show their last reading, dimmed. Board boots 60 ms after DOMContentLoaded (was 2.2 s).
+  · Header fully opaque (light mode showed the 24×7 grid through it). Empty-chart shimmer off on phones.
+  Measured (headless phone, 4× CPU slowdown, warm device): page read 12.8 s → 4.2 s; Leading board 15.8 s → 0.5 s
+  (snapshot) / 8 s (first visit); frames over 50 ms while scrolling 20–24 → 3–4. First visit: history requests in the
+  first 40 s 1,187 → ~250, long tasks 14.6 s → 4.4 s.
+-->
+<!--
   v105.16 (13 Oct 2026, preview, not deployed): mobile / tablet / desktop repair. CSS only (style#v105_16Css, last in body);
   no script, data or feature changed.
   · Header 761–1365 px: page nav (Trade / Flow / Events / Settings) shrank to 0 px and theme / full-screen buttons fell off
@@ -234,6 +282,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script id="v105_17Early">/* v105.17 · smooth + fast start (runs before every other script).
+   A. Phones: chart canvases are capped at 2× pixel density (a 2.6× phone drew 70 % more pixels on every chart redraw;
+      the picture is the same, text stays sharp).
+   B. Page start: timers the desk's 60-odd modules start while the page is still being read are held until the page has
+      been read (DOMContentLoaded), then run one per task. They used to run in between, so the browser took 3× longer
+      to finish reading the page and the Leading signals board (which is near the end) appeared last.
+   C. Phones: repeating timers (½ s and slower) skip their run while a finger is on the screen or the page is still
+      gliding; each skipped timer runs once when the page stops. Clocks catch up at once; nothing is lost.
+   D. History downloads (long candle / DVOL / kline ranges) go through one slow lane: at most 3 at a time (5 on desktop),
+      started after the live data is on screen, paused while scrolling. A first visit used to fire ~800 history
+      requests in 30 s, which starved the live requests and could hit the exchanges' rate limits. */
+(function(){'use strict';
+var W=window,D=document,P=W.v17={t0:Date.now()};
+var coarse=false;try{coarse=matchMedia('(pointer:coarse)').matches;}catch(e){}
+P.coarse=coarse;
+/* ---- A. pixel density cap ---- */
+try{if('scrollRestoration' in history)history.scrollRestoration='manual';}catch(e){}   /* v105.22: a reload opens at the chart, not where the page was left */
+try{var dpr=W.devicePixelRatio||1;P.realDpr=dpr;if(coarse&&dpr>2)Object.defineProperty(W,'devicePixelRatio',{get:function(){return 2;},configurable:true});}catch(e){}
+var si=W.setInterval,st=W.setTimeout,ci=W.clearInterval,ct=W.clearTimeout;
+/* ---- run-later queue: one callback per task so the screen can update in between ---- */
+var Q=[],qBusy=false;
+function qPump(){qBusy=false;var t=performance.now();while(Q.length){var f=Q.shift();try{f();}catch(e){st.call(W,function(){throw e;},0);}if(performance.now()-t>12)break;}if(Q.length){qBusy=true;st.call(W,qPump,0);}}
+function later(f){Q.push(f);if(!qBusy){qBusy=true;st.call(W,qPump,0);}}
+/* ---- C. scroll state (phones) ---- */
+var SC=P.scroll={on:false,touch:false,t:0,last:0},skipped=new Set(),skippedT=[];
+function scrollEnd(){SC.on=false;if(SC.t){ct.call(W,SC.t);SC.t=0;}var b=skippedT;skippedT=[];for(var j=0;j<b.length;j++)later(b[j]);
+  var a=Array.from(skipped);skipped.clear();for(var i=0;i<a.length;i++)later(a[i]);flushLow();}
+// "scrolling" = the page itself is moving (a tap or a drag on a chart is not scrolling, so they react at once)
+function arm(){SC.on=true;SC.last=Date.now();if(SC.t){ct.call(W,SC.t);SC.t=0;}if(!SC.touch)SC.t=st.call(W,scrollEnd,320);}
+if(coarse){
+  addEventListener('touchstart',function(){SC.touch=true;},{passive:true,capture:true});
+  var up=function(){SC.touch=false;if(SC.on)arm();};
+  addEventListener('touchend',up,{passive:true,capture:true});addEventListener('touchcancel',up,{passive:true,capture:true});
+  addEventListener('scroll',function(){arm();},{passive:true,capture:true});
+  // a finger resting still (reading a crosshair) or a lost touchend never freezes the desk
+  si.call(W,function(){if(SC.on&&Date.now()-SC.last>(SC.touch?2500:1000)){SC.touch=false;scrollEnd();}},1000);
+}
+/* ---- B + C. timers ---- */
+var loading=function(){return D.readyState==='loading';},dead=new Set(),held=[],defer=new Set();
+// debug only (off unless v17.dbg is set from the console): time each timer callback by its source
+function dbg(fn,a,k){if(!P.dbg)return fn.apply(W,a);var t=performance.now();try{return fn.apply(W,a);}finally{var d=performance.now()-t;if(d>4){var key=k+' '+(fn.name||String(fn).replace(/\s+/g,' ').slice(0,100));var o=P.dbg[key]||(P.dbg[key]={n:0,ms:0,max:0});o.n++;o.ms+=d;if(d>o.max)o.max=d;}}}
+D.addEventListener('DOMContentLoaded',function(){P.dcl=Date.now()-P.t0;var h=held;held=[];for(var i=0;i<h.length;i++)later(h[i]);},{once:true});
+W.setTimeout=function(fn,ms){var a=Array.prototype.slice.call(arguments,2);if(typeof fn!=='function')return st.apply(W,arguments);
+  var id=st.call(W,function(){if(loading()){held.push(function(){if(!dead.has(id))dbg(fn,a,'T');dead.delete(id);});return;}
+    if(coarse&&SC.on){defer.add(id);skippedT.push(function(){defer.delete(id);if(dead.has(id)){dead.delete(id);return;}dbg(fn,a,'T');});return;}   // page is gliding: run when it stops (in order)
+    dbg(fn,a,'T');},ms);
+  return id;};
+W.clearTimeout=function(id){if(id!=null&&(loading()||defer.has(id)))dead.add(id);return ct.call(W,id);};
+W.setInterval=function(fn,ms){var a=Array.prototype.slice.call(arguments,2);if(typeof fn!=='function')return si.apply(W,arguments);
+  var d=+ms||0,run=function(){dbg(fn,a,'I'+d);};
+  var id=si.call(W,function(){if(loading())return;if(coarse&&d>=500&&SC.on){skipped.add(run);return;}run();},ms);
+  return id;};
+W.clearInterval=function(id){return ci.call(W,id);};
+/* ---- D. history downloads: one slow lane ---- */
+var F=W.fetch?W.fetch.bind(W):null,LOW=[],lowActive=0,LOW_MAX=coarse?4:6;
+P.ready=false;
+P.markReady=function(){if(P.ready)return;P.ready=true;P.readyAt=Date.now()-P.t0;flushLow();};
+D.addEventListener('DOMContentLoaded',function(){st.call(W,P.markReady,6000);},{once:true});
+var H=3600;
+function isLow(u){try{
+  if(u.indexOf('/history/candles')>0){var m=/[?&]start=(\d+)/.exec(u),n=/[?&]end=(\d+)/.exec(u);if(m&&n&&(+n[1])-(+m[1])>4*H)return true;if(m&&Date.now()/1000-(+m[1])>2*86400)return true;return false;}
+  if(u.indexOf('get_volatility_index_data')>0){var a=/start_timestamp=(\d+)/.exec(u),b=/end_timestamp=(\d+)/.exec(u);return !!(a&&b&&(+b[1])-(+a[1])>4*H*1000);}
+  if(u.indexOf('/klines')>0){var s=/startTime=(\d+)/.exec(u);return !!(s&&Date.now()-(+s[1])>6*H*1000);}
+  if(u.indexOf('history.deribit.com')>=0||u.indexOf('get_last_trades_by_currency_and_time')>0)return true;
+}catch(e){}return false;}
+var GAP=coarse?120:60,HMAX=coarse?2:3,host={},gapT=0;   // per site: ≤2 at a time and ~8 starts a second on a phone (3 / ~16 on desktop)
+function hostOf(u){try{return new URL(typeof u==='string'?u:u.url).host;}catch(e){return '';}}
+function prio(u){u=typeof u==='string'?u:(u&&u.url)||'';if(u.indexOf('MARK%3A')>0||u.indexOf('MARK:')>0)return 0;if(u.indexOf('/history/candles')>0)return 1;return 2;}   // IV charts first, then BTC, then studies
+function flushLow(){if(!P.ready||SC.on)return;var now=Date.now(),wait=1e9;
+  for(var p=-1;p<3;p++)for(var i=0;i<LOW.length&&lowActive<LOW_MAX;i++){var j=LOW[i];if(j.dead){LOW.splice(i--,1);continue;}if((now-j.at>5000?-1:j.p)!==p)continue;   // a request waiting over 5 s goes first, so callers' time-outs are never hit
+    var h=host[j.h]||(host[j.h]={a:0,last:0});if(h.a>=HMAX)continue;var w=h.last+GAP-now;if(w>0){if(w<wait)wait=w;continue;}
+    LOW.splice(i--,1);h.a++;h.last=now;start(j);}
+  if(LOW.length&&wait<1e9&&!gapT)gapT=st.call(W,function(){gapT=0;flushLow();},wait);}
+function start(j){lowActive++;var done=function(){lowActive--;var h=host[j.h];if(h)h.a--;st.call(W,flushLow,0);};
+  F(j.u,j.o).then(function(r){done();j.res(r);},function(e){done();j.rej(e);});}
+P.lowQueue=function(){return {queued:LOW.length,active:lowActive,ready:P.ready};};
+if(F)W.fetch=function(input,init){var u=typeof input==='string'?input:(input&&input.url)||'';
+  if(!u||(init&&init.method&&init.method!=='GET')||!isLow(u))return F(input,init);
+  return new Promise(function(res,rej){var j={u:input,o:init,res:res,rej:rej,dead:false,p:prio(input),h:hostOf(input),at:Date.now()},sig=init&&init.signal;
+    if(sig){if(sig.aborted){rej(new DOMException('Aborted','AbortError'));return;}
+      sig.addEventListener('abort',function(){if(!j.dead&&LOW.indexOf(j)>=0){j.dead=true;P.lowAborted=(P.lowAborted||0)+1;rej(new DOMException('Aborted','AbortError'));}},{once:true});}
+    LOW.push(j);flushLow();});};
+})();
+</script>
 <meta name="theme-color" content="#0A1014">
 <meta name="robots" content="noindex,nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4014,6 +4146,13 @@ window.deskNote=function(msg,ms){try{let t=document.getElementById('deskNote');i
 
 <!-- ═══════════ DESK ═══════════ -->
 <section class="page on" id="pgDesk" aria-label="Trade">
+<script>/* v105.17 · Leading signals: draw the last board this device saw at once (marked "updating"), so the page never opens
+   on an empty top; the live board replaces it as soon as its numbers are in. Snapshots older than 12 h are not shown. */
+(function(){try{var x=JSON.parse(localStorage.getItem('v105_17_lead')||'null');if(!x||!x.html||Date.now()-x.at>12*3600e3)return;
+  var s=document.createElement('section');s.id='v104Lead';s.className='l4-snap';s.setAttribute('aria-label','Leading signals');s.setAttribute('aria-busy','true');
+  s.innerHTML=x.html;var h=s.querySelector('.l4-h h2');if(h){var b=document.createElement('em');b.className='l4-upd';var m=Math.round((Date.now()-x.at)/60000);b.textContent='updating · last read '+(m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' h ago');h.after(b);}
+  document.currentScript.parentNode.insertBefore(s,document.currentScript);}catch(e){}})();
+</script>
   <div class="desk">
     <!-- BTC chart platform -->
     <div class="p80 chartp" id="chartp">
@@ -4098,6 +4237,24 @@ window.deskNote=function(msg,ms){try{let t=document.getElementById('deskNote');i
   </div>
 </section>
 
+<script id="v105_22Arrange">/* v105.22 · chart first.
+   The BTC chart (#chartp: candles + Speed vs IV + Edge + Range + ADX) is the first thing on the Trade page.
+   Desktop (1360 px and wider): chart on the left at full height, a narrow side column on the right holds My trade,
+   Leading signals and Tonight (it scrolls on its own, so it never makes the chart shorter or taller).
+   Phone / tablet: the chart comes first, then My trade, Leading signals and Tonight, then the rest as before. */
+(function(){var D=document,$=function(i){return D.getElementById(i);},ORDER=['v18Trade','v104Lead','v89Rail'],busy=false;
+function arrange(){if(busy)return;busy=true;try{var desk=D.querySelector('#pgDesk .desk'),ch=$('chartp');if(!desk||!ch)return;
+  var top=$('v22Top');if(!top){top=D.createElement('div');top.id='v22Top';top.innerHTML='<aside id="v22Side" aria-label="My trade, leading signals and tonight"><div id="v22SideIn"></div></aside>';desk.insertBefore(top,desk.firstChild);}
+  if(desk.firstChild!==top)desk.insertBefore(top,desk.firstChild);
+  if(top.firstChild!==ch)top.insertBefore(ch,top.firstChild);
+  var inn=$('v22SideIn'),want=ORDER.map($).filter(Boolean),have=Array.prototype.slice.call(inn.children).filter(function(e){return ORDER.indexOf(e.id)>=0;});
+  var same=want.length===have.length&&want.every(function(e,i){return have[i]===e;});
+  if(!same)want.forEach(function(e){inn.appendChild(e);});}catch(e){}finally{busy=false;}}
+arrange();
+var pg=$('pgDesk'),desk=D.querySelector('#pgDesk .desk');
+if(window.MutationObserver){var mo=new MutationObserver(function(){arrange();});if(pg)mo.observe(pg,{childList:true});if(desk)mo.observe(desk,{childList:true});}
+D.addEventListener('DOMContentLoaded',arrange);})();
+</script>
 <!-- ═══════════ VOL ═══════════ -->
 <section class="page" id="pgVol" aria-label="Volatility charts">
   <div class="pagegrid vol">
@@ -9220,9 +9377,9 @@ Signs follow Settings → Dealer positioning.`;
       const yi=E.sea.years.indexOf(K.y);
       parts.push(`<span>${WD[K.wd]} night</span>${chip(r(E.sea.wd[K.wd]),true)}`,`<span>${WK[K.wk]}</span>${chip(r(E.sea.wk[K.wk]),true)}`,`<span>${MO[K.mo]}</span>${chip(r(E.sea.mo[K.mo]),true)}`,`<span>${K.y}</span>${chip(r(yi>=0?E.sea.yr[yi]:null),true)}`);}
     const S=E.stk;
-    const XV=window.expiryVerdict;
+    const XV=null;   // v105.21: expiry verdict and strangle ranker removed from the Flow page
     if(XV&&XV.short){if(parts.length)parts.push('<i class="sep"></i>');parts.push(`<span>Expiry <b>${esc(XV.short)}</b></span>`);}
-    const B=window.strangleRank?.best;
+    const B=null;
     if(B){if(parts.length)parts.push('<i class="sep"></i>');
       parts.push(B.ev>0?`<span>Sell ★ <b>${kStr(B.pK)} PE</b> / <b>${kStr(B.cK)} CE</b> · ${B.exp.slice(8)}/${B.exp.slice(5,7)} · EV +$${B.ev.toFixed(0)}</span>`
         :`<span>No strangle with positive EV after costs</span>`);}
@@ -12508,10 +12665,11 @@ Signs follow Settings → Dealer positioning.`;
       const FS=fsMode?(window.gfsSplit?window.gfsSplit():{vol:0.22,adx:0.14}):null;
       if(FS){volH=vOn?clamp(Math.round(avail*FS.vol),120,Math.round(avail*0.45)):0;chartH=avail-volH;}   // v47: the indicator gets up to 40% so its candles read clearly   // v37: more of the height to the BTC chart
       // v38: a short window keeps the chart readable and scrolls instead of squashing everything into it
-      let adxH=ab?(FS?clamp(Math.round(avail*FS.adx),80,Math.round(avail*0.35)):wmD?clamp(Math.round(avail*0.24),innerWidth>760&&!fsMode?150:110,innerWidth>760&&!fsMode?240:160):clamp(Math.round(avail*0.3),160,230)):0;chartH-=adxH;
+      const core=!FS&&innerWidth>=1025&&!!el('v22Top');   // v105.23: desktop — the BTC candles are the core; ADX is a short strip
+      let adxH=ab?(FS?clamp(Math.round(avail*FS.adx),80,Math.round(avail*0.35)):core?clamp(Math.round(avail*0.15),84,120):wmD?clamp(Math.round(avail*0.24),innerWidth>760&&!fsMode?150:110,innerWidth>760&&!fsMode?240:160):clamp(Math.round(avail*0.3),160,230)):0;chartH-=adxH;
       const dk=innerWidth>760&&!FS,MINC=FS?220:pane.clientWidth<560?260:dk?190:300,MINV=vOn?(FS?120:pane.clientWidth<560?230:dk?110:170):0;   // v100: desktop chart block is one screen tall   // v67: full screen keeps every row, so tighter minimums
       // v54: when the window is short, give up indicator height first, so the chart keeps its room and the desk rail stays
-      if(chartH<MINC&&ab){const take=Math.max(0,Math.min(MINC-chartH,adxH-(FS?80:dk?130:wmD?100:96)));   /* v105.6: ADX keeps 130 px on desktop */adxH-=take;chartH+=take;}   // v84: never negative (desktop ADX floor is 84, not 96)
+      if(chartH<MINC&&ab){const take=Math.max(0,Math.min(MINC-chartH,adxH-(FS?80:core?72:dk?130:wmD?100:96)));   /* v105.6: ADX keeps 130 px on desktop */adxH-=take;chartH+=take;}   // v84: never negative (desktop ADX floor is 84, not 96)
       if(chartH<MINC&&vOn){const take=Math.min(MINC-chartH,volH-MINV);if(take>0){volH-=take;chartH+=take;}}
       if(chartH<MINC){chartH=MINC;volH=MINV;pane.classList.add('pa-scroll');}else pane.classList.remove('pa-scroll');
       if(ab){const set2=(k,v)=>{if(ab.style.getPropertyValue(k)!==v)ab.style.setProperty(k,v,'important');};set2('height',adxH+'px');set2('flex','0 0 auto');}
@@ -16106,7 +16264,7 @@ Signs follow Settings → Dealer positioning.`;
 
   /* ---------- pages ---------- */
   const PAGES=['pgDesk','pgFlow','pgEvents','pgSettings'];   /* v105: Regime, Study, Evidence pages removed */   /* v83: Vol page removed, its charts live on the Desk */
-  let page=LS('v80_page');if(!PAGES.includes(page))page='pgDesk';
+  let page='pgDesk';   /* v105.22: the desk always opens on Trade (BTC chart + Speed vs IV, Edge, Range, ADX); tabs still work */
   function slotMoves(p){
     // the engine's IV panes (#charts) + hero live on the Desk in row mode and on the Vol page in stack mode
     const charts=$('charts'),hero=$('hero'),evp=$('evPanel');
@@ -16370,7 +16528,7 @@ Signs follow Settings → Dealer positioning.`;
 
   /* ---------- state ---------- */
   const S={data:null,blend:PRIOR.slice(),n:new Array(168).fill(0),days:0,ver:-1,at:0,src:'prior',view:'data',lastCell:-1,lastLife:'',dirty:true,metric:'rv'};
-  try{const m=localStorage.getItem('v82_clock24_metric');if(['rv','iv','vov','dvol'].includes(m))S.metric=m;}catch(e){}
+  try{const m=localStorage.getItem('v82_clock24_metric');if(['rv','iv','vov','dvol','spd','edge','rng','imp','real','lead'].includes(m))S.metric=m;}catch(e){}
   try{const v=localStorage.getItem(LS_VIEW);if(v==='prior'||v==='data')S.view=v;}catch(e){}
 
   /* ---------- helpers ---------- */
@@ -16430,6 +16588,26 @@ Signs follow Settings → Dealer positioning.`;
     try{for(const i of [msl]){let a=null;try{a=relSeries(i).arr;}catch(e){}if(!a||!a.length)continue;   /* v105: master expiry only */
       for(const b of a){const ms=b[0]*1000,hk=Math.floor(ms/HR),key=i+'|'+hk;let x=acc.get(key);if(!x){x={t:hk*HR,o:b[1],c:b[4]};acc.set(key,x);}x.c=b[4];}}}catch(e){}
     const out=[];for(const x of acc.values()){const d=(x.c-x.o)*100;if(Number.isFinite(d)&&Math.abs(d)<4)out.push([x.t,d]);}return out.length>48?out:null;}
+  /* v105.21 · history views: Speed vs IV and Edge per hour, from the stored 5-minute BTC bars and the master expiry's IV.
+     Hourly RV = Parkinson variance of the hour's 5-min bars, annualised; IV = the hour's closing ATM IV of the master expiry. */
+  function ivLevels(){const M=new Map();let msl=1;try{msl=W.v100&&W.v100.slot?W.v100.slot():1;}catch(e){}
+    try{const a=relSeries(msl).arr;if(a)for(const b of a){const v=b[4];if(v>0)M.set(Math.floor(b[0]*1000/HR)*HR,v<5?v*100:v);}}catch(e){}return M.size>48?M:null;}
+  function rvHours(){const L=longBars();if(!L)return null;const acc=new Map();
+    for(const b of L.bars.values()){if(!b||!(b.h>0&&b.l>0&&b.h>=b.l))continue;const x=Math.log(b.h/b.l),v=x*x/(4*Math.LN2),k=Math.floor(b.t/HR)*HR;let o=acc.get(k);if(!o){o={s:0,n:0};acc.set(k,o);}o.s+=v;o.n++;}
+    const out=new Map();for(const [k,o] of acc)if(o.n>=8)out.set(k,Math.sqrt(o.s/o.n*105120)*100);return out.size>48?out:null;}
+  /* v105.21 · live views, recorded by the desk every 15 min from today (none of these were stored before) */
+  const LV={rows:[],at:0,loaded:false,K:'v105_21:clocklive'};
+  async function lvLoad(){try{const x=typeof W.mcGet==='function'?await W.mcGet(LV.K):null;if(x&&Array.isArray(x.rows))LV.rows=x.rows;}catch(e){}LV.loaded=true;}
+  function lvRecord(){if(!LV.loaded)return;const now=Date.now(),slot=Math.floor(now/(15*MIN))*15*MIN;if(LV.rows.length&&LV.rows[LV.rows.length-1][0]===slot)return;
+    let rng=null,imp=null,real=null,lead=null;
+    try{const v=W.v105;if(v&&v.rangeAt){const r=v.rangeAt(now);if(Number.isFinite(r))rng=+r.toFixed(3);}}catch(e){}
+    try{const I=W.impulseRead&&W.impulseRead();if(I&&I.ok)imp=I.st>=2?1:0;}catch(e){}
+    try{const R=W.v89&&W.v89.rail();if(R&&Number.isFinite(R.real))real=+R.real.toFixed(2);}catch(e){}
+    try{const T=W.v104&&W.v104.tiles();if(Array.isArray(T)&&T.length&&T.filter(t=>t.st==='na').length<=2)lead=T.filter(t=>t.st==='bad').length;}catch(e){}
+    if(rng==null&&imp==null&&real==null&&lead==null)return;
+    LV.rows.push([slot,rng,imp,real,lead]);const cut=now-180*DAY;while(LV.rows.length&&LV.rows[0][0]<cut)LV.rows.shift();
+    try{if(typeof W.mcPut==='function')W.mcPut(LV.K,{rows:LV.rows});}catch(e){}for(const k of ['rng','imp','real','lead'])delete MX[k];if(['rng','imp','real','lead'].includes(S.metric)){S.dirty=true;render(true);}}
+  const LIVE_COL={rng:1,imp:2,real:3,lead:4};
   function metricTable(m){const now=Date.now(),c=MX[m];let msl=1;try{msl=W.v100&&W.v100.slot?W.v100.slot():1;}catch(e){}if(c&&now-c.at<10*MIN&&(m!=='iv'||c.msl===msl))return c;
     const sum=new Float64Array(168),cnt=new Float64Array(168),days=[];for(let i=0;i<168;i++)days.push(new Set());const all=new Set();
     const add=(t,v)=>{const q=cellOf(t),k=q.wd*24+q.h;sum[k]+=v;cnt[k]++;const d=Math.floor((t+IST_MS)/DAY);days[k].add(d);all.add(d);};
@@ -16437,14 +16615,24 @@ Signs follow Settings → Dealer positioning.`;
     if(m==='iv'){const r=ivRows();if(!r)return null;for(const [t,d] of r)add(t,d);}
     else if(m==='dvol'){const r=dvolRows();if(!r)return null;for(const [t,o,c2] of r)add(t,c2-o);}
     else if(m==='vov'){const r=dvolRows();if(!r)return null;kind='rate';for(const [t,o,c2] of r){const x=Math.log(c2/o);add(t,x*x);}}
+    else if(m==='spd'||m==='edge'){const R=rvHours(),I=ivLevels();if(!R||!I)return null;kind=m==='spd'?'ratio':'edge';
+      for(const [t,rv] of R){const iv=I.get(t);if(!(iv>0))continue;add(t,m==='spd'?rv/iv:iv-rv);}if(!all.size)return null;}
+    else if(LIVE_COL[m]){kind=m;const j=LIVE_COL[m];for(const r of LV.rows){const v=r[j];if(v!=null&&Number.isFinite(v))add(r[0],v);}
+      const v=new Array(168).fill(null),n=new Array(168).fill(0);for(let k=0;k<168;k++){n[k]=cnt[k];if(cnt[k])v[k]=sum[k]/cnt[k];}
+      const out={m,v,n,days:all.size,at:now,kind,sd:1,msl,live:true,rows:LV.rows.length};MX[m]=out;return out;}
     else return null;
     const v=new Array(168).fill(null),n=new Array(168).fill(0);let tot=0,tn=0;
     for(let k=0;k<168;k++){n[k]=days[k].size;if(cnt[k]){v[k]=sum[k]/cnt[k];tot+=sum[k];tn+=cnt[k];}}
     if(kind==='rate'){const mean=tn?tot/tn:0;for(let k=0;k<168;k++)v[k]=v[k]==null||!(mean>0)?null:v[k]/mean;}
     const vals=v.filter(x=>x!=null),sd=vals.length?Math.sqrt(vals.reduce((a,x)=>a+x*x,0)/vals.length):0;
     const out={m,v,n,days:all.size,at:now,kind,sd,msl};MX[m]=out;return out;}
-  function mTier(T,x){if(x==null)return -1;if(T.kind==='rate')return tierOf(x);const q=T.sd||1;return x<-0.5*q?0:x<0?1:x<=0.5*q?2:3;}
-  const MNAME={rv:'RV',iv:'IV',vov:'VoV',dvol:'DVOL'};
+  function mTier(T,x){if(x==null)return -1;if(T.kind==='rate'||T.kind==='ratio')return tierOf(x);
+    if(T.kind==='edge'){const q=T.sd||1;return x>=0.5*q?0:x>=0?1:x>=-0.5*q?2:3;}
+    if(T.kind==='rng')return x<0.8?0:x<1?1:x<=1.5?2:3;
+    if(T.kind==='imp')return x<0.1?0:x<0.25?1:x<0.5?2:3;
+    if(T.kind==='real')return x<=-1?0:x<0?1:x<1?2:3;
+    if(T.kind==='lead')return x<0.5?0:x<1.5?1:x<2.5?2:3;const q=T.sd||1;return x<-0.5*q?0:x<0?1:x<=0.5*q?2:3;}
+  const MNAME={rv:'RV',iv:'ATM IV',vov:'VoV',dvol:'DVOL',spd:'Speed vs IV',edge:'Edge',rng:'Range',imp:'Impulse',real:'Tonight',lead:'Leading'};
   function metric(m){if(!MNAME[m])return S.metric;S.metric=m;try{localStorage.setItem('v82_clock24_metric',m);}catch(e){}S.dirty=true;render(true);syncHead();return m;}
 
   /* ---------- public maths ---------- */
@@ -16485,6 +16673,7 @@ Signs follow Settings → Dealer positioning.`;
     const t=active();
     let html='<div class="heat" role="img" aria-label="variance rate by IST hour and weekday"><div></div>';
     {const cH=cur%24;for(let h=0;h<24;h++)html+=`<div class="h num${h===cH?' cur':''}">${h%3===0||h===cH?h:''}</div>`;}
+    {const hs=new Set();for(const k of life)hs.add(k%24);html+='<div></div>';for(let h=0;h<24;h++)html+=`<div class="lbar${hs.has(h)?' on':''}"></div>`;}
     for(let wd=0;wd<7;wd++){const isT=wd===Math.floor(cur/24);html+=`<div class="d${isT?' today':''}" title="${isT?'Today, '+todayLab():''}">${DAYS[wd]}${isT?'<b>'+todayLab()+'</b>':''}</div>`;
       for(let h=0;h<24;h++){const k=wd*24+h,v=t[k],tr=tierOf(v),cls=['c'];if(k===cur)cls.push('now');if(wd===Math.floor(cur/24))cls.push('trow');if(h===cur%24)cls.push('tcol');if(life.has(k))cls.push('life');
         html+=`<div class="${cls.join(' ')}" data-tier="${tr}" style="background:${COLS[tr]}" title="${DAYS[wd]} ${String(h).padStart(2,'0')}:00 IST · ${v.toFixed(2)}× flat · ${TIER_NAME[tr]}${S.view==='data'&&S.n[k]?' · '+S.n[k]+' d':''}${k===cur?' · now':''}${life.has(k)?' · in the life':''}"></div>`;}}
@@ -16497,27 +16686,39 @@ Signs follow Settings → Dealer positioning.`;
   }
   function renderMetric(el,cur,life,p){
     const m=S.metric,T=metricTable(m),nm=MNAME[m];
-    if(!T){el.innerHTML=`<div class="heatleg" style="padding:14px 4px">No ${nm} history stored yet. ${m==='iv'?'The IV charts fill it as the desk records.':'DVOL history loads from Deribit a few seconds after the desk opens.'}</div>`;S.dirty=true;return;}
-    const f=x=>T.kind==='rate'?x.toFixed(2)+'× avg':(x>0?'+':'')+x.toFixed(2)+' pts/h';
+    if(!T){el.innerHTML=`<div class="heatleg" style="padding:14px 4px">No ${nm} history stored yet. ${m==='iv'||m==='spd'||m==='edge'?'The IV charts and the BTC 5-minute history fill it as the desk records.':'DVOL history loads from Deribit a few seconds after the desk opens.'}</div>`;S.dirty=true;return;}
+    const f=x=>T.kind==='rate'?x.toFixed(2)+'× avg':T.kind==='ratio'?'BTC moved '+x.toFixed(2)+'× what IV priced':T.kind==='edge'?'IV − RV '+(x>0?'+':'')+x.toFixed(1)+' pts':T.kind==='rng'?'Range '+x.toFixed(2)+'×':T.kind==='imp'?Math.round(x*100)+'% of readings fast or impulse':T.kind==='real'?'IV '+(x>0?'+':'')+x.toFixed(2)+' vs clock':T.kind==='lead'?x.toFixed(1)+' of 8 tiles against':(x>0?'+':'')+x.toFixed(2)+' pts/h';
     let html=`<div class="heat" role="img" aria-label="${nm} by IST hour and weekday"><div></div>`;
     {const cH=cur%24;for(let h=0;h<24;h++)html+=`<div class="h num${h===cH?' cur':''}">${h%3===0||h===cH?h:''}</div>`;}
+    {const hs=new Set();for(const k of life)hs.add(k%24);html+='<div></div>';for(let h=0;h<24;h++)html+=`<div class="lbar${hs.has(h)?' on':''}"></div>`;}
     for(let wd=0;wd<7;wd++){const isT=wd===Math.floor(cur/24);html+=`<div class="d${isT?' today':''}" title="${isT?'Today, '+todayLab():''}">${DAYS[wd]}${isT?'<b>'+todayLab()+'</b>':''}</div>`;
       for(let h=0;h<24;h++){const k=wd*24+h,x=T.v[k],tr=mTier(T,x),cls=['c'];if(k===cur)cls.push('now');if(wd===Math.floor(cur/24))cls.push('trow');if(h===cur%24)cls.push('tcol');if(life.has(k))cls.push('life');
-        html+=`<div class="${cls.join(' ')}" data-tier="${tr}" style="background:${tr<0?'var(--panel2)':COLS[tr]}" title="${DAYS[wd]} ${String(h).padStart(2,'0')}:00 IST · ${nm} ${x==null?'no data':f(x)}${T.n[k]?' · '+T.n[k]+' d':''}${k===cur?' · now':''}${life.has(k)?' · in the life':''}"></div>`;}}
+        const thin=T.live&&x!=null&&T.n[k]<3;
+        html+=`<div class="${cls.join(' ')}${thin?' thin':''}" data-tier="${tr}" style="background:${tr<0?'var(--panel2)':COLS[tr]}" title="${DAYS[wd]} ${String(h).padStart(2,'0')}:00 IST · ${nm} ${x==null?(T.live?'not recorded yet':'no data'):f(x)}${T.n[k]?' · '+T.n[k]+(T.live?' readings':' d'):''}${k===cur?' · now':''}${life.has(k)?' · in the life':''}"></div>`;}}
     html+='</div>';
-    const lo=T.kind==='rate'?'calm':'falls',hi=T.kind==='rate'?'heavy':'rises';
+    const LOHI={ratio:['pays','costs'],edge:['pays','costs'],rng:['calm','wide'],imp:['calm','fast'],real:['below clock','above clock'],lead:['clear','against']}[T.kind];
+    const lo=LOHI?LOHI[0]:T.kind==='rate'?'calm':'falls',hi=LOHI?LOHI[1]:T.kind==='rate'?'heavy':'rises';
     const lifeTxt=p?`▣ life ${num(hm(p.lifeStart))}→${num(hm(p.lifeEnd))}`:'▣ life';
     html+=`<div class="heatleg"><span>${lo}</span>${COLS.map((x,i)=>`<i style="background:${x}"></i>`).join('')}<span>${hi}</span><span style="margin-left:auto;white-space:nowrap">▢ now · ${lifeTxt}</span></div>`;
-    const src=m==='iv'?'Delta ATM IV of the three charts, change inside each hour':m==='dvol'?'Deribit DVOL, change inside each hour':'DVOL variance per hour vs its average (vol of vol)';
-    html+=`<div class="heatleg" style="padding-top:0"><span>${src} · ${num(T.days)} d</span><span style="margin-left:auto;white-space:nowrap">${T.kind==='rate'?num('1.00')+'× = average hour':'green = it usually falls then'}</span></div>`;
+    const SRC={iv:'Delta ATM IV of the master expiry, change inside each hour',dvol:'Deribit DVOL, change inside each hour',vov:'DVOL variance per hour vs its average (vol of vol)',
+      spd:'BTC realised speed ÷ the ATM IV you sell, per hour · green = IV paid more than BTC moved',edge:'ATM IV minus the hour\'s realised vol, vol points · green = premium beat the move',
+      rng:'24 h BTC move ÷ DVOL day move, recorded every 15 min',imp:'share of 15-min readings with Impulse fast or impulse',real:'Tonight: IV minus the clock path (above the clock = red)',lead:'how many of the 8 Leading tiles were against'};
+    const RIGHT={rate:num('1.00')+'× = average hour',ratio:num('1.00')+'× = IV priced the move exactly',edge:'0 = premium equal to the move',chg:'green = it usually falls then'}[T.kind]||(T.live?`recording · ${num(T.days)} d · faded = under 3 readings`:'');
+    html+=`<div class="heatleg" style="padding-top:0"><span>${SRC[m]||nm}${T.live?'':' · '+num(T.days)+' d'}</span><span style="margin-left:auto;white-space:nowrap">${RIGHT}</span></div>`;
+    // the read: this hour, and the next calm stretch within a day
+    {const x=T.v[cur];let rd='';if(x!=null){rd=`<b>This hour (${DAYS[Math.floor(cur/24)]} ${String(cur%24).padStart(2,'0')}:00):</b> ${f(x)}`+(T.n[cur]?` · ${T.n[cur]} ${T.live?'readings':'days'}`:'')+'.';
+        let st=-1,len=0;for(let i=1;i<=24;i++){const k=(cur+i)%168,tr=mTier(T,T.v[k]);if(tr===0||tr===1){if(st<0)st=k;len++;if(len>=3)break;}else{st=-1;len=0;}}
+        if(st>=0&&len>=3)rd+=` Next calm stretch from ${DAYS[Math.floor(st/24)]} ${String(st%24).padStart(2,'0')}:00.`;}
+      else rd=T.live?'Not recorded for this hour yet. The desk records every 15 minutes while it is open.':'No data for this hour.';
+      html+=`<div class="c24read">${rd}</div>`;}
     el.innerHTML=html;}
 
   /* header toggle "your data | prior" — only if the shell gives us #clock24Head */
   function syncHead(){
     const hd=$('clock24Head');if(!hd)return;
     let sp=hd.querySelector('.sp');
-    if(!sp){sp=document.createElement('span');sp.className='sp';sp.innerHTML='<span data-m="rv">RV</span><span data-m="iv">IV</span><span data-m="vov">VoV</span><span data-m="dvol">DVOL</span><span class="c24-sep"></span><span data-v="data">your data</span><span data-v="prior">prior</span>';hd.appendChild(sp);}
-    if(!sp.__c24){sp.__c24=true;sp.addEventListener('click',e=>{const t=e.target;if(!t||!t.getAttribute)return;const v=t.getAttribute('data-v'),m=t.getAttribute('data-m');if(m)metric(m);else if(v)view(v);});}
+    if(!sp){sp=document.createElement('span');sp.className='sp';sp.innerHTML='<span data-m="rv">RV</span><span data-m="iv">ATM IV</span><span data-m="vov">VoV</span><span data-m="dvol">DVOL</span><span data-m="spd">Speed vs IV</span><span data-m="edge">Edge</span><span data-m="rng" class="lv">Range<em>live</em></span><span data-m="imp" class="lv">Impulse<em>live</em></span><span data-m="real" class="lv">Tonight<em>live</em></span><span data-m="lead" class="lv">Leading<em>live</em></span><span class="c24-sep"></span><span data-v="data">your data</span><span data-v="prior">prior</span>';hd.appendChild(sp);}
+    if(!sp.__c24){sp.__c24=true;sp.addEventListener('click',e=>{const t=e.target&&e.target.closest?e.target.closest('[data-m],[data-v]'):null;if(!t)return;const v=t.getAttribute('data-v'),m=t.getAttribute('data-m');if(m)metric(m);else if(v)view(v);});}
     for(const b of sp.querySelectorAll('[data-v]')){b.classList.toggle('on',b.getAttribute('data-v')===S.view);b.hidden=S.metric!=='rv';}
     for(const b of sp.querySelectorAll('[data-m]'))b.classList.toggle('on',b.getAttribute('data-m')===S.metric);
     {const sep=sp.querySelector('.c24-sep');if(sep)sep.hidden=S.metric!=='rv';}
@@ -16526,11 +16727,12 @@ Signs follow Settings → Dealer positioning.`;
 
   /* ---------- wiring ---------- */
   W.Clock24={table,prior,varianceShare,tier,render:()=>render(true),meta,view,metric,recompute:()=>{recompute(true);render(true);},
-    __test:{PRIOR_UTC:PRIOR_UTC.slice(),prior:PRIOR.slice(),tierOf,blendWith,computeData,cellOf}};
+    __test:{PRIOR_UTC:PRIOR_UTC.slice(),prior:PRIOR.slice(),tierOf,blendWith,computeData,cellOf,lv:()=>LV,lvRecord}};
   if(!HAS_DOM)return;
   try{
     syncHead();
     loadCache();
+    lvLoad().then(()=>{setTimeout(lvRecord,90000);setInterval(()=>{try{lvRecord();}catch(e){}},60000);});
     recompute(true);render(true);
     if(W.desk80&&typeof W.desk80.on==='function'){
       W.desk80.on('tick',()=>{try{if(document.hidden)return;if(recompute(false))render(true);else render(false);}catch(e){}});
@@ -20181,7 +20383,7 @@ function mount(){const desk=D.querySelector('#pgDesk .desk');if(!desk)return fal
       const mo=e.target.closest('.mo89 button');if(mo){const on=!D.body.classList.contains('v89-more')||mo.dataset.go;D.body.classList.toggle('v89-more',!!on);try{localStorage.setItem('v89_more',on?'1':'0');}catch(x){}
         if(on&&mo.dataset.go){const tgt=$(mo.dataset.go);if(tgt)setTimeout(()=>tgt.scrollIntoView({behavior:'smooth',block:'center'}),60);}run(true);}});}
   const vr=$('volRow');if(vr&&!$('v89Vol4')){const v=D.createElement('div');v.id='v89Vol4';v.setAttribute('aria-label','IV, fast RV, fast VoV and DVOL with their 1-hour lines');vr.prepend(v);}
-  try{if(localStorage.getItem('v89_more')==='1')D.body.classList.add('v89-more');}catch(e){}
+  try{if(localStorage.getItem('v89_more')!=='0')D.body.classList.add('v89-more');}catch(e){D.body.classList.add('v89-more');}   // v105.19: shown by default on every device (its button was removed with the console)
   wireEm();return true;}
 function kick(){try{W.Signal&&W.Signal.compute&&W.Signal.compute();}catch(e){}setTimeout(()=>run(true),300);}
 let TAB=(()=>{try{return localStorage.getItem('v89_tab')||'steps';}catch(e){return 'steps';}})();
@@ -20950,11 +21152,19 @@ const DELTA='https://api.india.delta.exchange';
 const API={key:()=>LS.get('v100_dkey',null),on:()=>{const k=API.key();return !!(k&&k.key&&k.secret);},at:0,err:null,busy:false,last:null,route:LS.get('v100_droute','direct'),tried:0};
 function proxyUrl(){const c=LS.get('v100_dproxy',null);if(c)return c;return location.protocol==='file:'||!/vercel\.app$/.test(location.hostname)?'https://vega-vault.vercel.app/api/delta-proxy':'/api/delta-proxy';}
 async function hmacHex(secret,msg){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);const s=await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(msg));return [...new Uint8Array(s)].map(b=>b.toString(16).padStart(2,'0')).join('');}
-async function dget(path,query){const K=API.key();const ts=String(Math.floor(Date.now()/1000)),q=query?'?'+query:'',sig=await hmacHex(K.secret,'GET'+ts+path+q);
-  const tryDirect=async()=>{const r=await fetch(DELTA+path+q,{headers:{'api-key':K.key,timestamp:ts,signature:sig,Accept:'application/json'},cache:'no-store'});return r;};
-  const tryProxy=async()=>{const u=proxyUrl()+'?path='+encodeURIComponent(path)+'&query='+encodeURIComponent(query||'');return fetch(u,{headers:{'x-api-key':K.key,'x-ts':ts,'x-sig':sig,Accept:'application/json'},cache:'no-store'});};
-  let r;if(API.route==='direct'){try{r=await tryDirect();}catch(e){API.route='proxy';LS.set('v100_droute','proxy');const ts2=String(Math.floor(Date.now()/1000));return dget(path,query);}}else r=await tryProxy();
-  const j=await r.json().catch(()=>null);if(!r.ok||!j||j.success===false){const c=j&&j.error?(j.error.code||j.error.message||JSON.stringify(j.error)):'HTTP '+r.status;throw new Error(String(c));}
+async function dget(path,query){const K=API.key();const q=query?'?'+query:'';
+  // v105.20: a signed request is tried by the route that last worked, then by the other one. Before, one failed direct call
+  // switched the desk to the proxy for good, and if the proxy was missing every later call failed ("cannot reach Delta").
+  const sign=async()=>{const ts=String(Math.floor(Date.now()/1000));return {ts,sig:await hmacHex(K.secret,'GET'+ts+path+q)};};
+  const tryDirect=async()=>{const {ts,sig}=await sign();return fetch(DELTA+path+q,{headers:{'api-key':K.key,timestamp:ts,signature:sig,Accept:'application/json'},cache:'no-store'});};
+  const tryProxy=async()=>{const {ts,sig}=await sign();const u=proxyUrl()+'?path='+encodeURIComponent(path)+'&query='+encodeURIComponent(query||'');return fetch(u,{headers:{'x-api-key':K.key,'x-ts':ts,'x-sig':sig,Accept:'application/json'},cache:'no-store'});};
+  const order=API.route==='proxy'?[['proxy',tryProxy],['direct',tryDirect]]:[['direct',tryDirect],['proxy',tryProxy]];
+  let r=null,lastErr=null;API.tries=[];
+  for(const [name,fn] of order){try{r=await fn();if(r.status===404&&name==='proxy'){API.tries.push(name+': not found');r=null;lastErr=new Error('proxy_missing');continue;}
+      if(API.route!==name){API.route=name;LS.set('v100_droute',name);}API.tries.push(name+': '+r.status);break;}
+    catch(e){API.tries.push(name+': blocked');lastErr=e;r=null;}}
+  if(!r)throw lastErr||new Error('Failed to fetch');
+  const j=await r.json().catch(()=>null);if(!r.ok||!j||j.success===false){const c=j&&j.error?(j.error.code||j.error.message||JSON.stringify(j.error)):'HTTP '+r.status;const er=new Error(String(c));er.detail=j&&j.error||null;er.status=r.status;throw er;}
   return j.result;}
 function legIv(px,K,type,t,exp){const S=(()=>{try{const R=W.rvIndexBars&&W.rvIndexBars();if(R&&R.bars){let best=null;for(const b of R.bars.values())if(b&&b.t<=t&&(!best||b.t>best.t))best=b;if(best&&t-best.t<15*MIN)return best.c;}}catch(e){}return null;})();
   const st=settleOf(exp);if(!(S>0&&px>0&&st>t))return null;const T=(st-t)/(365*DAY);
@@ -20980,7 +21190,8 @@ async function apiPoll(force){if(!API.on()||API.busy)return;const now=Date.now()
       if(!T.exitAt){const S=V89()||{},X=S.X||{},PL=plan();let xa=X.ex0||null;if(PL&&PL.expiry===T.exp&&PL.lifeEnd)xa=PL.lifeEnd;const st=settleOf(T.exp);if(st&&xa&&xa>st-30*MIN)xa=st-2*HR;T.exitAt=xa;}
       if(JSON.stringify(cur)!==JSON.stringify(T))LS.set('v99_trade',T);}
     else if(cur&&cur.src==='api'){const P=W.v99&&W.v99.posNow?W.v99.posNow():null,log=LS.get('v99_trades',[]);log.push({id:cur.id,exp:cur.exp,Kp:cur.Kp,Kc:cur.Kc,lot:cur.lot,fills:cur.fills,openedAt:cur.openedAt,closedAt:Date.now(),closeMark:P?P.mark:null,kept:P?P.kept:null,pnlUsd:P?P.pnlUsd:null,src:'api'});LS.set('v99_trades',log);LS.del('v99_trade');}}
-  catch(e){const m=String(e&&e.message||e);API.err=/ip_not_whitelisted|whitelist/i.test(m)?'Delta wants this IP whitelisted for the key':/invalid_api_key|InvalidApiKey/i.test(m)?'API key not accepted':/signature/i.test(m)?'signature rejected (check secret / phone clock)':/Failed to fetch|NetworkError|TypeError/i.test(m)?'cannot reach Delta from this page':m.slice(0,80);}
+  catch(e){const m=String(e&&e.message||e);API.errCode=m;API.errDetail=e&&e.detail||null;API.errStatus=e&&e.status||null;   /* v105.22: Delta's own answer is kept and shown */
+    API.err=/ip_not_whitelisted|whitelist/i.test(m)?'Delta wants this IP whitelisted for the key':/invalid_api_key|InvalidApiKey/i.test(m)?'API key not accepted':/signature/i.test(m)?'signature rejected (check secret / phone clock)':/proxy_missing/.test(m)?'Delta blocks the browser and the desk proxy is not on Vercel yet':/Failed to fetch|NetworkError|TypeError|Load failed/i.test(m)?'cannot reach Delta from this page (browser blocked, proxy unreachable)':m.slice(0,80);}
   finally{API.busy=false;try{W.v99&&W.v99.render();}catch(e){}}}
 function connectCard(alone){alone=alone!==false;const on=API.on(),j=API.last,k=API.key()||{};
   const st=!on?'':API.err?`<span class="v100-chip bad">${esc(API.err)}</span>`:API.at?`<span class="v100-chip ok">connected · ${ago(Date.now()-API.at)} ago</span>`:'<span class="v100-chip wn">connecting…</span>';
@@ -21598,16 +21809,21 @@ function tileHtml(t){return `<button type="button" class="l4-tile" data-k="${t.k
 function counts(T){const c={ok:0,wn:0,bad:0,na:0};for(const t of T)c[t.st]++;return c;}
 function sumHtml(c){return `<span class="l4-c ok">${c.ok} clear</span><span class="l4-c ${c.wn?'wn':''}">${c.wn} caution</span><span class="l4-c ${c.bad?'bad':''}">${c.bad} against</span>`;}
 function hardStops(){const L=liveDecision();try{return L&&Array.isArray(L.hit)?L.hit.map(x=>String(x.n||'').replace(/^No /,'').replace(/ not /,' ')+(x.v&&x.v!=='none'?' ('+String(x.v).replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&amp;/g,'&')+')':'')):[];}catch(e){return [];}}
-function render(){const host=$('v104Lead');if(!host||UI.down)return;const T=build();UI.T=T;const c=counts(T),me=expNow(),st=me?settleOf(me):null,lag=lagging();
+function render(){const host=$('v104Lead');if(!host||UI.down)return;
+  if(!UI.snapTiles){UI.snapTiles={};if(host.classList.contains('l4-snap'))for(const el of host.querySelectorAll('.l4-tile[data-k]'))UI.snapTiles[el.dataset.k]=el.outerHTML.replace('class="l4-tile"','class="l4-tile l4-old" title="Last reading on this device; the live one is still loading"');}
+  const T=build();UI.T=T;const c=counts(T),me=expNow(),st=me?settleOf(me):null,lag=lagging();
   const hits=hardStops();
   const notes=hits.map(h=>({n:'Decision card',st:'bad',x:'hard stop ✕ '+h})).concat(T.filter(t=>t.act&&(t.st==='bad'||t.st==='wn')).sort((a,b)=>(a.st==='bad'?0:1)-(b.st==='bad'?0:1)).map(t=>({n:t.n,st:t.st,x:t.act})),T.filter(t=>t.info).map(t=>({n:t.n,st:'',x:t.info})));
   const arrow=d=>d<0?'▼':d>0?'▲':'▸';
   const html=`<div class="l4-box"><div class="l4-h"><h2>Leading signals</h2><span class="s">what is priced and positioned <b>before</b> BTC moves · ${me?`<b>${SLOT_NAME[slot()]} · ${dLab(st)}</b> · settles in ${dur(st-Date.now())}`:'waiting for expiries'}${CH.at?` · chain read ${hm(CH.at)}`:''}${c.na?` · ${c.na} loading`:''}</span>
     <div class="l4-sum">${sumHtml(c)}${hits.length?'<span class="l4-c bad" title="A hard stop on the decision card is hit">card stop</span>':''}</div><button type="button" class="l4-btn" data-act="focus" aria-pressed="${focusOn()}" title="Focus hides the four mini charts and the falling / rising chips on the vol row. Press again to show everything.">Focus ${focusOn()?'on':'off'}</button><button type="button" class="l4-btn" data-act="help" aria-expanded="${UI.open==='help'}" aria-label="How to read this board">?</button></div>
-    <div class="l4-grid">${T.map(tileHtml).join('')}</div>
+    <div class="l4-grid">${T.map(t=>t.st==='na'&&UI.snapTiles[t.k]?UI.snapTiles[t.k]:tileHtml(t)).join('')}</div>
     ${notes.length?`<div class="l4-notes"><span class="k">Act on</span>${notes.map(t=>`<span class="l4-note ${t.st}"><b>${esc(t.n)}</b> · ${esc(t.x)}</span>`).join('')}</div>`:c.ok>=5&&!c.bad?`<div class="l4-notes"><span class="k">Act on</span><span>Nothing on this board is against the trade. The decision card times the entry.</span></div>`:''}
     <div class="l4-lag"><span class="k">Lagging · confirms only</span>${lag.legs.length?lag.legs.map(x=>`<span class="d ${x.d<0?'dn':x.d>0?'up':''}">${x.n} ${arrow(x.d)}</span>`).join('')+`<span>${lag.down} of ${lag.legs.length} falling (closed 15 m candles; DVOL over 15 min): this is the last hour, not the next. Use it to time, not to decide.</span>`:'<span>IV, RV, VoV and DVOL direction appear once the 15 m candles have loaded.</span>'}</div>
     <div class="l4-draw"${UI.open?'':' hidden'}>${UI.open?detail(UI.open,T):''}</div></div>`;
+  if(host.classList.contains('l4-snap')){host.classList.remove('l4-snap');host.removeAttribute('aria-busy');UI.html='';}
+  if(!c.na){try{W.v17&&W.v17.markReady&&W.v17.markReady();}catch(e){}
+    if(Date.now()-(UI.snapAt||0)>15000){UI.snapAt=Date.now();try{localStorage.setItem('v105_17_lead',JSON.stringify({at:Date.now(),html:html.replace(/<div class="l4-draw"[\s\S]*$/,'</div>')}));}catch(e){}}}
   if(html!==UI.html){const sc=host.querySelector('.l4-sc'),sl=sc?sc.scrollLeft:0,ae=D.activeElement&&host.contains(D.activeElement)?D.activeElement:null,fk=ae?(ae.dataset.k?`[data-k="${ae.dataset.k}"]`:ae.dataset.act?`[data-act="${ae.dataset.act}"]`:null):null;
     host.innerHTML=html;UI.html=html;if(sl){const s2=host.querySelector('.l4-sc');if(s2)s2.scrollLeft=sl;}if(fk){const f=host.querySelector(fk);if(f)try{f.focus({preventScroll:true});}catch(e){}}}
   ticker(T);logTick(T);}
@@ -21627,8 +21843,10 @@ function onClick(ev){const b=ev.target.closest('[data-act],[data-k]');if(!b)retu
   else if(act==='csv'){exportLog();return;}
   else if(act==='help'||k){const key=act==='help'?'help':k;UI.open=UI.open===key?null:key;}
   UI.down=false;UI.html='';render();}
-function mount(){if($('v104Lead'))return true;const pg=$('pgDesk');if(!pg)return false;const host=D.createElement('section');host.id='v104Lead';host.setAttribute('aria-label','Leading signals');
-  const ref=$('sdTradeHost');if(ref&&ref.parentNode===pg)pg.insertBefore(host,ref);else pg.insertBefore(host,pg.firstChild);host.addEventListener('click',onClick);
+function mount(){let host=$('v104Lead');if(host&&host.__l4w)return true;
+  if(!host){const pg=$('pgDesk');if(!pg)return false;host=D.createElement('section');host.id='v104Lead';host.setAttribute('aria-label','Leading signals');
+    const ref=$('sdTradeHost');if(ref&&ref.parentNode===pg)pg.insertBefore(host,ref);else pg.insertBefore(host,pg.firstChild);}
+  host.__l4w=1;host.addEventListener('click',onClick);   // v105.17: the early snapshot section is reused and wired here
   host.addEventListener('pointerdown',()=>{UI.down=true;setTimeout(()=>{UI.down=false;},1500);});for(const n of ['pointerup','pointercancel','pointerleave'])host.addEventListener(n,()=>{setTimeout(()=>{UI.down=false;},0);});     // never rebuild between press and release: the click would be lost
   D.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-l4-open]');if(!t)return;try{const nav=D.querySelector('#nav button[data-page="pgDesk"]');if(nav&&!$('pgDesk').classList.contains('on'))nav.click();}catch(x){}const h=$('v104Lead');if(h)h.scrollIntoView({behavior:'smooth',block:'start'});});
   return true;}
@@ -21637,10 +21855,10 @@ function hookCard(){const V=W.v101;if(!V||!V.card||V.__l4)return;const orig=V.ca
 const visible=()=>!D.hidden&&!!$('pgDesk')&&$('pgDesk').classList.contains('on');
 function tick(){try{hookCard();if(!visible())return;render();}catch(e){console.warn('v104 render',e);}}
 function poll(){if(!visible()&&CH.at)return;chainsFetch().then(()=>{try{render();}catch(e){console.warn('v104 render',e);}}).catch(()=>{});}
-function boot(){if(!mount()){setTimeout(boot,800);return;}applyFocus();hookCard();logLoad();render();
-  setTimeout(poll,2500);setInterval(poll,60000);setInterval(tick,5000);
+function boot(){if(!mount()){setTimeout(boot,800);return;}UI.boot=UI.boot||Date.now();applyFocus();hookCard();logLoad();render();
+  setTimeout(poll,150);setInterval(poll,60000);setInterval(tick,5000);
   try{W.desk80&&W.desk80.on&&W.desk80.on('visible',d=>{if(d&&!d.hidden){if(Date.now()-CH.at>60000)poll();else tick();}});}catch(e){}}
-if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,2200));else setTimeout(boot,2200);
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60));else setTimeout(boot,60);   // v105.17: was 2.2 s
 W.v104={tiles:()=>UI.T,chains:()=>CH,ladder,skew:()=>SK.rows,log:()=>LOG.rows.slice(),refresh:()=>{poll();},focus:on=>{setFocus(on);UI.html='';render();},__test:{ivAtDelta,analyse,ladder,baseAdj,range24,rvBetween,wings}};
 })();
 </script>
@@ -22247,24 +22465,42 @@ function refresh(){const now=Date.now();const rk=RG.key;fillRange();if(RG.key!==
    the desk re-checks every 2 s (was once a minute), so Edge and Range appear as soon as their inputs load. */
 const SNAP_K='v105:grid:v2';   /* v105.15: v1 could hold values of another expiry */let snapAt=0,snapN=[0,0];
 function snapPack(m,from){const out=[];for(const [t,v] of m)if(t>=from&&fin(v))out.push(t/STEP,Math.round(v*1000)/1000);return out;}
-function saveSnap(){const now=Date.now();if(typeof mcPut!=='function')return;const from=now-32*DAY,e=snapPack(EG.m,from),r=snapPack(RG.m,from);if(!e.length&&!r.length)return;
+/* v105.22: a save never makes the stored grid smaller. Range is rebuilt into a new map while its 5-minute bars are still
+   arriving, so the first save after an open used to replace 32 days with a few hours (the next open then started empty). */
+let LASTP={key:null,e:[],r:[]};
+function mergePack(old,cur,from){const m=new Map();old=old||[];for(let i=0;i<old.length;i+=2)if(old[i]*STEP>=from)m.set(old[i],old[i+1]);for(let i=0;i<cur.length;i+=2)m.set(cur[i],cur[i+1]);
+  const out=[];[...m.keys()].sort((a,b)=>a-b).forEach(k=>out.push(k,m.get(k)));return out;}
+function saveSnap(){const now=Date.now();if(typeof mcPut!=='function')return;const from=now-32*DAY;let e=snapPack(EG.m,from),r=snapPack(RG.m,from);
+  if(LASTP.key===EG.key)e=mergePack(LASTP.e,e,from);r=mergePack(LASTP.r,r,from);LASTP={key:EG.key,e,r};if(!e.length&&!r.length)return;
   const grew=e.length>snapN[0]*1.1+20||r.length>snapN[1]*1.1+20;if(!grew&&now-snapAt<5*MIN)return;snapAt=now;snapN=[e.length,r.length];
-  try{mcPut(SNAP_K,{at:now,key:EG.key,e,r});}catch(x){}}
-async function loadSnap(){try{if(typeof mcGet!=='function')return false;const x=await mcGet(SNAP_K);if(!x||Date.now()-x.at>3*DAY)return false;
-  if(x.key===edgeKey()&&Array.isArray(x.e)){if(EG.key!==x.key)useKey(x.key);for(let i=0;i<x.e.length;i+=2){const t=x.e[i]*STEP;if(!EG.m.has(t))EG.m.set(t,x.e[i+1]);}}
-  if(Array.isArray(x.r)&&!RG.m.size){const m=new Map();for(let i=0;i<x.r.length;i+=2)m.set(x.r[i]*STEP,x.r[i+1]);RG.m=m;RG.key='snap';RG.at=0;}
-  return true;}catch(e){return false;}}
+  try{mcPut(SNAP_K,{at:now,key:EG.key,e,r});}catch(x){}
+  /* v105.22: the last 3 days also go to localStorage (~25 KB), read at once on the next open — the browser database
+     answered only after 2–3 s while the desk's other modules were reading it */
+  try{const f3=(now-3*DAY)/STEP,cut=a=>{let i=0;while(i<a.length&&a[i]<f3)i+=2;return a.slice(i);};localStorage.setItem(QK,JSON.stringify({at:now,key:EG.key,e:cut(e),r:cut(r)}));}catch(x){}}
+const QK='v105_22_grid';
+/* v105.22: a snapshot is used up to 10 days old (was 3): every value in it is a past 5-minute point that does not change;
+   the newest 2 h are recomputed at once and gaps are filled by the live pass */
+function applySnap(x,merge){if(!x||Date.now()-x.at>10*DAY)return false;let did=false;
+  if(Array.isArray(x.r)&&x.r.length>LASTP.r.length)LASTP.r=x.r;if(x.key===edgeKey()&&Array.isArray(x.e)&&(LASTP.key!==x.key||x.e.length>LASTP.e.length)){LASTP.key=x.key;LASTP.e=x.e;}
+  if(x.key===edgeKey()&&Array.isArray(x.e)){if(EG.key!==x.key)useKey(x.key);for(let i=0;i<x.e.length;i+=2){const t=x.e[i]*STEP;if(!EG.m.has(t)){EG.m.set(t,x.e[i+1]);did=true;}}}
+  if(Array.isArray(x.r)&&(RG.key==='snap'||!RG.m.size)){if(!RG.m.size){RG.m=new Map();RG.key='snap';RG.at=0;}for(let i=0;i<x.r.length;i+=2){const t=x.r[i]*STEP;if(!RG.m.has(t)){RG.m.set(t,x.r[i+1]);did=true;}}}
+  return did;}
+function quickSnap(){try{const x=JSON.parse(localStorage.getItem(QK)||'null');return applySnap(x);}catch(e){return false;}}
+const SNAP_P=(async()=>{try{if(typeof mcGet!=='function')return null;return await mcGet(SNAP_K);}catch(e){return null;}})();   // v105.22: asked at once, not after the panes exist
+async function loadSnap(){try{const x=await SNAP_P;return applySnap(x);}catch(e){return false;}}
 function freshEnough(m){const now=Date.now();for(let t=Math.floor(now/STEP)*STEP,j=0;j<12;j++,t-=STEP){if(fin(m.get(t)))return true;}return false;}
 function tick(){try{if(D.hidden)return;paint('edge');paint('rng');}catch(e){console.warn('v105 paint',e);}}
-function boot(){if(!build('edge')||!build('rng')){setTimeout(boot,400);return;}
+function boot(){if(!build('edge')||!build('rng')){setTimeout(boot,150);return;}
+  if(quickSnap()){PANES.edge.sig='';PANES.rng.sig='';tick();}
   loadSnap().then(ok=>{if(ok){PANES.edge.sig='';PANES.rng.sig='';tick();}});
+  {let n=0;const early=setInterval(()=>{tick();if(++n>=20||(PANES.edge.data&&PANES.rng.data))clearInterval(early);},500);}   // paint as soon as the BTC bars exist
   refresh();setInterval(()=>{if(!D.hidden)refresh();},60000);setInterval(tick,3000);
   {const fast=setInterval(()=>{if(D.hidden)return;if(freshEnough(EG.m)&&freshEnough(RG.m)&&RG.key!=='snap'){clearInterval(fast);return;}refresh();},2000);setTimeout(()=>clearInterval(fast),10*MIN);}
   // a timeframe / range change gives the BTC chart new bars: extend the edge grid back to its first bar at once
   let lastFirst=null,lastSig='';setInterval(()=>{if(D.hidden)return;try{const sg=srcSig();if(sg===lastSig)return;lastSig=sg;const f=sg.split('|')[1];if(f!==lastFirst){lastFirst=f;refresh();}else tick();}catch(e){}},1000);
   W.addEventListener('chartreplay',()=>{for(const ms of [60,400,1200])setTimeout(tick,ms);});
   try{W.desk80&&W.desk80.on&&W.desk80.on('visible',d=>{if(d&&!d.hidden)refresh();});}catch(e){}}
-if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,300));else setTimeout(boot,300);
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60));else setTimeout(boot,60);
 /* ---------------- master expiry: everything follows the header pick ----------------
    The header switch (Cur · Next · N2N · auto) is window.v100.slot(). Before v105 several parts kept their own expiry:
    the engine's selected chain (dealer gamma, strangle check, OI, 1σ move — it stayed on the nearest expiry), the IV / RV /
@@ -22427,6 +22663,496 @@ div.lp-tag.on{display:block}
 svg.v105-bsig text{display:none}
 /* 5. Flow page status strip was cut off on phones ("Neutral W2 Neutral O"): let it wrap. */
 @media (max-width:760px){#edgeLine{flex-wrap:wrap;row-gap:4px;overflow:visible;white-space:normal}#edgeLine .edge-live{flex:1 0 100%}#edgeLine .edge-txt{display:flex;flex-wrap:wrap;gap:5px 6px;min-width:0;flex:1 1 100%}#edgeLine .edge-txt>span{white-space:nowrap}#edgeLine .sep{display:none}}
+</style>
+<style id="v105_17Css">
+/* v105.17 · the sticky header was 18 % see-through: in light mode the 24×7 grid and charts showed through it while scrolling */
+html body header.top.hdr{background:var(--panel)!important}
+/* Leading signals: last board shown at once while the live one loads */
+#v104Lead .l4-upd{font:600 10.5px/1 var(--font-text,var(--font));font-style:normal;color:var(--amber,#E3AE45);border:1px solid color-mix(in srgb,var(--amber,#E3AE45) 45%,transparent);border-radius:999px;padding:3px 8px;margin-left:8px;white-space:nowrap;align-self:center}
+#v104Lead.l4-snap .l4-grid,#v104Lead.l4-snap .l4-notes,#v104Lead.l4-snap .l4-lag{opacity:.72}
+#v104Lead.l4-snap button{pointer-events:none}
+#v104Lead .l4-old{opacity:.55;filter:saturate(.6)}
+/* phones: the empty-chart shimmer repainted every empty chart 60× a second while the desk was loading */
+@media (pointer:coarse){.chart:empty,.rv-chart:empty{animation:none!important}}
+</style>
+<style id="v105_18Css">
+/* v105.18 · Trade lab: what moved my P&L (Trade page) + Delta key, trade log and learning (Settings) */
+#v18Trade{margin:10px 8px 2px;box-sizing:border-box}
+#v18Trade[hidden]{display:none!important}
+.v18c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--text);font-family:var(--font-text,var(--font))}
+.v18c h3{margin:0;font-size:15px;font-weight:700}
+.v18c .s{color:var(--muted);font-size:12px}
+.v18h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.v18h .r{margin-left:auto;font-size:11.5px;color:var(--muted);border:1px solid var(--line2,var(--line));border-radius:999px;padding:3px 9px;font-family:var(--mono)}
+.v18top{display:grid;grid-template-columns:1fr auto;gap:4px 16px;margin-top:10px;align-items:end}
+.v18top small{display:block;color:var(--muted);font-size:11.5px}
+.v18big{font:700 26px/1.1 var(--mono)}
+.v18big.pos,.v18 .pos{color:var(--pos)}.v18big.neg,.v18 .neg{color:var(--neg)}.v18 .am{color:var(--amber)}
+.v18grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:10px}
+@media (min-width:900px){.v18grid{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}}
+.v18sub{font-weight:700;font-size:13px;margin:2px 0 6px}
+.v18bar{display:grid;grid-template-columns:118px minmax(0,1fr) 78px;align-items:center;gap:8px;margin:6px 0;font-size:12.5px}
+.v18bar>span{color:var(--muted)}
+.v18bar .tr{height:13px;position:relative;background:color-mix(in srgb,var(--bg) 70%,var(--panel));border-radius:3px}
+.v18bar .tr::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px dashed var(--faint)}
+.v18bar .tr i{position:absolute;top:0;bottom:0;border-radius:3px}
+.v18bar b{text-align:right;font-family:var(--mono);font-weight:600}
+.v18why{margin-top:8px;padding:7px 10px;border-left:3px solid var(--amber);background:color-mix(in srgb,var(--bg) 70%,var(--panel));font-size:12.5px;border-radius:0 6px 6px 0}
+.v18strip{display:flex;gap:2px;height:52px;align-items:stretch;margin-top:6px;overflow-x:auto;scrollbar-width:none}
+.v18strip::-webkit-scrollbar{display:none}
+.v18strip button{flex:1 0 9px;min-width:9px;max-width:26px;padding:0;border:0;border-radius:2px;background:color-mix(in srgb,var(--bg) 70%,var(--panel));display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;position:relative}
+.v18strip button em{display:block;border-radius:2px}
+.v18strip button.sel{outline:2px solid var(--amber);outline-offset:1px}
+.v18strip button.gap{opacity:.45}
+.v18strip button.live em{opacity:.6}
+.v18ax{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--faint);margin-top:3px}
+.v18blk{margin-top:8px;font-size:12.5px}
+.v18tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.v18tags span{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line2,var(--line));color:var(--muted);white-space:nowrap}
+.v18tags span.r{border-color:color-mix(in srgb,var(--neg) 55%,transparent);color:var(--neg)}
+.v18tags span.g{border-color:color-mix(in srgb,var(--pos) 55%,transparent);color:var(--pos)}
+.v18tags span.y{border-color:color-mix(in srgb,var(--amber) 55%,transparent);color:var(--amber)}
+.v18warn{margin-top:8px;font-size:12px;color:var(--muted)}
+.v18warn b{color:var(--amber)}
+#pgSettings .v18set{display:grid;gap:10px;margin-bottom:10px}
+.v18set .v18c p{margin:6px 0;font-size:12.5px;color:var(--muted)}
+.v18btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.v18btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line2,var(--line));background:var(--panel2,var(--panel));color:var(--text);font:600 12.5px var(--font);cursor:pointer}
+.v18btn.pri{background:var(--amber);border-color:var(--amber);color:#111}
+.v18tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.v18tbl td,.v18tbl th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.v18tbl th{color:var(--faint);font-weight:600;font-size:11px}
+.v18tbl td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.v18conf{font-size:10.5px;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.v18conf.c3{background:color-mix(in srgb,var(--pos) 30%,transparent);color:var(--text)}
+.v18conf.c2{background:color-mix(in srgb,var(--amber) 30%,transparent);color:var(--text)}
+.v18conf.c1{background:color-mix(in srgb,var(--faint) 30%,transparent);color:var(--muted)}
+.v18lock{margin-top:8px;height:7px;background:color-mix(in srgb,var(--bg) 70%,var(--panel));border-radius:4px;overflow:hidden}
+.v18lock i{display:block;height:100%;background:var(--amber)}
+.v18note{font-size:11px;color:var(--faint);margin-top:8px}
+/* v105.20 · floating live P&L */
+#v18Float{position:fixed;z-index:80;box-sizing:border-box;color:var(--text);font-family:var(--font-text,var(--font));background:var(--panel);border:1px solid var(--line2,var(--line));box-shadow:0 14px 34px -10px rgba(0,0,0,.65);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none}
+#v18Float[hidden]{display:none!important}
+#v18Float .fh{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:grab}
+#v18Float .fh i{width:7px;height:7px;border-radius:50%;background:var(--pos);flex:none}
+#v18Float .fh button{margin-left:auto;font:600 11px var(--font);color:var(--text);background:none;border:1px solid var(--line2,var(--line));border-radius:6px;padding:2px 7px;cursor:pointer}
+#v18Float .fh button+button{margin-left:4px}
+#v18Float .fbig{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:4px}
+#v18Float .fbig b{font:700 22px/1.1 var(--mono)}
+#v18Float .fbig small{display:block;font-size:10.5px;color:var(--muted);text-align:right}
+#v18Float .fbig em{font:700 13px var(--mono);font-style:normal}
+#v18Float .fbar{height:5px;border-radius:3px;background:color-mix(in srgb,var(--bg) 70%,var(--panel));margin-top:6px;overflow:hidden}
+#v18Float .fbar u{display:block;height:100%;background:var(--amber)}
+#v18Float .frow{display:flex;justify-content:space-between;font-size:12px;margin-top:4px}
+#v18Float .frow b{font-family:var(--mono);font-weight:600}
+#v18Float .fw{margin-top:6px;font-size:11px;color:var(--amber)}
+#v18Float .pos{color:var(--pos)}#v18Float .neg{color:var(--neg)}#v18Float .am{color:var(--amber)}
+#v18Float.fpd{width:250px;padding:11px 13px}
+#v18Float.fpp{border-radius:999px;padding:7px 13px;display:flex;align-items:center;gap:9px;max-width:calc(100vw - 20px)}
+#v18Float.fpp:not(.open) b{font:700 16px var(--mono)}#v18Float.fpp:not(.open)>span{font-size:11px;color:var(--muted);white-space:nowrap}
+#v18Float.fpp.open{border-radius:14px;display:block;width:230px}
+#v18Float.hot{border-color:var(--neg)}
+#v18Float.flash{animation:v18flash .5s ease-in-out 3}
+@keyframes v18flash{50%{box-shadow:0 0 0 3px var(--amber)}}
+#v18Float.mini .frow,#v18Float.mini .fw,#v18Float.mini .fbar{display:none}
+.v18f{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+.v18f input{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:9px 10px;border-radius:8px;border:1px solid var(--line2,var(--line));background:color-mix(in srgb,var(--bg) 70%,var(--panel));color:var(--text);font:13px var(--mono)}
+</style>
+<script data-module="v105_18">
+/* v105.18 · Trade lab (13–14 Oct 2026).
+   Reads your open strangle from Delta (the v100 read-only key; positions every 30 s), prices each leg from the live
+   Delta chain every minute, and splits every change in P&L into Time (theta), Price move (delta + gamma), IV change
+   (vega) and Other (skew, spread, model error), each leg at its own live size. Every 15-minute block keeps those parts
+   plus what the desk showed when the block began (Edge, Range, Speed vs IV, Impulse, ADX, Tonight IV vs clock, the
+   Leading board and the lagging slopes, the session). Stored on this device (IndexedDB v18:lab); CSV export for review.
+   Learning unlocks at 20 closed trades: what caused the losses, and which reading came before bad hours.
+   Nothing here places or suggests an order. */
+(function(){'use strict';
+const W=window,D=document,$=id=>D.getElementById(id);
+const MIN=60e3,B15=15*MIN,HR=36e5,DAY=864e5,YEAR=365*DAY,UNLOCK=20,KEY='v18:lab';
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const fin=x=>typeof x==='number'&&Number.isFinite(x);
+const N=x=>{const n=parseFloat(x);return Number.isFinite(n)?n:null;};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hm=t=>{const d=new Date(t+19800000);return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');};
+const day=t=>{const d=new Date(t+19800000);return d.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];};
+const usd=(v,sign)=>{if(!fin(v))return '—';const a=Math.abs(v),s=a>=1000?Math.round(a).toLocaleString('en-US'):a>=100?a.toFixed(0):a.toFixed(1);return (v<0?'−':sign?'+':'')+'$'+s;};
+const pc=v=>fin(v)?(v>0?'+':v<0?'−':'')+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+'%':'—';
+const settle=e=>{try{if(typeof W.expiryEpoch==='function'){const t=W.expiryEpoch(e);if(fin(t))return t;}}catch(x){}const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(e||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3],12):null;};
+
+/* ---------------- Black-Scholes (per 1 BTC of underlying) ---------------- */
+const ncdf=x=>{const a=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*a*(0.3193815+a*(-0.3565638+a*(1.781478+a*(-1.821256+a*1.330274))));return x>=0?1-p:p;};
+const npdf=x=>Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);
+function greeks(S,K,T,s,call){if(!(S>0&&K>0&&T>0&&s>0))return null;const sq=Math.sqrt(T),d1=(Math.log(S/K)+0.5*s*s*T)/(s*sq);
+  return {delta:call?ncdf(d1):ncdf(d1)-1,gamma:npdf(d1)/(S*s*sq),vega:S*npdf(d1)*sq/100,thetaH:-(S*npdf(d1)*s/(2*sq))/(365*24)};}
+
+/* ---------------- store ---------------- */
+let LAB={v:1,trades:[],cur:null};let loaded=false,dirty=false;
+async function load(){try{const x=typeof W.mcGet==='function'?await W.mcGet(KEY):null;if(x&&Array.isArray(x.trades))LAB=x;}catch(e){}
+  if(!LAB.cur){const c=LS.get('v18_cur',null);if(c&&c.id)LAB.cur=c;}loaded=true;}
+function save(now){dirty=false;try{LS.set('v18_cur',LAB.cur||null);}catch(e){}try{if(typeof W.mcPut==='function')W.mcPut(KEY,LAB);}catch(e){}}
+
+/* ---------------- what the desk shows right now ---------------- */
+function readings(t){const r={t,sess:null};
+  try{r.sess=W.SessCal?W.SessCal.nameAt(t):null;}catch(e){}
+  try{const v=W.v105;if(v){r.edge=v.edgeAt?v.edgeAt(t):null;r.range=v.rangeAt?v.rangeAt(t):null;}}catch(e){}
+  try{const C=W.Carry&&W.Carry.state();if(C){r.speed=C.hour&&fin(C.hour.r)?+C.hour.r.toFixed(3):null;r.speed15=C.last&&fin(C.last.r)?+C.last.r.toFixed(3):null;}}catch(e){}
+  try{const I=W.impulseRead&&W.impulseRead();if(I&&I.ok){r.imp=+(+I.r).toFixed(2);r.impSt=I.st;r.impDir=I.dir;}}catch(e){}
+  try{const R=W.paRes&&W.paRes();if(R&&Array.isArray(R.adx)){const i=(R.n||R.adx.length)-2,a=R.adx[i],b=R.adx[i-3];if(a&&fin(a.adx)){r.adx=+a.adx.toFixed(1);if(b&&fin(b.adx))r.adxD=+(a.adx-b.adx).toFixed(1);}}}catch(e){}
+  try{const R=W.v89&&W.v89.rail();if(R){if(fin(R.real))r.real=+R.real.toFixed(2);if(fin(R.vNow))r.iv=+R.vNow.toFixed(2);}}catch(e){}
+  try{const T=W.v104&&W.v104.tiles();if(Array.isArray(T)&&T.length){r.lead={};for(const x of T)r.lead[x.k]=x.st;}}catch(e){}
+  try{const L=[...D.querySelectorAll('#v104Lead .l4-lag .d')];if(L.length){r.lag={};for(const el of L){const n=el.textContent.replace(/[▲▼▸]/g,'').trim();r.lag[n]=el.classList.contains('dn')?-1:el.classList.contains('up')?1:0;}}}catch(e){}
+  return r;}
+// the playbook's gates, judged from one set of readings (prev = the block before, for "turning")
+function gates(r,prev){const g={};
+  g.news=!(r.lead&&r.lead.event==='bad');
+  g.storm=fin(r.speed)&&r.speed<1&&(r.impSt==null||r.impSt<2)&&!(fin(r.adxD)&&r.adxD>0);
+  const turning=fin(r.real)&&r.real>0&&prev&&fin(prev.real)?r.real<prev.real:null;
+  g.fear=fin(r.edge)&&r.edge>=3&&turning===true;
+  g.all=g.news&&g.storm&&g.fear;return g;}
+
+/* ---------------- legs from Delta ---------------- */
+function legsNow(){const A=W.v100&&W.v100.api;const pos=A&&A.last&&Array.isArray(A.last.positions)?A.last.positions:null;if(!pos)return null;
+  const L=[];for(const p of pos){const sym=String(p.product_symbol||(p.product&&p.product.symbol)||p.symbol||''),m=/^([CP])-BTC-(\d+(?:\.\d+)?)-(\d{2})(\d{2})(\d{2})$/i.exec(sym);if(!m)continue;
+    const size=N(p.size);if(!(size<0))continue;L.push({sym,type:m[1].toUpperCase(),K:+m[2],exp:'20'+m[5]+'-'+m[4]+'-'+m[3],n:-size,cv:N(p.contract_value)||N(p.product&&p.product.contract_value)||0.001,entry:N(p.entry_price)});}
+  return L;}
+function strangleNow(){const T=(()=>{try{return JSON.parse(localStorage.getItem('v99_trade')||'null');}catch(e){return null;}})();
+  const L=legsNow();if(!T||T.src!=='api'||!L)return null;
+  const legs=L.filter(x=>x.exp===T.exp&&((x.type==='P'&&x.K===T.Kp)||(x.type==='C'&&x.K===T.Kc)));if(!legs.some(x=>x.type==='P')&&!legs.some(x=>x.type==='C'))return null;
+  return {id:T.id,exp:T.exp,Kp:T.Kp,Kc:T.Kc,openedAt:T.openedAt||Date.now(),legs};}
+async function priceLegs(S){const rows=await W.getChain(S.exp);const now=Date.now(),st=settle(S.exp);if(!st||st<=now)return null;const T=(st-now)/YEAR;
+  const out={t:now,T,S:null,legs:[]};
+  for(const L of S.legs){const x=(rows||[]).find(r=>String(r.symbol||'')===L.sym)||(rows||[]).find(r=>N(r.strike_price)===L.K&&String(r.contract_type||'').toLowerCase().startsWith(L.type==='C'?'call':'put'));if(!x)return null;
+    let iv=N(x.mark_vol??(x.quotes&&x.quotes.mark_iv));if(iv!=null&&iv<=5)iv*=100;const sp=N(x.spot_price);if(sp>0)out.S=sp;
+    out.legs.push({sym:L.sym,type:L.type,K:L.K,n:L.n,cv:L.cv,entry:L.entry,mark:N(x.mark_price),iv});}
+  if(!(out.S>0)||out.legs.some(l=>!fin(l.mark)||!fin(l.iv)))return null;return out;}
+
+/* ---------------- attribution of one step a → b ---------------- */
+function step(a,b){const P={time:0,price:0,iv:0,other:0,total:0};const dt=(b.t-a.t)/HR,dS=b.S-a.S;
+  for(const lb of b.legs){const la=a.legs.find(x=>x.sym===lb.sym);if(!la)continue;const q=Math.min(la.n,lb.n)*lb.cv;   // size held through the step
+    const G=greeks(a.S,la.K,a.T,la.iv/100,la.type==='C');const act=lb.mark-la.mark;let th=0,pr=0,vg=0;
+    if(G){th=G.thetaH*dt;pr=G.delta*dS+0.5*G.gamma*dS*dS;vg=G.vega*(lb.iv-la.iv);}
+    const ot=act-th-pr-vg;   // short: our P&L is minus the option's change
+    P.time-=th*q;P.price-=pr*q;P.iv-=vg*q;P.other-=ot*q;P.total-=act*q;}
+  return P;}
+const addP=(A,B)=>{for(const k of ['time','price','iv','other','total'])A[k]=(A[k]||0)+(B[k]||0);return A;};
+const zero=()=>({time:0,price:0,iv:0,other:0,total:0});
+const credit=s=>{let c=0;for(const l of s.legs)if(fin(l.entry))c+=l.entry*l.n*l.cv;return c;};
+const ratio=s=>{const p=s.legs.find(l=>l.type==='P'),c=s.legs.find(l=>l.type==='C');if(!p||!c||!(p.mark>0)||!(c.mark>0))return null;return Math.max(p.mark*p.n,c.mark*c.n)/Math.min(p.mark*p.n,c.mark*c.n);};
+
+/* ---------------- the trade, minute by minute ---------------- */
+function startTrade(S,snap){const now=snap.t;const r=readings(now);const prev=LAB.lastR||null;
+  // what was already made or lost before the desk started watching (key added mid-trade, page closed at entry)
+  let pre=0;for(const l of snap.legs)if(fin(l.entry))pre+=(l.entry-l.mark)*l.n*l.cv;
+  LAB.cur={id:S.id,exp:S.exp,Kp:S.Kp,Kc:S.Kc,openedAt:S.openedAt,watchFrom:now,credit:credit(snap),size0:snap.legs.map(l=>({sym:l.sym,n:l.n})),
+    entry:{r,g:gates(r,prev),late:now-S.openedAt>20*MIN},pre:+pre.toFixed(2),sum:zero(),blocks:[],warns:[],acts:[],last:snap,peak:0};
+  dirty=true;}
+function closeTrade(now){const c=LAB.cur;if(!c)return;const tot=(c.pre||0)+(c.sum.total||0);
+  LAB.trades.push({...c,last:undefined,closedAt:now,pnl:+tot.toFixed(2),pnlPct:c.credit>0?+(tot/c.credit).toFixed(4):null,holdMin:Math.round((now-c.openedAt)/MIN)});
+  if(LAB.trades.length>400)LAB.trades.splice(0,LAB.trades.length-400);LAB.cur=null;dirty=true;}
+function blockOf(c,t){const k=Math.floor(t/B15)*B15;let b=c.blocks[c.blocks.length-1];
+  if(!b||b.t!==k){const prev=b?b.r:LAB.lastR||null;const r=readings(k===Math.floor(Date.now()/B15)*B15?Date.now():t);b={t:k,p:zero(),r,g:gates(r,prev),gap:false};c.blocks.push(b);if(c.blocks.length>400)c.blocks.shift();}
+  return b;}
+function warnings(c,snap){const now=snap.t,W8=[];const b=c.blocks[c.blocks.length-1],r=b?b.r:{};
+  const rt=ratio(snap);if(fin(rt)&&rt>=2)W8.push({k:'legs',x:`one leg is ${rt.toFixed(1)}× the other`});
+  if(c.blocks.length>=6&&now-c.watchFrom>=2*HR){const last4=c.blocks.slice(-5,-1).reduce((s,x)=>s+x.p.total,0);if(last4<=0)W8.push({k:'stuck',x:'P&L has not grown for an hour'});}
+  if(r.impSt!=null&&r.impSt>=2)W8.push({k:'imp',x:'Impulse rising dark'});
+  if(fin(r.speed)&&r.speed>1)W8.push({k:'speed',x:`Speed vs IV ${r.speed.toFixed(2)}×`});
+  if(fin(r.real)&&r.real>0.8&&b&&c.blocks.length>1&&fin(c.blocks[c.blocks.length-2].r.real)&&r.real>c.blocks[c.blocks.length-2].r.real)W8.push({k:'real',x:'IV rising above the clock'});
+  for(const w of W8){const last=c.warns.filter(x=>x.k===w.k).pop();if(!last||now-last.t>45*MIN)c.warns.push({t:now,k:w.k,x:w.x});}
+  if(c.warns.length>200)c.warns.splice(0,c.warns.length-200);
+  return W8;}
+let busy=false,UI={sel:null,live:[]};
+async function tick(){if(busy||!loaded)return;busy=true;const now=Date.now();
+  try{const S=strangleNow();
+    if(!S){if(LAB.cur){const A=W.v100&&W.v100.api;if(A&&A.last&&!A.err&&Date.now()-A.at<90e3)closeTrade(now);}render();return;}
+    if(LAB.cur&&LAB.cur.id!==S.id)closeTrade(now);
+    const snap=await priceLegs(S);if(!snap){render();return;}
+    if(!LAB.cur){startTrade(S,snap);render();save(now);return;}
+    const c=LAB.cur,a=c.last;
+    // size changes = your adjustments (bought back part of a leg, added)
+    for(const l of snap.legs){const o=a&&a.legs.find(x=>x.sym===l.sym);if(o&&Math.abs(o.n-l.n)>=1){c.acts.push({t:now,sym:l.sym,type:l.type,from:o.n,to:l.n});}}
+    if(a&&snap.t>a.t){const P=step(a,snap),gap=snap.t-a.t>5*MIN;const b=blockOf(c,snap.t);addP(b.p,P);if(gap)b.gap=true;addP(c.sum,P);}
+    c.last=snap;LAB.lastR=c.blocks.length?c.blocks[c.blocks.length-1].r:LAB.lastR;
+    UI.live=warnings(c,snap);dirty=true;
+    const tot=(c.pre||0)+c.sum.total;if(tot>c.peak)c.peak=tot;
+    if(dirty&&(!c.savedAt||now-c.savedAt>3*MIN)){c.savedAt=now;save(now);}
+    render();}
+  catch(e){console.warn('v18',e);}finally{busy=false;}}
+
+/* ---------------- Trade page card ---------------- */
+const CAUSE=[['time','Time (theta)'],['price','Price move'],['iv','IV change'],['other','Other (skew, fees)']];
+function bars(P,extra){const vals=CAUSE.map(([k])=>P[k]||0);if(extra)vals.push(extra.v);const mx=Math.max(1,...vals.map(Math.abs));
+  const row=(lab,v)=>{const w=Math.min(50,Math.abs(v)/mx*50),l=v>=0?50:50-w;return `<div class="v18bar"><span>${lab}</span><div class="tr"><i style="left:${l}%;width:${w}%;background:${v>=0?'var(--pos)':'var(--neg)'}"></i></div><b class="${v>=0?'pos':'neg'}">${usd(v,true)}</b></div>`;};
+  let h=CAUSE.map(([k,l])=>row(l,P[k]||0)).join('');if(extra&&Math.abs(extra.v)>=0.5)h+=row(extra.lab,extra.v);return h;}
+function mainCause(P){const parts=CAUSE.map(([k,l])=>({k,l,v:P[k]||0}));const worst=parts.filter(x=>x.v<0).sort((a,b)=>a.v-b.v)[0],best=parts.filter(x=>x.v>0).sort((a,b)=>b.v-a.v)[0];
+  if(worst&&(!best||-worst.v>=best.v*0.5)){const s=worst.k==='iv'?'IV rose':worst.k==='price'?'BTC moved against a leg':worst.k==='time'?'time worked against you':'skew / spread';return `<b>Main cause: ${s} (${usd(worst.v)}).</b>${best?` ${best.l.replace(/ \(.*\)/,'')} paid ${usd(best.v,true)}.`:''}`;}
+  if(best)return `<b>Main driver: ${best.k==='time'?'time is paying':best.k==='iv'?'IV is falling':best.k==='price'?'price helped':'skew / spread'} (${usd(best.v,true)}).</b>`;return 'Not enough movement yet.';}
+function chips(r,g){const c=[];if(!r)return '';
+  if(fin(r.real))c.push(Math.abs(r.real)<0.05?['','IV on the clock']:[r.real>0?'r':'g',`IV ${r.real>0?'above':'below'} clock ${r.real>0?'+':''}${r.real.toFixed(1)}`]);
+  if(fin(r.speed))c.push([r.speed>1?'r':'g',`Speed vs IV ${r.speed.toFixed(2)}×`]);
+  if(r.impSt!=null)c.push([r.impSt>=2?'r':r.impSt===1?'y':'g',`Impulse ${['calm','normal','fast','impulse'][r.impSt]||r.impSt}${fin(r.imp)?' '+r.imp+'×':''}`]);
+  if(fin(r.edge))c.push([r.edge>=3?'g':r.edge>=0?'y':'r',`Edge ${r.edge>0?'+':''}${r.edge.toFixed(1)}`]);
+  if(fin(r.range))c.push([r.range>1.5?'r':r.range>1?'y':'g',`Range ${r.range.toFixed(2)}×`]);
+  if(fin(r.adx))c.push([fin(r.adxD)&&r.adxD>0?'r':'g',`ADX ${r.adx.toFixed(0)} ${fin(r.adxD)?(r.adxD>0?'rising':'falling'):''}`]);
+  if(r.lag){const v=Object.values(r.lag);const dn=v.filter(x=>x<0).length,up=v.filter(x=>x>0).length;c.push([up>dn?'r':dn>up?'g':'',`Slopes ${dn}▼ ${up}▲`]);}
+  if(r.sess)c.push(['',({'NEW YORK':'New York',ASIA:'Asia',LONDON:'London',OFF:'Off-hours'})[r.sess]||String(r.sess)]);
+  if(g)c.push([g.all?'g':'r',g.all?'all 3 gates green':`gates: ${g.news?'':'news ✕ '}${g.storm?'':'storm ✕ '}${g.fear?'':'fear ✕'}`.trim()]);
+  return `<div class="v18tags">${c.map(([k,t])=>`<span class="${k}">${esc(t)}</span>`).join('')}</div>`;}
+function tradeCard(){const c=LAB.cur;const s=c&&c.last;if(!c||!s)return '';
+  const tot=(c.pre||0)+c.sum.total,cr=c.credit||0,used=cr>0?Math.max(0,-tot)/cr:null;
+  const p=s.legs.find(l=>l.type==='P'),q=s.legs.find(l=>l.type==='C');
+  const head=`${day(settle(c.exp))} · ${p?Math.round(p.K/100)/10+'K P':''}${p&&q?' / ':''}${q?Math.round(q.K/100)/10+'K C':''}`;
+  const B=c.blocks,sel=UI.sel!=null?B.find(b=>b.t===UI.sel):null,mx=Math.max(1,...B.map(b=>Math.abs(b.p.total)));
+  const strip=B.map((b,i)=>{const h=Math.max(6,Math.round(Math.abs(b.p.total)/mx*100)),live=i===B.length-1;return `<button type="button" data-v18b="${b.t}" class="${sel&&sel.t===b.t?'sel':''}${b.gap?' gap':''}${live?' live':''}" title="${hm(b.t)} · ${usd(b.p.total,true)}"><em style="height:${h}%;background:${b.p.total>=0?'var(--pos)':'var(--neg)'}"></em></button>`;}).join('');
+  const sb=sel||B[B.length-1];
+  const blk=sb?`<div class="v18blk"><b>${hm(sb.t)}–${hm(sb.t+B15)} · ${usd(sb.p.total,true)}</b> <span class="s">· IV ${usd(sb.p.iv,true)} · price ${usd(sb.p.price,true)} · time ${usd(sb.p.time,true)}${sb.gap?' · page was closed for part of it':''}</span><div class="s" style="margin-top:6px">Desk showed at ${hm(sb.t)}:</div>${chips(sb.r,sb.g)}</div>`:'';
+  const wl=c.warns.slice(-2).reverse();const acts=c.acts.slice(-2).reverse();
+  const warn=(UI.live.length?`<div class="v18warn">Now: ${UI.live.map(w=>`<b>${esc(w.x)}</b>`).join(' · ')} → Act 4 (halve, buy back half the tested leg, or exit)</div>`:'')+
+    (wl.length&&!UI.live.length?`<div class="v18warn">Last warning ${hm(wl[0].t)}: <b>${esc(wl[0].x)}</b></div>`:'')+
+    (acts.length?`<div class="v18warn">Your adjustments: ${acts.map(a=>`${hm(a.t)} ${a.type==='P'?'put':'call'} ${a.from}→${a.to}`).join(' · ')}</div>`:'');
+  return `<div class="v18c v18"><div class="v18h"><h3>What moved my P&amp;L</h3><span class="r">${esc(head)}</span></div>
+    <div class="v18top"><div><small>P&amp;L since entry ${hm(c.openedAt)} · mark-to-market, before fees</small><div class="v18big ${tot>=0?'pos':'neg'}">${usd(tot,true)}</div></div>
+    <div style="text-align:right"><small>stop ${cr>0?usd(-cr):'—'} (premium ×2)</small><div class="v18big ${used!=null&&used>0.5?'neg':used>0?'am':''}">${used!=null?Math.round(used*100)+'% used':'—'}</div></div></div>
+    <div class="v18grid"><div><div class="v18sub">Why it moved</div>${bars(c.sum,{lab:'Before the desk watched',v:c.pre||0})}<div class="v18why">${mainCause(c.sum)}</div></div>
+    <div><div class="v18h"><span class="v18sub">Every 15 minutes</span><span class="s" style="margin-left:auto">tap a block</span></div><div class="v18strip">${strip||'<span class="s">first block closes at '+hm(Math.floor(Date.now()/B15)*B15+B15)+'</span>'}</div>
+    ${B.length?`<div class="v18ax"><span>${hm(B[0].t)}</span><span>${hm(B[B.length-1].t)}</span></div>`:''}${blk}${warn}</div></div></div>`;}
+let lastHtml='';
+function render(){const pg=$('pgDesk');if(!pg)return;let host=$('v18Trade');
+  if(!host){host=D.createElement('section');host.id='v18Trade';host.setAttribute('aria-label','What moved my P&L');const ref=$('v104Lead');if(ref&&ref.parentNode===pg)pg.insertBefore(host,ref);else pg.insertBefore(host,pg.firstChild);
+    host.addEventListener('click',e=>{const b=e.target.closest('[data-v18b]');if(!b)return;const t=+b.dataset.v18b;UI.sel=UI.sel===t?null:t;lastHtml='';render();});}
+  const h=tradeCard();host.hidden=!h;if(h!==lastHtml){lastHtml=h;host.innerHTML=h;}
+  floatRender();settings();}
+
+/* ---------------- v105.20 · floating live P&L ---------------- */
+const FP={el:null,open:LS.get('v18_fp_open',false),mini:LS.get('v18_fp_mini',false),pos:LS.get('v18_fp_pos',null),pip:null,warnN:0,html:''};
+const phone=()=>{try{return matchMedia('(max-width:760px)').matches;}catch(e){return false;}};
+function floatEl(){if(FP.el)return FP.el;const el=D.createElement('div');el.id='v18Float';el.hidden=true;el.setAttribute('role','status');el.setAttribute('aria-label','Live P&L');D.body.appendChild(el);FP.el=el;
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-fp]');if(b){const a=b.dataset.fp;if(a==='mini'){FP.mini=!FP.mini;LS.set('v18_fp_mini',FP.mini);}else if(a==='pop')popOut();FP.html='';floatRender();return;}
+    if(el.classList.contains('fpp')&&!FP.moved){FP.open=!FP.open;LS.set('v18_fp_open',FP.open);FP.html='';floatRender();}});
+  // drag: desktop by the header, phone by the whole pill (up and down only); a move under 6 px is a tap
+  let st=null;el.addEventListener('pointerdown',e=>{if(FP.pip||e.target.closest('button'))return;if(!phone()&&!e.target.closest('.fh'))return;const r=el.getBoundingClientRect();st={x:e.clientX,y:e.clientY,l:r.left,t:r.top,id:e.pointerId};FP.moved=false;});
+  addEventListener('pointermove',e=>{if(!st||e.pointerId!==st.id)return;const dx=e.clientX-st.x,dy=e.clientY-st.y;if(!FP.moved&&Math.hypot(dx,dy)<6)return;FP.moved=true;const r=el.getBoundingClientRect();
+    const t=Math.max(60,Math.min(innerHeight-r.height-8,st.t+dy));if(phone()){el.style.top=t+'px';el.style.bottom='auto';}else{const l=Math.max(4,Math.min(innerWidth-r.width-4,st.l+dx));el.style.left=l+'px';el.style.top=t+'px';el.style.right='auto';el.style.bottom='auto';}},{passive:true});
+  const end=e=>{if(!st||(e&&e.pointerId!==st.id))return;st=null;if(FP.moved){const r=el.getBoundingClientRect();FP.pos=phone()?{py:r.top/innerHeight}:{x:r.left/innerWidth,y:r.top/innerHeight};LS.set('v18_fp_pos',FP.pos);setTimeout(()=>{FP.moved=false;},50);}};
+  addEventListener('pointerup',end);addEventListener('pointercancel',end);
+  addEventListener('resize',()=>place());return el;}
+function place(){const el=FP.el;if(!el||FP.pip)return;const p=FP.pos;el.style.left=el.style.top=el.style.right=el.style.bottom='';
+  if(phone()){el.style.right='10px';if(p&&fin(p.py))el.style.top=Math.max(60,Math.min(innerHeight-el.offsetHeight-8,p.py*innerHeight))+'px';else el.style.bottom='calc(var(--tab-h,62px) + env(safe-area-inset-bottom) + 12px)';}
+  else if(p&&fin(p.x)){el.style.left=Math.max(4,Math.min(innerWidth-el.offsetWidth-4,p.x*innerWidth))+'px';el.style.top=Math.max(60,Math.min(innerHeight-el.offsetHeight-4,p.y*innerHeight))+'px';}
+  else{el.style.right='18px';el.style.bottom='18px';}}
+function floatHtml(pill){const c=LAB.cur,s=c&&c.last;const tot=(c.pre||0)+c.sum.total,cr=c.credit||0,used=cr>0?Math.max(0,-tot)/cr:null;
+  const P=c.sum,parts=[['Time',P.time],['Price',P.price],['IV',P.iv],['Other',P.other]];const worst=parts.slice().sort((a,b)=>a[1]-b[1])[0];
+  const w=UI.live&&UI.live[0];const p=s.legs.find(l=>l.type==='P'),q=s.legs.find(l=>l.type==='C');
+  const head=`${day(settle(c.exp))} · ${p?Math.round(p.K/100)/10+'K P':''}${p&&q?' / ':''}${q?Math.round(q.K/100)/10+'K C':''}`;
+  const usedTxt=used!=null?Math.round(used*100)+'%':'—';
+  const rows=parts.map(([n,v])=>`<div class="frow"><span>${n}</span><b class="${v>=0?'pos':'neg'}">${usd(v,true)}</b></div>`).join('')+(Math.abs(c.pre||0)>=0.5?`<div class="frow"><span>Before watching</span><b class="${c.pre>=0?'pos':'neg'}">${usd(c.pre,true)}</b></div>`:'');
+  if(pill&&!FP.open)return `<i style="width:7px;height:7px;border-radius:50%;background:var(--pos);flex:none"></i><b class="${tot>=0?'pos':'neg'}">${usd(tot,true)}</b><span>${usedTxt} of stop</span>${worst&&worst[1]<0?`<span class="neg">${worst[0]} ${usd(worst[1])}</span>`:''}${w?'<span class="am">⚠</span>':''}`;
+  const canPop=!pill&&'documentPictureInPicture' in W&&!FP.pip;
+  return `<div class="fh"><i></i><span>LIVE P&amp;L · ${esc(head)}</span>${pill?'':`<button type="button" data-fp="mini" title="${FP.mini?'Show the causes':'Only the total'}">${FP.mini?'+':'–'}</button>`}${canPop?'<button type="button" data-fp="pop" title="Pop out: a small window that stays on top of other apps">⧉</button>':''}</div>
+    <div class="fbig"><b class="${tot>=0?'pos':'neg'}">${usd(tot,true)}</b><div><small>stop ${cr>0?usd(-cr):'—'}</small><em class="${used!=null&&used>0.5?'neg':used>0?'am':''}">${usedTxt} used</em></div></div>
+    <div class="fbar"><u style="width:${used!=null?Math.min(100,used*100):0}%;${used>0.5?'background:var(--neg)':''}"></u></div>${rows}
+    ${w?`<div class="fw">⚠ ${esc(w.x)}</div>`:''}`;}
+function floatRender(){const c=LAB.cur,on=!!(c&&c.last);const el=floatEl();
+  if(!on){el.hidden=true;if(FP.pip)try{FP.pip.close();}catch(e){}return;}
+  const pill=phone()&&!FP.pip;el.className=(pill?'fpp':'fpd')+(pill&&FP.open?' open':'')+(!pill&&FP.mini?' mini':'');
+  const tot=(c.pre||0)+c.sum.total,cr=c.credit||0;if(cr>0&&-tot/cr>0.5)el.classList.add('hot');
+  const nw=c.warns.length;if(nw>FP.warnN&&FP.warnN){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}FP.warnN=nw;
+  const h=floatHtml(pill);if(h!==FP.html){FP.html=h;el.innerHTML=h;}el.hidden=false;place();}
+async function popOut(){if(!('documentPictureInPicture' in W)||FP.pip)return;try{
+  const w=await W.documentPictureInPicture.requestWindow({width:290,height:250});FP.pip=w;
+  const st=w.document.createElement('style');const cs=getComputedStyle(D.documentElement);let vars=':root{';for(const v of ['--panel','--panel2','--line','--line2','--text','--muted','--faint','--pos','--neg','--amber','--mono','--font','--font-text','--bg'])vars+=v+':'+cs.getPropertyValue(v)+';';
+  st.textContent=vars+'}body{margin:0;background:'+cs.getPropertyValue('--bg')+'}'+($('v105_18Css')?$('v105_18Css').textContent:'')+'#v18Float{position:static!important;width:auto!important;border:0;box-shadow:none;border-radius:0;min-height:100vh}';
+  w.document.head.appendChild(st);w.document.body.appendChild(FP.el);FP.html='';floatRender();
+  w.addEventListener('pagehide',()=>{FP.pip=null;D.body.appendChild(FP.el);FP.html='';floatRender();});}catch(e){FP.pip=null;}}
+
+/* ---------------- Settings: key, log, learning ---------------- */
+function csv(){const rows=[['trade','exp','put','call','opened','block_ist','session','pnl_total_usd','time_usd','price_usd','iv_usd','other_usd','pct_of_premium','edge','range','speed_vs_iv','impulse','impulse_state','adx','adx_change','iv_minus_clock','iv','lag_down','lag_up','gate_news','gate_storm','gate_fear','gate_all','gap']];
+  const all=LAB.trades.concat(LAB.cur?[LAB.cur]:[]);
+  for(const T of all)for(const b of T.blocks||[]){const r=b.r||{},g=b.g||{},lv=r.lag?Object.values(r.lag):[];
+    rows.push([T.id,T.exp,T.Kp,T.Kc,new Date(T.openedAt).toISOString(),day(b.t)+' '+hm(b.t),r.sess||'',b.p.total.toFixed(2),b.p.time.toFixed(2),b.p.price.toFixed(2),b.p.iv.toFixed(2),b.p.other.toFixed(2),T.credit>0?(b.p.total/T.credit).toFixed(4):'',
+      r.edge??'',r.range??'',r.speed??'',r.imp??'',r.impSt??'',r.adx??'',r.adxD??'',r.real??'',r.iv??'',lv.filter(x=>x<0).length,lv.filter(x=>x>0).length,+!!g.news,+!!g.storm,+!!g.fear,+!!g.all,+!!b.gap]);}
+  const T2=[['trade','exp','opened','closed','hold_min','pnl_usd','pct_of_premium','credit_usd','entry_gate_all','entry_edge','entry_real','entry_speed','entry_impulse_state','entry_range','warnings','adjustments']];
+  for(const T of LAB.trades)T2.push([T.id,T.exp,new Date(T.openedAt).toISOString(),new Date(T.closedAt).toISOString(),T.holdMin,T.pnl,T.pnlPct??'',(T.credit||0).toFixed(2),+!!(T.entry&&T.entry.g&&T.entry.g.all),T.entry?.r?.edge??'',T.entry?.r?.real??'',T.entry?.r?.speed??'',T.entry?.r?.impSt??'',T.entry?.r?.range??'',(T.warns||[]).map(w=>hm(w.t)+' '+w.x).join(' | '),(T.acts||[]).map(a=>hm(a.t)+' '+a.type+' '+a.from+'>'+a.to).join(' | ')]);
+  const q=v=>{const s=String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  return {blocks:rows.map(r=>r.map(q).join(',')).join('\n'),trades:T2.map(r=>r.map(q).join(',')).join('\n')};}
+function download(name,text,type){try{const b=new Blob([text],{type:type||'text/csv'}),u=URL.createObjectURL(b),a=D.createElement('a');a.href=u;a.download=name;D.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);}catch(e){}}
+function stats(a){const n=a.length;if(!n)return null;const m=a.reduce((s,x)=>s+x,0)/n,v=n>1?a.reduce((s,x)=>s+(x-m)*(x-m),0)/(n-1):0;return {n,m,v};}
+function learn(){const T=LAB.trades.filter(t=>t.blocks&&t.blocks.length&&t.credit>0);if(T.length<UNLOCK)return {n:T.length};
+  // loss causes: the negative side of each cause, across every block
+  const neg={time:0,price:0,iv:0,other:0};for(const t of T)for(const b of t.blocks)for(const k in neg)if(b.p[k]<0)neg[k]-=b.p[k];
+  const tn=Object.values(neg).reduce((s,x)=>s+x,0)||1;
+  // reading → the next hour (this block and the 3 after it), in % of the trade's premium
+  const conds=[['Impulse rising dark',r=>r.impSt!=null?r.impSt>=2:null],['Speed vs IV above 1×',r=>fin(r.speed)?r.speed>1:null],['IV above the clock',r=>fin(r.real)?r.real>0:null],
+    ['Edge under +3',r=>fin(r.edge)?r.edge<3:null],['Range above 1.5×',r=>fin(r.range)?r.range>1.5:null],['ADX rising',r=>fin(r.adxD)?r.adxD>0:null],
+    ['Most slopes rising',r=>r.lag?Object.values(r.lag).filter(x=>x>0).length>Object.values(r.lag).filter(x=>x<0).length:null],['All 3 gates green',(r,g)=>g?!!g.all:null]];
+  const out=conds.map(([name,f])=>{const yes=[],no=[];for(const t of T){const B=t.blocks;for(let i=0;i<B.length;i++){const v=f(B[i].r||{},B[i].g);if(v==null)continue;let s=0;for(let j=i;j<Math.min(B.length,i+4);j++)s+=B[j].p.total;(v?yes:no).push(s/t.credit);}}
+    const a=stats(yes),b=stats(no);if(!a||!b||a.n<8)return {name,n:a?a.n:0,eff:null,conf:'few'};const d=a.m-b.m,se=Math.sqrt(a.v/a.n+b.v/b.n)||1e-9;
+    return {name,n:a.n,eff:d,yes:a.m,conf:Math.abs(d)>2*se&&a.n>=20?'strong':Math.abs(d)>se&&a.n>=10?'likely':'no clear effect'};});
+  // entry gates against the trade's result
+  const g1=T.filter(t=>t.entry&&t.entry.g&&t.entry.g.all).map(t=>t.pnlPct),g0=T.filter(t=>!(t.entry&&t.entry.g&&t.entry.g.all)).map(t=>t.pnlPct);
+  return {n:T.length,neg,tn,out,entry:{yes:stats(g1.filter(fin)),no:stats(g0.filter(fin))}};}
+function learnCard(){const L=learn();
+  if(L.n<UNLOCK)return `<section class="v18c v18"><div class="v18h"><h3>What the desk learned</h3><span class="r">${L.n} of ${UNLOCK} trades</span></div><p>Findings unlock after ${UNLOCK} closed trades, so luck cannot pass for a pattern. Every trade you close on Delta is recorded on its own.</p><div class="v18lock"><i style="width:${Math.min(100,L.n/UNLOCK*100)}%"></i></div></section>`;
+  const cause=[['iv','IV rose after entry'],['price','Price move (delta, gamma)'],['time','Time decay (normally a gain)'],['other','Skew, spread, fees']].map(([k,l])=>`<tr><td>${l}</td><td class="n neg">${Math.round(L.neg[k]/L.tn*100)}%</td></tr>`).join('');
+  const rows=L.out.filter(x=>x.eff!=null).sort((a,b)=>a.eff-b.eff).map(x=>`<tr><td>${esc(x.name)}<br><span class="s">${x.n} blocks</span></td><td class="n ${x.eff<0?'neg':'pos'}">${pc(x.eff)}</td><td><span class="v18conf ${x.conf==='strong'?'c3':x.conf==='likely'?'c2':'c1'}">${x.conf}</span></td></tr>`).join('');
+  const sure=L.out.filter(x=>x.conf==='strong'||x.conf==='likely'),bad=sure.filter(x=>x.eff<0).map(x=>x.name),good=sure.filter(x=>x.eff>0).map(x=>x.name),drop=L.out.filter(x=>x.conf==='no clear effect').map(x=>x.name);
+  const E=L.entry;const eLine=E.yes&&E.no?`<p>Entered with all 3 gates green: average ${pc(E.yes.m)} of premium (${E.yes.n} trades). Otherwise: ${pc(E.no.m)} (${E.no.n} trades).</p>`:'';
+  return `<section class="v18c v18"><div class="v18h"><h3>What the desk learned</h3><span class="r">${L.n} trades</span></div>
+    <div class="v18sub" style="margin-top:8px">What caused my losses</div><table class="v18tbl"><tr><th>Cause</th><th style="text-align:right">share of losses</th></tr>${cause}</table>
+    <div class="v18sub" style="margin-top:12px">Which reading came before bad hours</div><table class="v18tbl"><tr><th>When this showed</th><th style="text-align:right">next hour vs otherwise (% of premium)</th><th>sure?</th></tr>${rows}</table>${eLine}
+    <div class="v18why">${bad.length?'<b>Warned of bad hours:</b> '+esc(bad.join(', '))+'. ':''}${good.length?'<b>Came before good hours:</b> '+esc(good.join(', '))+'. ':''}${drop.length?'<b>No clear effect so far:</b> '+esc(drop.join(', '))+'.':''}</div>
+    <div class="v18note">From your own trades only. "Sure?" weighs how many 15-minute blocks back the difference; blocks in one trade are related, so read it as a guide. Never a trade instruction.</div></section>`;}
+let setHtml='';
+function settings(){const pg=$('pgSettings');if(!pg)return;const grid=pg.querySelector('.pagegrid.settings')||pg;let host=$('v18Set');
+  if(!host){host=D.createElement('div');host.id='v18Set';host.className='v18set';grid.insertBefore(host,grid.firstChild);host.addEventListener('click',onSet);
+    const f=D.createElement('input');f.type='file';f.accept='.json,application/json';f.hidden=true;f.id='v18File';f.addEventListener('change',restore);host.after(f);}
+  if(host.contains(D.activeElement)&&/INPUT/.test(D.activeElement.tagName))return;   // never redraw while a key is being typed
+  if(!pg.classList.contains('on')&&setHtml)return;
+  const conn=keyCard();
+  const all=LAB.trades.length+(LAB.cur?1:0),nb=LAB.trades.reduce((s,t)=>s+(t.blocks?t.blocks.length:0),0)+(LAB.cur?LAB.cur.blocks.length:0);
+  const first=LAB.trades.length?LAB.trades[0].openedAt:LAB.cur?LAB.cur.openedAt:null;
+  const log=`<section class="v18c v18"><div class="v18h"><h3>Trade log</h3><span class="r">${LAB.cur?'trade open':'no open trade'}</span></div>
+    <p>Recorded automatically from Delta. Nothing to type. ${all} trade${all===1?'':'s'}${first?` since ${day(first)}`:''} · ${nb.toLocaleString('en-US')} fifteen-minute blocks with the desk's readings.</p>
+    <div class="v18btns"><button type="button" class="v18btn pri" data-v18="csv">Export CSV for Claude</button><button type="button" class="v18btn" data-v18="json">Back up log</button><button type="button" class="v18btn" data-v18="restore">Restore log</button></div>
+    <div class="v18note">Create the Delta key with “Read” permission only. P&amp;L here is mark-to-market in USD, before fees.</div></section>`;
+  const h=conn+log+learnCard();if(h!==setHtml){setHtml=h;host.innerHTML=h;}}
+// the key box: same storage (v100_dkey) and the same buttons the v100 sync already listens to (data-v100 inside #v100Conn)
+/* v105.22 · IP whitelist answer: what Delta said, the address Delta saw, this device's address now, and the fix */
+const IPQ={at:0,v4:null,v6:null,busy:false};
+function ipLook(){if(IPQ.busy||Date.now()-IPQ.at<5*60e3)return;IPQ.busy=true;IPQ.at=Date.now();
+  const get=u=>fetch(u,{cache:'no-store'}).then(r=>r.json()).then(j=>j&&j.ip||null).catch(()=>null);
+  Promise.all([get('https://api.ipify.org?format=json'),get('https://api64.ipify.org?format=json')]).then(([a,b])=>{IPQ.v4=a;IPQ.v6=b&&b!==a?b:null;IPQ.busy=false;setHtml='';try{render();}catch(e){}});}
+function wlBox(A){ipLook();const d=A.errDetail||{},ctx=d.context||{},seen=ctx.client_ip||ctx.ip||ctx.request_ip||null,code=A.errCode||'ip_not_whitelisted';
+  const ipc=v=>`<code class="v22ip">${esc(v)}</code>`;
+  return `<div class="v22wl"><p><b>Delta refused the key because of its IP list.</b> The key only works from the IP addresses saved on it, and this device is not on that list. Nothing is wrong with the desk or the key itself.</p>
+  <p class="s">Delta's answer: ${esc(code)}${A.errStatus?' · HTTP '+A.errStatus:''} · tried ${esc((A.tries||[]).join(' · ')||'—')}</p>
+  <p>Delta saw: ${seen?ipc(seen):'<span class="s">not given</span>'} · this device now: ${IPQ.v4?ipc(IPQ.v4):IPQ.busy?'<span class="s">looking…</span>':'<span class="s">unknown</span>'}${IPQ.v6?' · IPv6 '+ipc(IPQ.v6):''}</p>
+  <ol class="v22fix"><li><b>Best:</b> on Delta India → API keys, make a new key with <b>Read</b> only and leave the IP whitelist empty, if Delta allows it for read-only keys. Paste the new key here.</li>
+  <li><b>Or</b> add the address above to the key's whitelist. It holds while you stay on the same network: home broadband usually keeps its IP for days, mobile data changes it often, so the error comes back.</li>
+  <li>The Vercel relay does not help here: Vercel's own IP changes too, so it cannot be whitelisted.</li></ol></div>`;}
+function keyCard(){const A=W.v100&&W.v100.api;if(!A)return '';const on=A.on(),k=(()=>{try{return A.key()||{};}catch(e){return {};}})(),S=strangleNow();
+  if(!on)return `<section class="v18c v18" id="v100Conn"><div class="v18h"><h3>Connect Delta (read-only)</h3></div>
+    <p>The desk only reads your positions and fills. It cannot place orders or withdraw. The key stays on this device. On Delta India: Account → API keys → tick only <b>Read</b>.</p>
+    <label class="v18f">API key<input id="v100Key" type="text" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+    <label class="v18f">API secret<input id="v100Sec" type="password" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+    <div class="v18btns"><button type="button" class="v18btn pri" data-v100="save">Test &amp; save</button></div></section>`;
+  const st=A.err?`<span class="neg">✕ ${esc(A.err)}</span>`:A.at?`<span class="pos">✓ Connected · read access · last sync ${hm(A.at)}</span>`:'<span class="am">Connecting…</span>';
+  const pos=A.err?'':S?`<span class="pos">✓ Open position: ${esc(day(settle(S.exp)))} strangle · ${S.legs.map(l=>(l.type==='P'?'put ':'call ')+Math.round(l.K)).join(' / ')}</span>`:A.at?'No short strangle open on Delta right now. It is picked up within 30 s of your first fill.':'';
+  return `<section class="v18c v18" id="v100Conn"><div class="v18h"><h3>Connect Delta (read-only)</h3><span class="r">key ${esc(String(k.key||'').slice(0,4))}…</span></div>
+    <p>${st}</p>${pos?`<p>${pos}</p>`:''}${A.err&&/whitelist/i.test(A.err)?wlBox(A):A.err?`<p>Tried: ${esc((A.tries||[]).join(' · ')||'—')}</p><p>Delta often blocks signed requests sent straight from a browser page (and from a file opened on the phone). The desk then uses its relay on Vercel, <b>api/delta-proxy.js</b>. Add that file and <b>vercel.json</b> to the GitHub repo once, let Vercel deploy, then press Check now.</p>`:A.at?`<p class="s">Route: ${esc(A.route==='proxy'?'via the Vercel relay':'direct to Delta')}</p>`:''}
+    <div class="v18btns"><button type="button" class="v18btn" data-v100="check">Check now</button><button type="button" class="v18btn" data-v100="off">Remove key</button></div></section>`;}
+function onSet(e){const b=e.target.closest('[data-v18]');if(!b)return;const a=b.dataset.v18,stamp=new Date().toISOString().slice(0,10);
+  if(a==='csv'){const x=csv();download(`desk-blocks-${stamp}.csv`,x.blocks);setTimeout(()=>download(`desk-trades-${stamp}.csv`,x.trades),400);}
+  else if(a==='json')download(`desk-trade-log-${stamp}.json`,JSON.stringify(LAB),'application/json');
+  else if(a==='restore'){const f=$('v18File');if(f)f.click();}}
+function restore(e){const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(x&&Array.isArray(x.trades)){const ids=new Set(LAB.trades.map(t=>t.id+'|'+t.openedAt));for(const t of x.trades)if(!ids.has(t.id+'|'+t.openedAt))LAB.trades.push(t);LAB.trades.sort((a,b)=>a.openedAt-b.openedAt);save(Date.now());setHtml='';render();}}catch(err){}};rd.readAsText(f);e.target.value='';}
+
+/* ---------------- boot ---------------- */
+async function boot(){await load();render();tick();setInterval(()=>{if(LAB.cur||Date.now()%60e3<20e3)tick();},20e3);setInterval(()=>{if(!LAB.cur)render();},15e3);
+  addEventListener('pagehide',()=>save(Date.now()));D.addEventListener('visibilitychange',()=>{if(D.hidden)save(Date.now());else tick();});
+  D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#nav button,.tabbar button')){setHtml='';setTimeout(render,50);}});}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,2500));else setTimeout(boot,2500);
+W.v18={lab:()=>LAB,tick,learn,csv,__test:{step,greeks,readings,gates}};
+})();
+</script>
+<style id="v105_19Css">
+/* v105.19 · desktop layout: the order-flow row (option flow, thermometer, positioning, vol turn) had four narrow
+   columns, so labels wrapped mid-word; it is now 2 × 2 on laptop widths and 4 across only on wide screens.
+   All Trade-page panels share one left/right edge and one gap; cards in a row have equal height. */
+@media (min-width:761px){
+  #pgDesk #v104Lead,#pgDesk #v18Trade{margin:10px 8px 2px!important}
+  body.v89-more #pgDesk .flowrow{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:stretch}
+  #pgDesk .flowrow>.p80{min-width:0;display:flex;flex-direction:column}
+  #pgDesk .flowrow>.p80>*:last-child{flex:1 1 auto}
+  #pgDesk #flowTapePanel{max-height:340px}
+  #pgDesk #flowTapePanel .p80-b,#pgDesk #flowTapePanel table{overflow:auto}
+  body.v89-more #pgDesk .side2{gap:8px!important;align-items:stretch}
+  #pgDesk .side2>.p80{flex:1 1 0;min-width:0}
+}
+@media (min-width:1800px){body.v89-more #pgDesk .flowrow{grid-template-columns:1.3fr 1fr 1fr 1fr!important}}
+/* thermometer rows: label and value on one line */
+#ofThermPanel dt,#ofThermPanel th,#ofThermPanel .k{white-space:nowrap}
+</style>
+<style id="v105_21Css">
+/* v105.21 · removed at Abhishek's request: "Which expiry for this life" (#xvSec) and "Best short strangle" (#rkSec) on the Flow page */
+#xvSec,#rkSec{display:none!important}
+</style>
+<style id="v105_22Css">/* v105.22 · chart-first layout + whitelist box */
+#v22Top{display:flex;flex-direction:column;gap:8px;min-width:0;order:0!important}
+#v22Side,#v22SideIn{display:contents}
+#v22Top>#chartp{order:0}
+@media (min-width:1360px){
+  body:not(.gfs) #v22Top{display:grid;grid-template-columns:minmax(0,1fr) clamp(350px,25vw,430px);gap:10px;align-items:stretch}
+  body:not(.gfs) #v22Side{display:block;position:relative;min-width:0}
+  body:not(.gfs) #v22Top>#chartp{grid-column:1!important;grid-row:1!important;align-self:stretch!important}
+  body:not(.gfs) #v22Top>#v22Side{grid-column:2!important;grid-row:1!important}
+  body:not(.gfs) #v22SideIn{display:flex;flex-direction:column;gap:8px;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;padding-right:2px}
+  body:not(.gfs) #v22SideIn>*{flex:0 0 auto;margin:0!important;width:auto!important;max-width:none!important;content-visibility:visible!important}
+  body:not(.gfs) #v22Top>#chartp{height:calc(100vh - var(--tk-h,30px) - var(--hdr-h,44px) - 14px)!important;min-height:640px!important;max-height:1120px;margin:0!important}
+  /* the BTC candles get the room: Edge and Range panes are shorter on desktop (they were 160 px each) */
+  body:not(.gfs) #v22Top .aa-box{height:clamp(86px,10.5vh,136px)!important}
+  #v22SideIn #v104Lead .l4-n{font-size:10.5px!important;letter-spacing:.02em!important;white-space:nowrap}
+  #v22SideIn #v104Lead .l4-n i{font-size:9.5px!important}
+  #v22SideIn #v104Lead .l4-tb{min-width:0!important}
+  /* Leading signals, compact */
+  #v22SideIn #v104Lead{padding:0!important}
+  #v22SideIn #v104Lead .l4-h{flex-wrap:wrap;gap:6px!important;padding:10px 12px 4px!important}
+  #v22SideIn #v104Lead .l4-h h2{font-size:15px!important}
+  #v22SideIn #v104Lead .l4-h>p,#v22SideIn #v104Lead .l4-h .l4-s{font-size:11px!important;flex-basis:100%;margin:0!important}
+  #v22SideIn #v104Lead .l4-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;padding:6px 8px!important}
+  #v22SideIn #v104Lead .l4-tile{padding:7px 9px!important;min-height:0!important}
+  #v22SideIn #v104Lead .l4-v{font-size:19px!important;line-height:1.15!important}
+  #v22SideIn #v104Lead .l4-tile p,#v22SideIn #v104Lead .l4-tile small{font-size:11px!important;line-height:1.3!important}
+  #v22SideIn #v104Lead .l4-notes{padding:6px 10px!important;font-size:11.5px!important}
+  #v22SideIn #v104Lead .l4-lag{padding:6px 10px!important;font-size:11px!important}
+  /* Tonight, compact */
+  #v22SideIn #v89Rail{padding:8px 10px!important}
+  #v22SideIn #v89Rail *{max-width:100%}
+}
+.v22wl{border-left:3px solid var(--amber,#E3AE45);background:var(--bg,#0B1117);border-radius:0 8px 8px 0;padding:8px 10px;margin:8px 0}
+.v22wl p{margin:4px 0}.v22fix{margin:6px 0 2px;padding-left:18px}.v22fix li{margin:4px 0;font-size:12.5px;line-height:1.4}
+code.v22ip{font-family:var(--mono,monospace);background:var(--panel,#111C27);border:1px solid var(--line,#22303D);border-radius:4px;padding:1px 5px;user-select:all;-webkit-user-select:all}
+</style>
+<style id="v105_23Css">/* v105.23 · the chart is the core on desktop: shorter indicator strips, narrower side column that can be hidden */
+#v23Tog{display:none}
+@media (min-width:1025px){
+  body:not(.gfs) #pgDesk #paneG>#cvLane{height:60px!important;max-height:60px}
+  body:not(.gfs) #v22Top .aa-box{height:clamp(62px,7.6vh,92px)!important}
+}
+@media (min-width:1360px){
+  body:not(.gfs) #v22Top{grid-template-columns:minmax(0,1fr) clamp(296px,21vw,360px)!important}
+  body:not(.gfs).v23-wide #v22Top{grid-template-columns:minmax(0,1fr) 30px!important}
+  body:not(.gfs).v23-wide #v22SideIn>*:not(#v23Tog){display:none!important}
+  body:not(.gfs).v23-wide #v22SideIn{overflow:hidden}
+  #v23Tog{display:flex}
+}
+#v23Tog{align-items:center;justify-content:center;gap:6px;flex:0 0 auto;height:28px;margin:0;border:1px solid var(--line,#22303D);border-radius:8px;background:var(--panel,#111C27);color:var(--muted,#8FA3B5);font:600 11.5px/1 var(--font-text,var(--font,Arial));cursor:pointer;letter-spacing:.02em}
+#v23Tog:hover{color:var(--text,#D5DEE6);border-color:var(--muted,#8FA3B5)}
+body.v23-wide #v23Tog{height:100%;min-height:200px;writing-mode:vertical-rl;padding:10px 0}
+</style>
+<script id="v105_23Side">(function(){var D=document,K='v23_side_hidden';
+function lsg(){try{return localStorage.getItem(K)==='1';}catch(e){return false;}}
+function set(h){D.body.classList.toggle('v23-wide',h);try{localStorage.setItem(K,h?'1':'0');}catch(e){}var b=D.getElementById('v23Tog');if(b){b.textContent=h?'‹ Signals':'Hide side column ›';b.title=h?'Show My trade, Leading signals and Tonight':'Give the chart the full width';}
+  for(var i=0,ms=[30,250,700];i<ms.length;i++)setTimeout(function(){try{window.dispatchEvent(new Event('resize'));window.paRefit&&window.paRefit();}catch(e){}},ms[i]);}
+function mount(){var inn=D.getElementById('v22SideIn');if(!inn)return false;var b=D.getElementById('v23Tog');
+  if(!b){b=D.createElement('button');b.type='button';b.id='v23Tog';b.addEventListener('click',function(){set(!D.body.classList.contains('v23-wide'));});}
+  if(inn.firstChild!==b)inn.insertBefore(b,inn.firstChild);set(lsg());return true;}
+function go(){if(!mount())return;new MutationObserver(function(){var inn=D.getElementById('v22SideIn'),b=D.getElementById('v23Tog');if(inn&&b&&inn.firstChild!==b)inn.insertBefore(b,inn.firstChild);}).observe(D.getElementById('v22SideIn'),{childList:true});}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',go);else go();})();
+</script>
+<style id="v105_21ClockCss">
+/* v105.21 · 24×7 clock repair: the trade life is one amber line above the hours (no outline on every cell); today = the day label only */
+#clock24 .heat .c.life:not(.now){box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.28),0 2px 3px -1px rgba(0,0,0,.55)!important}
+#clock24 .heat .c.trow:not(.now){box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.28),0 2px 3px -1px rgba(0,0,0,.55)!important}
+#clock24 .heat .lbar{height:3px;border-radius:2px;margin-bottom:2px}
+#clock24 .heat .lbar.on{background:var(--amber,#F2A93B)}
+#clock24 .heat .c.thin{opacity:.5}
+#clock24 .c24read{margin:6px 10px 8px;padding:7px 10px;border-left:3px solid var(--amber,#F2A93B);background:color-mix(in srgb,var(--bg) 70%,var(--panel));font-size:12px;border-radius:0 6px 6px 0;color:var(--text)}
+#clock24Head .sp{display:flex;flex-wrap:wrap;gap:4px;row-gap:4px;justify-content:flex-end}
+#clock24Head .sp .lv{border-style:dashed!important}
+#clock24Head .sp .lv em{font-style:normal;font-size:9px;color:var(--amber,#F2A93B);margin-left:3px}
+@media (max-width:760px){#clock24Head{flex-wrap:wrap}#clock24Head .sp{justify-content:flex-start;width:100%;margin-top:6px}}
 </style>
 </body>
 </html>
