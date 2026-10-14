@@ -1,5 +1,11 @@
 <!doctype html>
 <!--
+  v105.28 (14 Oct 2026): My position + Entry check (Trade lab). Open trade: entry / planned exit time, credit, live P&L
+    (cents under $10), strangle stop, each leg (lots, sold, now, IV sold → now, delta, P&L, 2× leg stop and the BTC level that
+    hits it), what the premium carries (theta $/day, vega $ per IV pt, gamma $ per 1% move, delta per 1%, the hourly move
+    theta covers vs BTC's measured 6 h move), live payoff (now and at expiry, stop zones, breakevens). P&L split adds
+    Direction (delta) and Size of move (gamma). No trade: Entry check for the 0.12Δ strangle on the master expiry.
+    Notes (why entered / exited / differently) per trade; Closed trades list in Settings; CSV export carries all of it.
   v105.27 (14 Oct 2026): page no longer jumps up and down on phones. The off-screen section switch (v105.15) hid sections
     with a 700 px placeholder; Tonight (#v89Rail, ~190 px) then grew, came back into range, shrank, and flipped every frame
     (page height 4,216 ↔ 4,723 px). Hidden sections now keep their measured height.
@@ -4261,13 +4267,15 @@ function arrange(){if(busy)return;busy=true;try{var desk=D.querySelector('#pgDes
   var top=$('v22Top');if(!top){top=D.createElement('div');top.id='v22Top';top.innerHTML='<aside id="v22Side" aria-label="My trade, leading signals and tonight"><div id="v22SideIn"></div></aside>';desk.insertBefore(top,desk.firstChild);}
   if(desk.firstChild!==top)desk.insertBefore(top,desk.firstChild);
   if(top.firstChild!==ch)top.insertBefore(ch,top.firstChild);
-  var inn=$('v22SideIn'),want=ORDER.map($).filter(Boolean),have=Array.prototype.slice.call(inn.children).filter(function(e){return ORDER.indexOf(e.id)>=0;});
+  var tr=$('v18Trade'),wide=false;try{wide=matchMedia('(min-width:1360px)').matches;}catch(e){}
+  if(tr&&wide){if(top.nextSibling!==tr)desk.insertBefore(tr,top.nextSibling);}   /* v105.28: My position under the chart on desktop */
+  var inn=$('v22SideIn'),want=ORDER.filter(function(id){return !(wide&&id==='v18Trade');}).map($).filter(Boolean),have=Array.prototype.slice.call(inn.children).filter(function(e){return ORDER.indexOf(e.id)>=0;});
   var same=want.length===have.length&&want.every(function(e,i){return have[i]===e;});
   if(!same)want.forEach(function(e){inn.appendChild(e);});}catch(e){}finally{busy=false;}}
 arrange();
 var pg=$('pgDesk'),desk=D.querySelector('#pgDesk .desk');
 if(window.MutationObserver){var mo=new MutationObserver(function(){arrange();});if(pg)mo.observe(pg,{childList:true});if(desk)mo.observe(desk,{childList:true});}
-D.addEventListener('DOMContentLoaded',arrange);})();
+D.addEventListener('DOMContentLoaded',arrange);try{matchMedia('(min-width:1360px)').addEventListener('change',arrange);}catch(e){}})();
 </script>
 <!-- ═══════════ VOL ═══════════ -->
 <section class="page" id="pgVol" aria-label="Volatility charts">
@@ -22526,7 +22534,9 @@ const N=x=>{const n=parseFloat(x);return Number.isFinite(n)?n:null;};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hm=t=>{const d=new Date(t+19800000);return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');};
 const day=t=>{const d=new Date(t+19800000);return d.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];};
-const usd=(v,sign)=>{if(!fin(v))return '—';const a=Math.abs(v),s=a>=1000?Math.round(a).toLocaleString('en-US'):a>=100?a.toFixed(0):a.toFixed(1);return (v<0?'−':sign?'+':'')+'$'+s;};
+const usd=(v,sign)=>{if(!fin(v))return '—';if(Math.abs(v)<0.005)v=0;const a=Math.abs(v),s=a>=1000?Math.round(a).toLocaleString('en-US'):a>=100?a.toFixed(0):a>=10?a.toFixed(1):a.toFixed(2);return (v<0?'−':sign?'+':'')+'$'+s;};   // v105.28: cents under $10 (1-lot trades)
+const px=v=>fin(v)?(Math.abs(v)>=1000?Math.round(v).toLocaleString('en-US'):Math.abs(v)>=100?v.toFixed(0):v.toFixed(1)):'—';
+const kf=v=>fin(v)?Math.round(v).toLocaleString('en-US'):'—';
 const pc=v=>fin(v)?(v>0?'+':v<0?'−':'')+Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+'%':'—';
 const settle=e=>{try{if(typeof W.expiryEpoch==='function'){const t=W.expiryEpoch(e);if(fin(t))return t;}}catch(x){}const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(e||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3],12):null;};
 
@@ -22578,15 +22588,65 @@ async function priceLegs(S){const rows=await W.getChain(S.exp);const now=Date.no
   if(!(out.S>0)||out.legs.some(l=>!fin(l.mark)||!fin(l.iv)))return null;return out;}
 
 /* ---------------- attribution of one step a → b ---------------- */
-function step(a,b){const P={time:0,price:0,iv:0,other:0,total:0};const dt=(b.t-a.t)/HR,dS=b.S-a.S;
+function step(a,b){const P={time:0,price:0,delta:0,gamma:0,iv:0,other:0,total:0};const dt=(b.t-a.t)/HR,dS=b.S-a.S;
   for(const lb of b.legs){const la=a.legs.find(x=>x.sym===lb.sym);if(!la)continue;const q=Math.min(la.n,lb.n)*lb.cv;   // size held through the step
-    const G=greeks(a.S,la.K,a.T,la.iv/100,la.type==='C');const act=lb.mark-la.mark;let th=0,pr=0,vg=0;
-    if(G){th=G.thetaH*dt;pr=G.delta*dS+0.5*G.gamma*dS*dS;vg=G.vega*(lb.iv-la.iv);}
-    const ot=act-th-pr-vg;   // short: our P&L is minus the option's change
-    P.time-=th*q;P.price-=pr*q;P.iv-=vg*q;P.other-=ot*q;P.total-=act*q;}
+    const G=greeks(a.S,la.K,a.T,la.iv/100,la.type==='C');const act=lb.mark-la.mark;let th=0,de=0,ga=0,vg=0;
+    if(G){th=G.thetaH*dt;de=G.delta*dS;ga=0.5*G.gamma*dS*dS;vg=G.vega*(lb.iv-la.iv);}
+    const pr=de+ga,ot=act-th-pr-vg;   // short: our P&L is minus the option's change
+    P.time-=th*q;P.delta-=de*q;P.gamma-=ga*q;P.price-=pr*q;P.iv-=vg*q;P.other-=ot*q;P.total-=act*q;}
   return P;}
-const addP=(A,B)=>{for(const k of ['time','price','iv','other','total'])A[k]=(A[k]||0)+(B[k]||0);return A;};
-const zero=()=>({time:0,price:0,iv:0,other:0,total:0});
+const addP=(A,B)=>{for(const k of ['time','price','delta','gamma','iv','other','total'])A[k]=(A[k]||0)+(B[k]||0);return A;};
+const zero=()=>({time:0,price:0,delta:0,gamma:0,iv:0,other:0,total:0});
+
+/* ---------------- v105.28 · the position's Greeks, stops, payoff, entry check ---------------- */
+const bsP=(S,K,T,s,call)=>{if(!(T>0)||!(s>0))return call?Math.max(S-K,0):Math.max(K-S,0);const sq=Math.sqrt(T),d1=(Math.log(S/K)+0.5*s*s*T)/(s*sq),d2=d1-s*sq;return call?S*ncdf(d1)-K*ncdf(d2):K*ncdf(-d2)-S*ncdf(-d1);};
+// BTC level at which a leg is worth 2× what it was sold for, at its live IV and the time left now
+function stopLevel(l,S,T){if(!fin(l.entry)||!(l.entry>0)||!fin(l.iv)||!(S>0))return null;const tgt=2*l.entry,call=l.type==='C',s=l.iv/100;
+  if(bsP(S,l.K,T,s,call)>=tgt)return S;let lo=call?S:S*0.4,hi=call?S*1.8:S;
+  for(let i=0;i<60;i++){const m=(lo+hi)/2,v=bsP(m,l.K,T,s,call);if(call){if(v>tgt)hi=m;else lo=m;}else{if(v>tgt)lo=m;else hi=m;}}return (lo+hi)/2;}
+// what the premium carries, for the size held (q = lots × contract value): short position, so theta is income
+function book(legs,S,T){const g={thetaH:0,gam:0,delta:0,vegaPt:0};
+  for(const l of legs){const G=greeks(S,l.K,T,l.iv/100,l.type==='C');if(!G)continue;const q=l.n*l.cv;g.thetaH+=-G.thetaH*q;g.gam+=G.gamma*q;g.delta+=-G.delta*q;g.vegaPt+=-G.vega*q;}
+  g.thetaD=g.thetaH*24;g.gam1=-0.5*g.gam*Math.pow(0.01*S,2);g.del1=g.delta*0.01*S;
+  g.beH=g.gam>0&&g.thetaH>0?Math.sqrt(2*g.thetaH/g.gam)/S:null;   // the hourly move whose gamma cost equals one hour of theta
+  return g;}
+// realised vol of the BTC index over the last h hours, from the desk's 1-minute bars (annualised, %)
+function rvNow(h){try{const R=W.rvIndexBars&&W.rvIndexBars();if(!R||!R.bars||!R.bars.size)return null;const from=Date.now()-h*HR,a=[];for(const b of R.bars.values())if(b&&b.t>=from&&b.c>0)a.push(b);
+  if(a.length<h*30)return null;a.sort((x,y)=>x.t-y.t);let s2=0;for(let i=1;i<a.length;i++){const r=Math.log(a[i].c/a[i-1].c);s2+=r*r;}const mins=(a[a.length-1].t-a[0].t)/MIN;return mins>0?Math.sqrt(s2*525600/mins)*100:null;}catch(e){return null;}}
+const tradeRec=()=>{try{return JSON.parse(localStorage.getItem('v99_trade')||'null');}catch(e){return null;}};
+// IV you sold each leg at: lot-weighted over the fills (from Delta's fill prices)
+function soldIv(tr){const o={P:null,C:null};if(!tr||!Array.isArray(tr.fills))return o;for(const k of ['P','C']){let w=0,s=0;for(const f of tr.fills){const v=k==='P'?f.ivP:f.ivC;if(fin(v)&&f.lots>0){w+=f.lots;s+=v*f.lots;}}if(w>0)o[k]=+(s/w).toFixed(1);}return o;}
+function payoffSvg(legs,S,T,cr,stops){const ivA=legs.reduce((a,l)=>a+l.iv,0)/legs.length/100,em=ivA*Math.sqrt(Math.max(T,1/YEAR)),Ks=legs.map(l=>l.K);
+  const lo=Math.min(S*(1-Math.max(0.035,1.7*em)),Math.min(...Ks)*0.985),hi=Math.max(S*(1+Math.max(0.035,1.7*em)),Math.max(...Ks)*1.015);
+  const f=(x,T2)=>{let v=0;for(const l of legs)v+=((fin(l.entry)?l.entry:l.mark)-bsP(x,l.K,T2,l.iv/100,l.type==='C'))*l.n*l.cv;return v;};
+  const N2=160,xs=[],e0=[],e1=[];for(let i=0;i<=N2;i++){const x=lo+(hi-lo)*i/N2;xs.push(x);e0.push(f(x,T));e1.push(f(x,0));}
+  const top=Math.max(cr*1.15,...e1,...e0,0.01),bot=Math.max(Math.min(...e0,...e1),-3*Math.max(cr,0.01));
+  const ph=(()=>{try{return matchMedia('(max-width:760px)').matches;}catch(e){return false;}})(),Wd=ph?380:640,H=ph?190:180,X=x=>8+(x-lo)/(hi-lo)*(Wd-16),Y=v=>10+(top-Math.max(bot,Math.min(top,v)))/(top-bot)*(H-28);
+  let g=`<svg class="v28pay" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Payoff of the strangle: now and at expiry">`;
+  for(const st of stops){if(!fin(st.x))continue;const a=st.type==='P'?X(lo):X(st.x),b=st.type==='P'?X(st.x):X(hi);g+=`<rect x="${a.toFixed(1)}" y="0" width="${Math.max(0,b-a).toFixed(1)}" height="${H-18}" fill="var(--neg)" opacity=".09"/>`;}
+  g+=`<line x1="8" x2="${Wd-8}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--faint)" stroke-dasharray="4 3"/>`;
+  for(const [arr,c] of [[e1,'var(--amber,#E3AE45)'],[e0,'#5B9BD5']])g+=`<path d="${arr.map((v,i)=>(i?'L':'M')+X(xs[i]).toFixed(1)+' '+Y(v).toFixed(1)).join('')}" fill="none" stroke="${c}" stroke-width="2"/>`;
+  const be=[];for(let i=1;i<=N2;i++)if((e1[i-1]>=0)!==(e1[i]>=0))be.push(xs[i]);
+  for(const l of legs)g+=`<line x1="${X(l.K).toFixed(1)}" x2="${X(l.K).toFixed(1)}" y1="${H-24}" y2="${H-16}" stroke="var(--muted)"/><text x="${X(l.K).toFixed(1)}" y="${H-4}" font-size="10" text-anchor="middle" fill="var(--muted)">${l.type} ${(l.K/1000).toFixed(1)}K</text>`;
+  g+=`<line x1="${X(S).toFixed(1)}" x2="${X(S).toFixed(1)}" y1="4" y2="${H-18}" stroke="var(--text)" stroke-width="1.4"/><text x="${(X(S)+4).toFixed(1)}" y="14" font-size="10.5" fill="var(--text)">BTC ${kf(S)}</text>`;
+  g+=`<text x="10" y="${(Y(0)-4).toFixed(1)}" font-size="10" fill="var(--faint)">$0</text></svg>`;
+  return {svg:g,be,em};}
+function legsTable(s,c,sold){const T=s.T,S=s.S;const rows=s.legs.slice().sort((a,b)=>a.type<b.type?1:-1).map(l=>{const G=greeks(S,l.K,T,l.iv/100,l.type==='C'),q=l.n*l.cv,pl=fin(l.entry)?(l.entry-l.mark)*q:null;
+    const st=stopLevel(l,S,T),d=st?(st/S-1):null,iv0=sold[l.type];
+    return `<div class="v28lr"><div class="a"><b>${l.type==='P'?'Put':'Call'} ${kf(l.K)}</b><i>${l.n} lot${l.n===1?'':'s'} · ${(Math.abs(l.K/S-1)*100).toFixed(1)}% ${l.type==='P'?'below':'above'} BTC</i></div>
+      <div><small>Sold → now</small><b>${px(l.entry)} → ${px(l.mark)}</b></div><div><small>IV sold → now</small><b>${iv0!=null?iv0.toFixed(1):'—'} → ${l.iv.toFixed(1)}</b></div>
+      <div><small>Delta</small><b>${G?(l.type==='C'?'+':'−')+Math.abs(G.delta).toFixed(2):'—'}</b></div><div><small>P&amp;L</small><b class="${pl>=0?'pos':'neg'}">${usd(pl,true)}</b></div>
+      <div><small>Leg stop 2×</small><b>${fin(l.entry)?px(2*l.entry):'—'}</b><i class="${d!=null&&Math.abs(d)<0.015?'neg':''}">${st?'BTC '+kf(st)+' · '+(d>=0?'+':'−')+Math.abs(d*100).toFixed(2)+'%':''}</i></div></div>`;}).join('');
+  return `<div class="v28legs">${rows}</div>`;}
+function greekLine(g,S,rv6,label){const thH=g.thetaH;const hrs=v=>thH>0&&fin(v)?(Math.abs(v)/thH).toFixed(1)+' h of theta':'';
+  const rvH=fin(rv6)?rv6/100/Math.sqrt(8760):null,cov=fin(g.beH)&&fin(rvH)?g.beH/rvH:null;
+  return `<div class="v28gk"><span><small>Theta</small><b class="pos">${usd(g.thetaD,true)}</b><i>per day · ${usd(g.thetaH,true)}/h</i></span>
+    <span><small>Vega</small><b class="neg">${usd(g.vegaPt,true)}</b><i>per IV point up · ${hrs(g.vegaPt)}</i></span>
+    <span><small>Gamma</small><b class="neg">${usd(g.gam1,true)}</b><i>on a 1% BTC move · ${hrs(g.gam1)}</i></span>
+    <span><small>Delta</small><b>${usd(g.del1,true)}</b><i>if BTC +1% now</i></span></div>
+    <div class="v28cov ${cov==null?'':cov>=1.15?'ok':cov>=0.9?'mid':'bad'}">${label||'Theta pays for'} BTC moves up to <b>${fin(g.beH)?(g.beH*100).toFixed(2)+'% an hour':'—'}</b>${fin(rvH)?` · BTC moved <b>${(rvH*100).toFixed(2)}%/h</b> over 6 h (RV ${rv6.toFixed(0)}%)`:''}${cov!=null?` → ${cov>=1.15?'theta covers the moves':cov>=0.9?'about even: theta barely covers':'moves cost more than theta pays'}`:''}</div>`;}
+function exitReason(c,now){const tot=(c.pre||0)+(c.sum.total||0);const tr=tradeRec();const st=settle(c.exp);
+  if(st&&now>=st-5*MIN)return 'expiry';if(c.credit>0&&tot<=-0.9*c.credit)return 'stop';const xa=(tr&&tr.exitAt)||c.exitAt;if(xa&&now>=xa-20*MIN)return 'time';return 'manual';}
 const credit=s=>{let c=0;for(const l of s.legs)if(fin(l.entry))c+=l.entry*l.n*l.cv;return c;};
 const ratio=s=>{const p=s.legs.find(l=>l.type==='P'),c=s.legs.find(l=>l.type==='C');if(!p||!c||!(p.mark>0)||!(c.mark>0))return null;return Math.max(p.mark*p.n,c.mark*c.n)/Math.min(p.mark*p.n,c.mark*c.n);};
 
@@ -22595,9 +22655,13 @@ function startTrade(S,snap){const now=snap.t;const r=readings(now);const prev=LA
   // what was already made or lost before the desk started watching (key added mid-trade, page closed at entry)
   let pre=0;for(const l of snap.legs)if(fin(l.entry))pre+=(l.entry-l.mark)*l.n*l.cv;
   LAB.cur={id:S.id,exp:S.exp,Kp:S.Kp,Kc:S.Kc,openedAt:S.openedAt,watchFrom:now,credit:credit(snap),size0:snap.legs.map(l=>({sym:l.sym,n:l.n})),
-    entry:{r,g:gates(r,prev),late:now-S.openedAt>20*MIN},pre:+pre.toFixed(2),sum:zero(),blocks:[],warns:[],acts:[],last:snap,peak:0};
+    entry:{r,g:gates(r,prev),late:now-S.openedAt>20*MIN},pre:+pre.toFixed(2),sum:zero(),blocks:[],warns:[],acts:[],last:snap,peak:0,notes:{why:'',exit:'',diff:''}};
+  try{const tr=tradeRec(),sold=soldIv(tr),rv6=rvNow(6),ivA=snap.legs.reduce((a,l)=>a+l.iv,0)/snap.legs.length;LAB.cur.exitAt=tr&&tr.exitAt||null;
+    LAB.cur.entryX={S:snap.S,T:snap.T,rv6,ivrv:fin(rv6)&&rv6>0?+(ivA/rv6).toFixed(2):null,em:+(snap.S*ivA/100*Math.sqrt(snap.T)).toFixed(0),book:book(snap.legs,snap.S,snap.T),
+      legs:snap.legs.map(l=>{const G=greeks(snap.S,l.K,snap.T,l.iv/100,l.type==='C');return {type:l.type,K:l.K,n:l.n,sold:l.entry,ivSold:sold[l.type],ivAtWatch:l.iv,delta:G?+G.delta.toFixed(3):null,dist:+(l.K/snap.S-1).toFixed(4),stop:stopLevel(l,snap.S,snap.T)};})};}catch(e){}
   dirty=true;}
 function closeTrade(now){const c=LAB.cur;if(!c)return;const tot=(c.pre||0)+(c.sum.total||0);
+  try{const s=c.last;c.exitX={why:exitReason(c,now),S:s?s.S:null,legs:s?s.legs.map(l=>({type:l.type,K:l.K,n:l.n,sold:l.entry,last:l.mark,iv:l.iv,pnl:fin(l.entry)?+((l.entry-l.mark)*l.n*l.cv).toFixed(2):null})):[]};}catch(e){}
   LAB.trades.push({...c,last:undefined,closedAt:now,pnl:+tot.toFixed(2),pnlPct:c.credit>0?+(tot/c.credit).toFixed(4):null,holdMin:Math.round((now-c.openedAt)/MIN)});
   if(LAB.trades.length>400)LAB.trades.splice(0,LAB.trades.length-400);LAB.cur=null;dirty=true;}
 function blockOf(c,t){const k=Math.floor(t/B15)*B15;let b=c.blocks[c.blocks.length-1];
@@ -22631,13 +22695,13 @@ async function tick(){if(busy||!loaded)return;busy=true;const now=Date.now();
   catch(e){console.warn('v18',e);}finally{busy=false;}}
 
 /* ---------------- Trade page card ---------------- */
-const CAUSE=[['time','Time (theta)'],['price','Price move'],['iv','IV change'],['other','Other (skew, fees)']];
+const CAUSE=[['time','Time (theta)'],['delta','Direction (delta)'],['gamma','Size of move (gamma)'],['iv','IV change (vega)'],['other','Other (skew, fees)']];
 function bars(P,extra){const vals=CAUSE.map(([k])=>P[k]||0);if(extra)vals.push(extra.v);const mx=Math.max(1,...vals.map(Math.abs));
   const row=(lab,v)=>{const w=Math.min(50,Math.abs(v)/mx*50),l=v>=0?50:50-w;return `<div class="v18bar"><span>${lab}</span><div class="tr"><i style="left:${l}%;width:${w}%;background:${v>=0?'var(--pos)':'var(--neg)'}"></i></div><b class="${v>=0?'pos':'neg'}">${usd(v,true)}</b></div>`;};
   let h=CAUSE.map(([k,l])=>row(l,P[k]||0)).join('');if(extra&&Math.abs(extra.v)>=0.5)h+=row(extra.lab,extra.v);return h;}
 function mainCause(P){const parts=CAUSE.map(([k,l])=>({k,l,v:P[k]||0}));const worst=parts.filter(x=>x.v<0).sort((a,b)=>a.v-b.v)[0],best=parts.filter(x=>x.v>0).sort((a,b)=>b.v-a.v)[0];
-  if(worst&&(!best||-worst.v>=best.v*0.5)){const s=worst.k==='iv'?'IV rose':worst.k==='price'?'BTC moved against a leg':worst.k==='time'?'time worked against you':'skew / spread';return `<b>Main cause: ${s} (${usd(worst.v)}).</b>${best?` ${best.l.replace(/ \(.*\)/,'')} paid ${usd(best.v,true)}.`:''}`;}
-  if(best)return `<b>Main driver: ${best.k==='time'?'time is paying':best.k==='iv'?'IV is falling':best.k==='price'?'price helped':'skew / spread'} (${usd(best.v,true)}).</b>`;return 'Not enough movement yet.';}
+  if(worst&&(!best||-worst.v>=best.v*0.5)){const s=worst.k==='iv'?'IV rose':worst.k==='delta'?'BTC moved toward a leg':worst.k==='gamma'?'big BTC moves (gamma)':worst.k==='time'?'time worked against you':'skew / spread';return `<b>Main cause: ${s} (${usd(worst.v)}).</b>${best?` ${best.l.replace(/ \(.*\)/,'')} paid ${usd(best.v,true)}.`:''}`;}
+  if(best)return `<b>Main driver: ${best.k==='time'?'time is paying':best.k==='iv'?'IV is falling':best.k==='delta'?'BTC moved away from the legs':best.k==='gamma'?'price helped':'skew / spread'} (${usd(best.v,true)}).</b>`;return 'Not enough movement yet.';}
 function chips(r,g){const c=[];if(!r)return '';
   if(fin(r.real))c.push(Math.abs(r.real)<0.05?['','IV on the clock']:[r.real>0?'r':'g',`IV ${r.real>0?'above':'below'} clock ${r.real>0?'+':''}${r.real.toFixed(1)}`]);
   if(fin(r.speed))c.push([r.speed>1?'r':'g',`Speed vs IV ${r.speed.toFixed(2)}×`]);
@@ -22656,14 +22720,24 @@ function tradeCard(){const c=LAB.cur;const s=c&&c.last;if(!c||!s)return '';
   const B=c.blocks,sel=UI.sel!=null?B.find(b=>b.t===UI.sel):null,mx=Math.max(1,...B.map(b=>Math.abs(b.p.total)));
   const strip=B.map((b,i)=>{const h=Math.max(6,Math.round(Math.abs(b.p.total)/mx*100)),live=i===B.length-1;return `<button type="button" data-v18b="${b.t}" class="${sel&&sel.t===b.t?'sel':''}${b.gap?' gap':''}${live?' live':''}" title="${hm(b.t)} · ${usd(b.p.total,true)}"><em style="height:${h}%;background:${b.p.total>=0?'var(--pos)':'var(--neg)'}"></em></button>`;}).join('');
   const sb=sel||B[B.length-1];
-  const blk=sb?`<div class="v18blk"><b>${hm(sb.t)}–${hm(sb.t+B15)} · ${usd(sb.p.total,true)}</b> <span class="s">· IV ${usd(sb.p.iv,true)} · price ${usd(sb.p.price,true)} · time ${usd(sb.p.time,true)}${sb.gap?' · page was closed for part of it':''}</span><div class="s" style="margin-top:6px">Desk showed at ${hm(sb.t)}:</div>${chips(sb.r,sb.g)}</div>`:'';
+  const blk=sb?`<div class="v18blk"><b>${hm(sb.t)}–${hm(sb.t+B15)} · ${usd(sb.p.total,true)}</b> <span class="s">· time ${usd(sb.p.time,true)} · delta ${usd(sb.p.delta!=null?sb.p.delta:sb.p.price,true)} · gamma ${usd(sb.p.gamma||0,true)} · IV ${usd(sb.p.iv,true)}${sb.gap?' · page was closed for part of it':''}</span><div class="s" style="margin-top:6px">Desk showed at ${hm(sb.t)}:</div>${chips(sb.r,sb.g)}</div>`:'';
   const wl=c.warns.slice(-2).reverse();const acts=c.acts.slice(-2).reverse();
   const warn=(UI.live.length?`<div class="v18warn">Now: ${UI.live.map(w=>`<b>${esc(w.x)}</b>`).join(' · ')} → Act 4 (halve, buy back half the tested leg, or exit)</div>`:'')+
     (wl.length&&!UI.live.length?`<div class="v18warn">Last warning ${hm(wl[0].t)}: <b>${esc(wl[0].x)}</b></div>`:'')+
     (acts.length?`<div class="v18warn">Your adjustments: ${acts.map(a=>`${hm(a.t)} ${a.type==='P'?'put':'call'} ${a.from}→${a.to}`).join(' · ')}</div>`:'');
-  return `<div class="v18c v18"><div class="v18h"><h3>What moved my P&amp;L</h3><span class="r">${esc(head)}</span></div>
-    <div class="v18top"><div><small>P&amp;L since entry ${hm(c.openedAt)} · mark-to-market, before fees</small><div class="v18big ${tot>=0?'pos':'neg'}">${usd(tot,true)}</div></div>
-    <div style="text-align:right"><small>stop ${cr>0?usd(-cr):'—'} (premium ×2)</small><div class="v18big ${used!=null&&used>0.5?'neg':used>0?'am':''}">${used!=null?Math.round(used*100)+'% used':'—'}</div></div></div>
+  const tr=tradeRec(),sold=soldIv(tr),xa=(tr&&tr.exitAt)||c.exitAt,rv6=rvNow(6),g=book(s.legs,s.S,s.T);
+  const stops=s.legs.map(l=>({type:l.type,x:stopLevel(l,s.S,s.T)})),PO=payoffSvg(s.legs,s.S,s.T,cr,stops);
+  const near=stops.filter(x=>fin(x.x)).map(x=>({...x,d:Math.abs(x.x/s.S-1)})).sort((a,b)=>a.d-b.d)[0];
+  const sig6=fin(rv6)?rv6/100*Math.sqrt(6/8760):null;
+  const dt=t=>t?day(t)+' '+hm(t):'—';
+  return `<div class="v18c v18"><div class="v18h"><h3>My position</h3><span class="r">${esc(head)}</span></div>
+    <div class="v28kp"><div><small>Entry</small><b>${dt(c.openedAt)}</b></div><div><small>Planned exit</small><b>${dt(xa)}</b></div><div><small>Credit</small><b>${usd(cr)}</b><i>${px(s.legs.reduce((a,l)=>a+(l.entry||0),0))} per BTC</i></div>
+      <div><small>Live P&amp;L</small><b class="${tot>=0?'pos':'neg'}">${usd(tot,true)}</b><i>before fees</i></div><div><small>Strangle stop (premium ×2)</small><b class="${used!=null&&used>0.5?'neg':used>0?'am':''}">${cr>0?usd(-cr):'—'}</b><i>${used!=null?Math.round(used*100)+'% used':'—'}</i></div></div>
+    ${legsTable(s,c,sold)}
+    ${greekLine(g,s.S,rv6)}
+    ${PO.svg}<div class="v28leg"><span><i style="background:#5B9BD5"></i>P&amp;L now (live IV)</span><span><i style="background:var(--amber,#E3AE45)"></i>at expiry</span><span><i style="background:var(--neg);opacity:.35"></i>past a leg stop</span></div>
+    <div class="v18why">${PO.be.length?'Breakevens at expiry '+PO.be.map(kf).join(' / ')+'. ':''}${near?`<b>Nearest leg stop: ${near.type==='P'?'put':'call'}</b> at BTC ${kf(near.x)} (${(near.d*100).toFixed(2)}% away)`:''}${near&&fin(sig6)?` · BTC's usual 6-hour move now ${(sig6*100).toFixed(2)}% (RV ${rv6.toFixed(0)}%)`:''}${fin(PO.em)?` · expected move to expiry ±${(PO.em*100).toFixed(1)}%`:''}.</div>
+    <div class="v18sub" style="margin-top:12px">What moved my P&amp;L</div>
     <div class="v18grid"><div><div class="v18sub">Why it moved</div>${bars(c.sum,{lab:'Before the desk watched',v:c.pre||0})}<div class="v18why">${mainCause(c.sum)}</div></div>
     <div><div class="v18h"><span class="v18sub">Every 15 minutes</span><span class="s" style="margin-left:auto">tap a block</span></div><div class="v18strip">${strip||'<span class="s">first block closes at '+hm(Math.floor(Date.now()/B15)*B15+B15)+'</span>'}</div>
     ${B.length?`<div class="v18ax"><span>${hm(B[0].t)}</span><span>${hm(B[B.length-1].t)}</span></div>`:''}${blk}${warn}</div></div></div>`;}
@@ -22671,8 +22745,42 @@ let lastHtml='';
 function render(){const pg=$('pgDesk');if(!pg)return;let host=$('v18Trade');
   if(!host){host=D.createElement('section');host.id='v18Trade';host.setAttribute('aria-label','What moved my P&L');const ref=$('v104Lead');if(ref&&ref.parentNode===pg)pg.insertBefore(host,ref);else pg.insertBefore(host,pg.firstChild);
     host.addEventListener('click',e=>{const b=e.target.closest('[data-v18b]');if(!b)return;const t=+b.dataset.v18b;UI.sel=UI.sel===t?null:t;lastHtml='';render();});}
-  const h=tradeCard();host.hidden=!h;if(h!==lastHtml){lastHtml=h;host.innerHTML=h;}
+  let main=$('v28Main');if(!main){host.innerHTML='<div id="v28Main"></div><div id="v28Notes"></div>';main=$('v28Main');
+    host.addEventListener('input',e=>{const t=e.target.closest&&e.target.closest('[data-v28n]');if(!t||!LAB.cur)return;LAB.cur.notes=LAB.cur.notes||{};LAB.cur.notes[t.dataset.v28n]=t.value.slice(0,600);clearTimeout(render.nt);render.nt=setTimeout(()=>save(Date.now()),800);});}
+  const h=tradeCard()||entryCard();host.hidden=!h;if(h!==lastHtml){lastHtml=h;main.innerHTML=h;}
+  const nb=$('v28Notes');if(nb){const id=LAB.cur?LAB.cur.id+'|'+LAB.cur.openedAt:'';if(nb.dataset.id!==id){nb.dataset.id=id;nb.innerHTML=LAB.cur?notesBox(LAB.cur.notes||{},'',true):'';}}
+  if(!LAB.cur)entryCheck();
   floatRender();settings();}
+function notesBox(n,attr,open){const f=(k,l,ph)=>`<label class="v28n">${l}<textarea data-v28n="${k}"${attr} rows="2" maxlength="600" placeholder="${ph}">${esc(n[k]||'')}</textarea></label>`;
+  return `<details class="v28notes"${open?' open':''}><summary>My notes for this trade <span class="s">(3 lines, saved on this device, exported with the trade)</span></summary>
+    ${f('why','Why I entered','which signals I trusted')}${f('exit','Why I exited','stop · time · fear · target')}${f('diff','What I would do differently','one line')}</details>`;}
+/* entry check: the 0.12-delta strangle on the master expiry, before you sell it */
+const EC={at:0,busy:false,d:null};
+async function entryCheck(){if(EC.busy||Date.now()-EC.at<55e3||typeof W.getChain!=='function')return;EC.busy=true;EC.at=Date.now();
+  try{const e=W.v100&&W.v100.expNow?W.v100.expNow():null;if(!e)return;const st=settle(e),now=Date.now();if(!st||st<=now)return;const T=(st-now)/YEAR;
+    const rows=await W.getChain(e);let S=null;const o=[];
+    for(const x of rows||[]){const K=N(x.strike_price),ty=String(x.contract_type||'').toLowerCase();let iv=N(x.mark_vol??(x.quotes&&x.quotes.mark_iv));if(iv!=null&&iv<=5)iv*=100;const sp=N(x.spot_price);if(sp>0)S=sp;const m=N(x.mark_price);
+      if(K>0&&fin(iv)&&m>0)o.push({K,call:ty.startsWith('call'),iv,mark:m});}
+    if(!(S>0))return;
+    const pick=call=>{let b=null;for(const x of o){if(x.call!==call||(call?x.K<=S:x.K>=S))continue;const G=greeks(S,x.K,T,x.iv/100,call);if(!G)continue;const d=Math.abs(G.delta);if(d>0.12)continue;if(!b||d>b.d)b={...x,d};}return b;};
+    const p=pick(false),c=pick(true);if(!p||!c)return;
+    const legs=[p,c].map(x=>({type:x.call?'C':'P',K:x.K,n:1,cv:1,iv:x.iv,mark:x.mark,entry:x.mark}));
+    EC.d={e,S,T,legs,g:book(legs,S,T),rv6:rvNow(6),cr:p.mark+c.mark,stops:legs.map(l=>({type:l.type,x:stopLevel(l,S,T)}))};lastHtml='';render();}
+  catch(err){}finally{EC.busy=false;}}
+function entryCard(){const d=EC.d;if(!d)return '';const {S,T,legs,g,rv6,cr}=d;const ivA=legs.reduce((a,l)=>a+l.iv,0)/2,ivrv=fin(rv6)&&rv6>0?ivA/rv6:null,em=ivA/100*Math.sqrt(T),sig6=fin(rv6)?rv6/100*Math.sqrt(6/8760):null;
+  const sd=d.stops.filter(x=>fin(x.x)).map(x=>Math.abs(x.x/S-1)),sMin=sd.length?Math.min(...sd):null;let r={};try{r=readings(Date.now());}catch(e){}
+  const chip=(ok,mid,txt)=>`<span class="${ok?'g':mid?'y':'r'}">${txt}</span>`;
+  const chips=[fin(ivrv)?chip(ivrv>=1.3,ivrv>=1,`IV/RV ${ivrv.toFixed(2)} (rule ≥ 1.3)`):'',fin(r.edge)?chip(r.edge>=3,r.edge>=0,`Edge ${r.edge>0?'+':''}${r.edge.toFixed(1)} (rule ≥ +3)`):'',
+    fin(sMin)&&fin(sig6)?chip(sMin>=1.5*sig6,sMin>=sig6,`leg stop ${(sMin*100).toFixed(2)}% away vs 6 h move ${(sig6*100).toFixed(2)}%`):'',fin(r.adxD)?chip(r.adxD<=0,false,`ADX ${fin(r.adx)?r.adx.toFixed(0):''} ${r.adxD>0?'rising':'falling'}`):''].join('');
+  const P=PO2(legs,S,T,cr,d.stops);
+  return `<div class="v18c v18"><div class="v18h"><h3>Entry check</h3><span class="r">${esc(day(settle(d.e)))} · 0.12Δ strangle · per 1 BTC</span></div>
+    <p class="s" style="margin:4px 0 8px">No strangle open. What the premium carries if you sell the 0.12-delta put and call on the master expiry right now (Delta marks). 1 lot = 0.001 BTC, so divide by 1,000 per lot.</p>
+    <div class="v28kp"><div><small>Put</small><b>${kf(legs[0].K)}</b><i>${px(legs[0].mark)} · IV ${legs[0].iv.toFixed(1)}</i></div><div><small>Call</small><b>${kf(legs[1].K)}</b><i>${px(legs[1].mark)} · IV ${legs[1].iv.toFixed(1)}</i></div>
+      <div><small>Credit</small><b>${px(cr)}</b><i>per BTC</i></div><div><small>Expected move</small><b>±${(em*100).toFixed(1)}%</b><i>to expiry</i></div><div><small>Leg stops 2×</small><b>${d.stops.map(x=>fin(x.x)?(x.x/S-1>=0?'+':'−')+Math.abs((x.x/S-1)*100).toFixed(1)+'%':'—').join(' / ')}</b><i>BTC move</i></div></div>
+    ${greekLine(g,S,rv6,'Theta would pay for')}
+    <div class="v18tags" style="margin-top:8px">${chips}</div>${P}
+    <div class="v18note">Numbers only — the desk does not place or suggest orders.</div></div>`;}
+function PO2(legs,S,T,cr,stops){const P=payoffSvg(legs,S,T,cr,stops);return P.svg;}
 
 /* ---------------- v105.20 · floating live P&L ---------------- */
 const FP={el:null,open:LS.get('v18_fp_open',false),mini:LS.get('v18_fp_mini',false),pos:LS.get('v18_fp_pos',null),pip:null,warnN:0,html:''};
@@ -22692,11 +22800,12 @@ function place(){const el=FP.el;if(!el||FP.pip)return;const p=FP.pos;el.style.le
   else if(p&&fin(p.x)){el.style.left=Math.max(4,Math.min(innerWidth-el.offsetWidth-4,p.x*innerWidth))+'px';el.style.top=Math.max(60,Math.min(innerHeight-el.offsetHeight-4,p.y*innerHeight))+'px';}
   else{el.style.right='18px';el.style.bottom='18px';}}
 function floatHtml(pill){const c=LAB.cur,s=c&&c.last;const tot=(c.pre||0)+c.sum.total,cr=c.credit||0,used=cr>0?Math.max(0,-tot)/cr:null;
-  const P=c.sum,parts=[['Time',P.time],['Price',P.price],['IV',P.iv],['Other',P.other]];const worst=parts.slice().sort((a,b)=>a[1]-b[1])[0];
+  const P=c.sum,parts=[['Time',P.time],['Delta',P.delta!=null?P.delta:P.price],['Gamma',P.gamma||0],['IV',P.iv],['Other',P.other]];const worst=parts.slice().sort((a,b)=>a[1]-b[1])[0];
   const w=UI.live&&UI.live[0];const p=s.legs.find(l=>l.type==='P'),q=s.legs.find(l=>l.type==='C');
   const head=`${day(settle(c.exp))} · ${p?Math.round(p.K/100)/10+'K P':''}${p&&q?' / ':''}${q?Math.round(q.K/100)/10+'K C':''}`;
   const usedTxt=used!=null?Math.round(used*100)+'%':'—';
-  const rows=parts.map(([n,v])=>`<div class="frow"><span>${n}</span><b class="${v>=0?'pos':'neg'}">${usd(v,true)}</b></div>`).join('')+(Math.abs(c.pre||0)>=0.5?`<div class="frow"><span>Before watching</span><b class="${c.pre>=0?'pos':'neg'}">${usd(c.pre,true)}</b></div>`:'');
+  const legRows=s.legs.slice().sort((a,b)=>a.type<b.type?1:-1).map(l=>{const pl=fin(l.entry)?(l.entry-l.mark)*l.n*l.cv:null,st=stopLevel(l,s.S,s.T),dd=st?Math.abs(st/s.S-1):null;return `<div class="frow"><span>${l.type==='P'?'Put':'Call'} ${(l.K/1000).toFixed(1)}K</span><b class="${pl>=0?'pos':'neg'}">${usd(pl,true)}${dd!=null?' · stop '+(dd*100).toFixed(1)+'%':''}</b></div>`;}).join('');
+  const rows=legRows+'<div class="fsep"></div>'+parts.map(([n,v])=>`<div class="frow"><span>${n}</span><b class="${v>=0?'pos':'neg'}">${usd(v,true)}</b></div>`).join('')+(Math.abs(c.pre||0)>=0.5?`<div class="frow"><span>Before watching</span><b class="${c.pre>=0?'pos':'neg'}">${usd(c.pre,true)}</b></div>`:'');
   if(pill&&!FP.open)return `<i style="width:7px;height:7px;border-radius:50%;background:var(--pos);flex:none"></i><b class="${tot>=0?'pos':'neg'}">${usd(tot,true)}</b><span>${usedTxt} of stop</span>${worst&&worst[1]<0?`<span class="neg">${worst[0]} ${usd(worst[1])}</span>`:''}${w?'<span class="am">⚠</span>':''}`;
   const canPop=!pill&&'documentPictureInPicture' in W&&!FP.pip;
   return `<div class="fh"><i></i><span>LIVE P&amp;L · ${esc(head)}</span>${pill?'':`<button type="button" data-fp="mini" title="${FP.mini?'Show the causes':'Only the total'}">${FP.mini?'+':'–'}</button>`}${canPop?'<button type="button" data-fp="pop" title="Pop out: a small window that stays on top of other apps">⧉</button>':''}</div>
@@ -22717,13 +22826,18 @@ async function popOut(){if(!('documentPictureInPicture' in W)||FP.pip)return;try
   w.addEventListener('pagehide',()=>{FP.pip=null;D.body.appendChild(FP.el);FP.html='';floatRender();});}catch(e){FP.pip=null;}}
 
 /* ---------------- Settings: key, log, learning ---------------- */
-function csv(){const rows=[['trade','exp','put','call','opened','block_ist','session','pnl_total_usd','time_usd','price_usd','iv_usd','other_usd','pct_of_premium','edge','range','speed_vs_iv','impulse','impulse_state','adx','adx_change','iv_minus_clock','iv','lag_down','lag_up','gate_news','gate_storm','gate_fear','gate_all','gap']];
+function csv(){const rows=[['trade','exp','put','call','opened','block_ist','session','pnl_total_usd','time_usd','price_usd','delta_usd','gamma_usd','iv_usd','other_usd','pct_of_premium','edge','range','speed_vs_iv','impulse','impulse_state','adx','adx_change','iv_minus_clock','iv','lag_down','lag_up','gate_news','gate_storm','gate_fear','gate_all','gap']];
   const all=LAB.trades.concat(LAB.cur?[LAB.cur]:[]);
   for(const T of all)for(const b of T.blocks||[]){const r=b.r||{},g=b.g||{},lv=r.lag?Object.values(r.lag):[];
-    rows.push([T.id,T.exp,T.Kp,T.Kc,new Date(T.openedAt).toISOString(),day(b.t)+' '+hm(b.t),r.sess||'',b.p.total.toFixed(2),b.p.time.toFixed(2),b.p.price.toFixed(2),b.p.iv.toFixed(2),b.p.other.toFixed(2),T.credit>0?(b.p.total/T.credit).toFixed(4):'',
+    rows.push([T.id,T.exp,T.Kp,T.Kc,new Date(T.openedAt).toISOString(),day(b.t)+' '+hm(b.t),r.sess||'',b.p.total.toFixed(2),b.p.time.toFixed(2),b.p.price.toFixed(2),fin(b.p.delta)?b.p.delta.toFixed(3):'',fin(b.p.gamma)?b.p.gamma.toFixed(3):'',b.p.iv.toFixed(2),b.p.other.toFixed(2),T.credit>0?(b.p.total/T.credit).toFixed(4):'',
       r.edge??'',r.range??'',r.speed??'',r.imp??'',r.impSt??'',r.adx??'',r.adxD??'',r.real??'',r.iv??'',lv.filter(x=>x<0).length,lv.filter(x=>x>0).length,+!!g.news,+!!g.storm,+!!g.fear,+!!g.all,+!!b.gap]);}
-  const T2=[['trade','exp','opened','closed','hold_min','pnl_usd','pct_of_premium','credit_usd','entry_gate_all','entry_edge','entry_real','entry_speed','entry_impulse_state','entry_range','warnings','adjustments']];
-  for(const T of LAB.trades)T2.push([T.id,T.exp,new Date(T.openedAt).toISOString(),new Date(T.closedAt).toISOString(),T.holdMin,T.pnl,T.pnlPct??'',(T.credit||0).toFixed(2),+!!(T.entry&&T.entry.g&&T.entry.g.all),T.entry?.r?.edge??'',T.entry?.r?.real??'',T.entry?.r?.speed??'',T.entry?.r?.impSt??'',T.entry?.r?.range??'',(T.warns||[]).map(w=>hm(w.t)+' '+w.x).join(' | '),(T.acts||[]).map(a=>hm(a.t)+' '+a.type+' '+a.from+'>'+a.to).join(' | ')]);
+  const T2=[['trade','exp','opened','closed','hold_min','exit_reason','pnl_usd','pct_of_premium','credit_usd','pnl_time','pnl_delta','pnl_gamma','pnl_vega','pnl_other','btc_entry','btc_exit','put_K','put_lots','put_sold','put_iv_sold','put_delta_entry','put_dist_pct','put_stop_btc','put_exit_mark','put_pnl','call_K','call_lots','call_sold','call_iv_sold','call_delta_entry','call_dist_pct','call_stop_btc','call_exit_mark','call_pnl','ivrv_entry','rv6_entry','exp_move_usd','theta_day_entry','vega_pt_entry','gamma_1pct_entry','entry_gate_all','entry_edge','entry_real','entry_speed','entry_impulse_state','entry_range','entry_adx','entry_adx_change','entry_session','warnings','adjustments','note_why_entered','note_why_exited','note_differently']];
+  const legOf=(T,k)=>{const E=(T.entryX&&T.entryX.legs||[]).find(l=>l.type===k)||{},X=(T.exitX&&T.exitX.legs||[]).find(l=>l.type===k)||{};return [E.K??X.K??'',E.n??X.n??'',E.sold??X.sold??'',E.ivSold??E.ivAtWatch??'',E.delta??'',E.dist!=null?(E.dist*100).toFixed(2):'',E.stop!=null?Math.round(E.stop):'',X.last??'',X.pnl??''];};
+  const all2=LAB.trades.concat(LAB.cur?[{...LAB.cur,closedAt:null}]:[]);
+  for(const T of all2){const s=T.sum||{},E=T.entryX||{},bk=E.book||{},r=T.entry&&T.entry.r||{},n=T.notes||{};const tot=(T.pre||0)+(s.total||0);
+    T2.push([T.id,T.exp,new Date(T.openedAt).toISOString(),T.closedAt?new Date(T.closedAt).toISOString():'open',T.holdMin??'',T.exitX?T.exitX.why:'',T.pnl??tot.toFixed(2),T.pnlPct??'',(T.credit||0).toFixed(2),(s.time||0).toFixed(3),(s.delta||0).toFixed(3),(s.gamma||0).toFixed(3),(s.iv||0).toFixed(3),(s.other||0).toFixed(3),
+      E.S?Math.round(E.S):'',T.exitX&&T.exitX.S?Math.round(T.exitX.S):'',...legOf(T,'P'),...legOf(T,'C'),E.ivrv??'',E.rv6!=null?E.rv6.toFixed(1):'',E.em??'',bk.thetaD!=null?bk.thetaD.toFixed(3):'',bk.vegaPt!=null?bk.vegaPt.toFixed(3):'',bk.gam1!=null?bk.gam1.toFixed(3):'',
+      +!!(T.entry&&T.entry.g&&T.entry.g.all),r.edge??'',r.real??'',r.speed??'',r.impSt??'',r.range??'',r.adx??'',r.adxD??'',r.sess??'',(T.warns||[]).map(w=>hm(w.t)+' '+w.x).join(' | '),(T.acts||[]).map(a=>hm(a.t)+' '+a.type+' '+a.from+'>'+a.to).join(' | '),n.why||'',n.exit||'',n.diff||'']);}
   const q=v=>{const s=String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   return {blocks:rows.map(r=>r.map(q).join(',')).join('\n'),trades:T2.map(r=>r.map(q).join(',')).join('\n')};}
 function download(name,text,type){try{const b=new Blob([text],{type:type||'text/csv'}),u=URL.createObjectURL(b),a=D.createElement('a');a.href=u;a.download=name;D.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);}catch(e){}}
@@ -22756,8 +22870,9 @@ function learnCard(){const L=learn();
 let setHtml='';
 function settings(){const pg=$('pgSettings');if(!pg)return;const grid=pg.querySelector('.pagegrid.settings')||pg;let host=$('v18Set');
   if(!host){host=D.createElement('div');host.id='v18Set';host.className='v18set';grid.insertBefore(host,grid.firstChild);host.addEventListener('click',onSet);
+    host.addEventListener('input',e=>{const t=e.target.closest&&e.target.closest('[data-v28t]');if(!t)return;const tr=LAB.trades[+t.dataset.v28t];if(!tr)return;tr.notes=tr.notes||{};tr.notes[t.dataset.v28n]=t.value.slice(0,600);clearTimeout(settings.nt);settings.nt=setTimeout(()=>{save(Date.now());setHtml='';},800);});
     const f=D.createElement('input');f.type='file';f.accept='.json,application/json';f.hidden=true;f.id='v18File';f.addEventListener('change',restore);host.after(f);}
-  if(host.contains(D.activeElement)&&/INPUT/.test(D.activeElement.tagName))return;   // never redraw while a key is being typed
+  if(host.contains(D.activeElement)&&/INPUT|TEXTAREA/.test(D.activeElement.tagName))return;   // never redraw while a key is being typed
   if(!pg.classList.contains('on')&&setHtml)return;
   const conn=keyCard();
   const all=LAB.trades.length+(LAB.cur?1:0),nb=LAB.trades.reduce((s,t)=>s+(t.blocks?t.blocks.length:0),0)+(LAB.cur?LAB.cur.blocks.length:0);
@@ -22766,7 +22881,15 @@ function settings(){const pg=$('pgSettings');if(!pg)return;const grid=pg.querySe
     <p>Recorded automatically from Delta. Nothing to type. ${all} trade${all===1?'':'s'}${first?` since ${day(first)}`:''} · ${nb.toLocaleString('en-US')} fifteen-minute blocks with the desk's readings.</p>
     <div class="v18btns"><button type="button" class="v18btn pri" data-v18="csv">Export CSV for Claude</button><button type="button" class="v18btn" data-v18="json">Back up log</button><button type="button" class="v18btn" data-v18="restore">Restore log</button></div>
     <div class="v18note">Create the Delta key with “Read” permission only. P&amp;L here is mark-to-market in USD, before fees.</div></section>`;
-  const h=conn+log+learnCard();if(h!==setHtml){setHtml=h;host.innerHTML=h;}}
+  const h=conn+log+closedCard()+learnCard();if(h!==setHtml){setHtml=h;host.innerHTML=h;}}
+function closedCard(){const L=LAB.trades.slice(-8).reverse();if(!L.length)return '';
+  const row=(t,i)=>{const X=t.exitX||{},E=t.entryX||{};const idx=LAB.trades.length-1-i;
+    const legs=(X.legs||[]).map(l=>`${l.type==='P'?'Put':'Call'} ${kf(l.K)}: sold ${px(l.sold)} → ${px(l.last)} <b class="${(l.pnl||0)>=0?'pos':'neg'}">${usd(l.pnl,true)}</b>`).join(' · ');
+    const why={stop:'stop (loss ≥ premium)',time:'planned exit time',expiry:'held to expiry',manual:'closed by hand'}[X.why]||'—';
+    return `<details class="v28tr"><summary><b>${day(t.openedAt)} ${hm(t.openedAt)} → ${day(t.closedAt)} ${hm(t.closedAt)}</b> · ${esc(t.exp)} · <b class="${t.pnl>=0?'pos':'neg'}">${usd(t.pnl,true)}</b> <span class="s">${t.pnlPct!=null?pc(t.pnlPct)+' of premium · ':''}${why}</span></summary>
+      <div class="s">${legs||'legs not recorded (trade from before v105.28)'}${E.ivrv!=null?` · IV/RV at entry ${E.ivrv}`:''}${E.book?` · theta ${usd(E.book.thetaD,true)}/day, vega ${usd(E.book.vegaPt,true)}/pt at entry`:''}</div>
+      ${notesBox(t.notes||{},` data-v28t="${idx}"`,false)}</details>`;};
+  return `<section class="v18c v18"><div class="v18h"><h3>Closed trades</h3><span class="r">last ${L.length}</span></div><p class="s">Entry → exit time, result per leg and why it closed. Add your 3 lines; they go out with “Export CSV for Claude”.</p>${L.map(row).join('')}</section>`;}
 // the key box: same storage (v100_dkey) and the same buttons the v100 sync already listens to (data-v100 inside #v100Conn)
 /* v105.22 · IP whitelist answer: what Delta said, the address Delta saw, this device's address now, and the fix */
 const IPQ={at:0,v4:null,v6:null,busy:false};
@@ -22803,9 +22926,34 @@ async function boot(){await load();render();tick();setInterval(()=>{if(LAB.cur||
   addEventListener('pagehide',()=>save(Date.now()));D.addEventListener('visibilitychange',()=>{if(D.hidden)save(Date.now());else tick();});
   D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#nav button,.tabbar button')){setHtml='';setTimeout(render,50);}});}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,2500));else setTimeout(boot,2500);
-W.v18={lab:()=>LAB,tick,learn,csv,__test:{step,greeks,readings,gates}};
+W.v18={lab:()=>LAB,tick,learn,csv,__test:{step,greeks,readings,gates,book,stopLevel,rvNow,payoffSvg,entryCheck,EC}};
 })();
 </script>
+<style id="v105_28Css">/* v105.28 · My position / Entry check */
+.v28kp{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 6px}
+.v28kp>div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
+.v28kp small{display:block;color:var(--muted);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v28kp b{display:block;font:700 13.5px/1.25 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v28kp i{display:block;font-style:normal;color:var(--faint);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v28legs{margin-top:4px}.v28lr{display:grid;grid-template-columns:1.3fr 1.1fr 1fr .6fr .8fr 1.3fr;gap:4px 8px;padding:7px 0;border-bottom:1px solid var(--line);align-items:start}
+.v28lr>div{min-width:0}.v28lr small{display:block;color:var(--faint);font-size:10px;white-space:nowrap}.v28lr b{display:block;font:600 12.5px/1.3 var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v28lr .a b{font-family:var(--font-text,var(--font));font-weight:700}.v28lr i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);line-height:1.25}
+#v28Notes:not(:empty){background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 12px 10px;margin-top:8px}#v28Notes .v28notes{border-top:0}
+.v28gk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.v28gk span{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
+.v28gk small{display:block;color:var(--muted);font-size:10.5px}.v28gk b{display:block;font:700 13.5px/1.25 var(--mono)}.v28gk i{display:block;font-style:normal;color:var(--faint);font-size:10.5px;line-height:1.25}
+.v28cov{margin-top:6px;font-size:12px;padding:6px 9px;border-radius:0 6px 6px 0;border-left:3px solid var(--line2,var(--line));background:var(--bg)}
+.v28cov.ok{border-left-color:var(--pos)}.v28cov.mid{border-left-color:var(--amber,#E3AE45)}.v28cov.bad{border-left-color:var(--neg)}
+svg.v28pay{display:block;width:100%;max-width:760px;height:auto;margin-top:8px}
+.v28leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin-top:2px}.v28leg i{display:inline-block;width:14px;height:3px;margin-right:4px;vertical-align:middle}
+.v28notes{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}.v28notes summary{cursor:pointer;font-size:12.5px;font-weight:600}
+.v28n{display:block;font-size:11.5px;color:var(--muted);margin-top:6px}.v28n textarea{display:block;width:100%;box-sizing:border-box;margin-top:3px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.35 var(--font-text,var(--font));resize:vertical}
+.v28tr{border-top:1px solid var(--line);padding:7px 0}.v28tr summary{cursor:pointer;font-size:12.5px}.v28tr>.s{margin:4px 0;font-size:11.5px;color:var(--muted)}
+#v18Float .fsep{border-top:1px solid var(--line);margin:3px 0}
+#v18Trade .v18tags span.g{border-color:color-mix(in srgb,var(--pos) 50%,transparent);color:var(--pos)}#v18Trade .v18tags span.y{border-color:color-mix(in srgb,var(--amber,#E3AE45) 50%,transparent);color:var(--amber,#E3AE45)}#v18Trade .v18tags span.r{border-color:color-mix(in srgb,var(--neg) 50%,transparent);color:var(--neg)}
+@media (max-width:760px){.v28kp{grid-template-columns:repeat(2,minmax(0,1fr))}.v28kp>div:first-child{grid-column:1 / -1}.v28gk{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .v28lr{grid-template-columns:repeat(3,minmax(0,1fr))}.v28lr .a{grid-column:1 / -1}}
+</style>
 <style id="v105_19Css">
 /* v105.19 · desktop layout: the order-flow row (option flow, thermometer, positioning, vol turn) had four narrow
    columns, so labels wrapped mid-word; it is now 2 × 2 on laptop widths and 4 across only on wide screens.
