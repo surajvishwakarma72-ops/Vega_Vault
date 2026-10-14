@@ -1,5 +1,12 @@
 <!doctype html>
 <!--
+  v105.27 (14 Oct 2026): page no longer jumps up and down on phones. The off-screen section switch (v105.15) hid sections
+    with a 700 px placeholder; Tonight (#v89Rail, ~190 px) then grew, came back into range, shrank, and flipped every frame
+    (page height 4,216 ↔ 4,723 px). Hidden sections now keep their measured height.
+  v105.26 (14 Oct 2026): 24×7 clock removed completely (panel #clockPanel, script module clock24 with its hour tables
+    and the v105.21 live recorder). Events take the whole row.
+  v105.25 (14 Oct 2026): the IV / VoV / RV / DVOL panes (Current, Next, N2N) keep the newest candle near the right edge —
+    frameLive left 10–18 % of the width empty for the IV forecast (about 3–4 h of blank space on a phone at 15m); now 2–5 bars.
   v105.24 (14 Oct 2026): BTC chart no longer opens with the candles squeezed into the left third — range buttons
     (1D…1Y) set the view by bar count (fewer bars than asked → they fill the width) and script#v105_24Edge slides the
     view back to the live edge when over a quarter of it is empty future and the chart was not touched for 5 s.
@@ -4228,10 +4235,9 @@ window.deskNote=function(msg,ms){try{let t=document.getElementById('deskNote');i
       <div id="chartsSlotDesk" class="charts-slot"></div>
     </div>
 
-    <!-- right column under the signal: 24×7 clock + events -->
+    <!-- right column under the signal: events (v105.26: 24×7 clock removed) -->
     <div class="side2" id="side2">
       <div class="reg-strip" id="regStrip" hidden></div>
-      <div class="p80" id="clockPanel"><div class="ph80" id="clock24Head">24×7 clock · RV by hour · IST</div><div id="clock24"></div></div>
       <div class="p80" id="evPanelWrap"><div class="ph80" id="evPanelHead">Events · next 48h</div><div id="evPanel"></div></div>
     </div>
 
@@ -6350,7 +6356,7 @@ function frameLive(p,force){
     const ts=p.chart.timeScale(),lr=ts.getVisibleLogicalRange();if(!lr)return;
     const x=ts.timeToCoordinate(p.last.time);if(x==null)return;
     const li=ts.coordinateToLogical(x);if(li==null)return;
-    const w=Math.max(20,lr.to-lr.from),to=li+Math.max(5,Math.min(w*0.18,w*0.1+8)),from=to-w;
+    const w=Math.max(20,lr.to-lr.from),to=li+Math.max(2,Math.min(w*0.05,5)),from=to-w;   /* v105.25: newest candle near the right edge (was 10–18 % of the width left empty for the forecast) */
     if(force)ts.setVisibleLogicalRange({from,to});
     else if(Math.abs(lr.to-to)>0.75)easeRange(p,ts,lr,from,to);
     p.userMoved=false;
@@ -16486,282 +16492,7 @@ Signs follow Settings → Dealer positioning.`;
   setTimeout(vols,2500);
 })();
 </script>
-<script data-module="clock24">
-/* =====================================================================
-   v80 · Clock24 — hour-of-day × weekday variance-share table (IST)
-   ---------------------------------------------------------------------
-   The seller's edge is concentrated in the hours where realised variance
-   runs below what a flat daily IV implies (research_signal.md §1.1, §1.8).
-   This module builds a 7×24 table of the *relative variance rate* per
-   (IST weekday, IST hour): 1.0 = the flat-IV rate (all-sample mean),
-   ≈0.79 = the non-US average, ≈1.35 = the US-hours average (§1.8).
-
-   Data:  Parkinson variance per 5-minute Delta BTC index bar
-            σ²_bar = (ln(H/L))² / (4 ln 2)                 (Parkinson 1980)
-          averaged per cell, divided by the all-sample mean so flat = 1.0.
-   Prior: the synthesised UTC ranking of §1.7 (tiers → rates), shifted to
-          IST (+5:30 — each IST hour is the mean of the two UTC hours that
-          overlap it), weekend ≈0.7× (§1.4), weekend ending Sun 22:00 UTC
-          (§1.4 / §7.2 B2 "Sun 22:00 – Tue 12:00").
-   Blend: w = n/(n+10) · min(1, days/60) per cell, n = distinct days
-          sampled in that cell, days = distinct days in the whole store —
-          the prior rules until there are 60 days of data (CONTRACT).
-   Tiers: <0.8 → 0 calm · 0.8–1.0 → 1 soft · 1.0–1.3 → 2 busy · >1.3 → 3 heavy.
-   API (window.Clock24): table(), prior(), varianceShare(a,b), tier(wd,h),
-          render(), meta(), view(v), recompute(). wd: 0 = Mon … 6 = Sun.
-   ===================================================================== */
-(function clock24Module(){
-  'use strict';
-  const W=typeof window!=='undefined'?window:globalThis;
-  const HAS_DOM=typeof document!=='undefined'&&!!document.getElementById;
-  const MIN=60000,HR=3600000,DAY=86400000,IST_MS=19800000;
-  const K_TABLE='v80:clock24:table',LS_VIEW='v80_clock24_view';
-  const RECOMPUTE_MS=30*MIN,PRIOR_N=10,MIN_DAYS=60;
-  const COLS=['#143D3A','#1E6B63','#8B6B2E','#C45A4A'];                  // calm → heavy (CONTRACT heat tiers)
-  const TIER_NAME=['calm','soft','busy','heavy'];
-  const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-
-  /* ---------- prior (research_signal.md §1.7, UTC hour 0..23 → relative variance rate) ----------
-     Very high 1.7 · High 1.4 · Med-high 1.15 · Medium 1.0 · Low-med 0.8 · Low 0.65 · Very low 0.5.
-     With these values the 13:00–21:59 UTC block carries 52 % of daily variance (MDPI: 50.6 %, §1.8). */
-  const PRIOR_UTC=[1.0,0.8,0.65,0.65,0.5,0.5,0.5,0.65,1.0,0.8,0.8,0.8,1.0,1.4,1.7,1.7,1.4,1.4,1.4,1.15,1.0,1.0,0.8,0.65];
-  function buildPrior(){
-    const t=new Array(168).fill(1);
-    for(let wd=0;wd<7;wd++)for(let h=0;h<24;h++){
-      // IST hour h covers [h:00,h+1:00) IST = second half of UTC hour (h−6) + first half of UTC hour (h−5)
-      const u1=(h-6+24)%24,u2=(h-5+24)%24;
-      let v=(PRIOR_UTC[u1]+PRIOR_UTC[u2])/2;
-      // weekend factor by the UTC weekday at the cell's midpoint (§1.4: weekend ≈0.6–0.75× weekday)
-      const utcH=h+0.5-5.5;let uwd=wd;if(utcH<0)uwd=(wd+6)%7;             // 0 = Mon … 6 = Sun
-      const uh=(utcH+24)%24;
-      if(uwd===5||(uwd===6&&uh<22))v*=0.7;
-      t[wd*24+h]=v;
-    }
-    const m=t.reduce((a,b)=>a+b,0)/168;return t.map(x=>x/m);
-  }
-  const PRIOR=buildPrior();
-
-  /* ---------- state ---------- */
-  const S={data:null,blend:PRIOR.slice(),n:new Array(168).fill(0),days:0,ver:-1,at:0,src:'prior',view:'data',lastCell:-1,lastLife:'',dirty:true,metric:'rv'};
-  try{const m=localStorage.getItem('v82_clock24_metric');if(['rv','iv','vov','dvol','spd','edge','rng','imp','real','lead'].includes(m))S.metric=m;}catch(e){}
-  try{const v=localStorage.getItem(LS_VIEW);if(v==='prior'||v==='data')S.view=v;}catch(e){}
-
-  /* ---------- helpers ---------- */
-  function cellOf(ms){const d=new Date(ms+IST_MS);return {wd:(d.getUTCDay()+6)%7,h:d.getUTCHours()};}
-  const todayLab=()=>{const d=new Date(Date.now()+IST_MS);return d.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];};   // v105.10
-  const esc_=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  function escH(x){try{if(typeof esc==='function')return esc(x);}catch(e){}return esc_(x);}   // engine esc is a top-level const: bare name
-  const num=x=>`<span class="num">${x}</span>`;
-  function longBars(){try{const L=typeof W.rvIndexLong==='function'?W.rvIndexLong():null;return L&&L.bars&&L.bars.size?L:null;}catch(e){return null;}}   // {bars:Map<ms,{t,o,h,l,c}>, ver}
-
-  /* ---------- the data table ---------- */
-  function computeData(L){
-    const sum=new Float64Array(168),cnt=new Float64Array(168),days=[];for(let i=0;i<168;i++)days.push(new Set());
-    let tot=0,totN=0;
-    for(const b of L.bars.values()){
-      if(!b||!(b.h>0&&b.l>0&&b.h>=b.l))continue;
-      const x=Math.log(b.h/b.l),v=x*x/(4*Math.LN2);           // Parkinson variance of one 5-m bar
-      const c=cellOf(b.t),k=c.wd*24+c.h;
-      sum[k]+=v;cnt[k]++;tot+=v;totN++;days[k].add(Math.floor((b.t+IST_MS)/DAY));
-    }
-    if(totN<288)return null;                                   // less than a day of bars: nothing to learn yet
-    const mean=tot/totN,rel=new Array(168).fill(1),n=new Array(168).fill(0);const allDays=new Set();
-    for(let k=0;k<168;k++){n[k]=days[k].size;rel[k]=cnt[k]>0&&mean>0?(sum[k]/cnt[k])/mean:1;for(const d of days[k])allDays.add(d);}
-    return {rel,n,days:allDays.size};
-  }
-  function blendWith(data){
-    const out=new Array(168),scale=data?Math.min(1,(data.days||0)/MIN_DAYS):0;
-    for(let k=0;k<168;k++){const n=data?data.n[k]:0,w=scale*n/(n+PRIOR_N);out[k]=w*(data?data.rel[k]:1)+(1-w)*PRIOR[k];}
-    const m=out.reduce((a,b)=>a+b,0)/168;return out.map(x=>x/m);  // keep flat = 1.0 exactly
-  }
-  function recompute(force){
-    const L=longBars(),now=Date.now();
-    if(!L)return false;
-    // at most every 30 min; a fresh batch of bars (ver bump) may re-run after 5 min while the year is still loading
-    if(!force&&S.at>0&&now-S.at<RECOMPUTE_MS&&!(L.ver!==S.ver&&now-S.at>5*MIN))return false;
-    let d=null;try{d=computeData(L);}catch(e){console.warn('clock24 compute',e);}
-    S.ver=L.ver;S.at=now;
-    if(d){S.data=d;S.n=d.n;S.days=d.days;S.blend=blendWith(d);S.src='data';S.dirty=true;
-      try{if(typeof W.mcPut==='function')W.mcPut(K_TABLE,{at:now,ver:L.ver,rel:d.rel,n:d.n,days:d.days});}catch(e){}}
-    return !!d;
-  }
-  async function loadCache(){
-    try{if(typeof W.mcGet!=='function')return;const c=await W.mcGet(K_TABLE);
-      if(c&&Array.isArray(c.rel)&&c.rel.length===168&&!S.data){S.data={rel:c.rel,n:c.n||new Array(168).fill(0),days:c.days||0};S.n=S.data.n;S.days=S.data.days;S.blend=blendWith(S.data);S.src='cache';S.dirty=true;render(false);}
-    }catch(e){}
-  }
-
-  /* ---------- v82: IV / VoV / DVOL tables (display only; the signal keeps reading the RV table) ----------
-     IV   mean change of ATM IV inside each IST hour, pts/h, from the three IV charts (roll jumps > 4 pts dropped)
-     DVOL mean change of Deribit DVOL per hour, pts/h, from the stored hourly DVOL
-     VoV  DVOL variance per hour (ln close/open)², relative to its all-hours mean (1.0 = average), like the RV table */
-  const MX={};
-  function dvolRows(){try{const st=W.dvolStore,h=st&&st.h;if(!h||!h.size)return null;const out=[];
-    for(const [k,r] of h){const a=Array.isArray(r)?r:[r.t,r.o,r.h,r.l,r.c];const t=+(a[0]||k);if(t>0&&a[1]>0&&a[4]>0)out.push([t,+a[1],+a[4]]);}return out.length>48?out:null;}catch(e){return null;}}
-  function ivRows(){const acc=new Map();
-    let msl=1;try{msl=W.v100&&W.v100.slot?W.v100.slot():1;}catch(e){}
-    try{for(const i of [msl]){let a=null;try{a=relSeries(i).arr;}catch(e){}if(!a||!a.length)continue;   /* v105: master expiry only */
-      for(const b of a){const ms=b[0]*1000,hk=Math.floor(ms/HR),key=i+'|'+hk;let x=acc.get(key);if(!x){x={t:hk*HR,o:b[1],c:b[4]};acc.set(key,x);}x.c=b[4];}}}catch(e){}
-    const out=[];for(const x of acc.values()){const d=(x.c-x.o)*100;if(Number.isFinite(d)&&Math.abs(d)<4)out.push([x.t,d]);}return out.length>48?out:null;}
-  /* v105.21 · history views: Speed vs IV and Edge per hour, from the stored 5-minute BTC bars and the master expiry's IV.
-     Hourly RV = Parkinson variance of the hour's 5-min bars, annualised; IV = the hour's closing ATM IV of the master expiry. */
-  function ivLevels(){const M=new Map();let msl=1;try{msl=W.v100&&W.v100.slot?W.v100.slot():1;}catch(e){}
-    try{const a=relSeries(msl).arr;if(a)for(const b of a){const v=b[4];if(v>0)M.set(Math.floor(b[0]*1000/HR)*HR,v<5?v*100:v);}}catch(e){}return M.size>48?M:null;}
-  function rvHours(){const L=longBars();if(!L)return null;const acc=new Map();
-    for(const b of L.bars.values()){if(!b||!(b.h>0&&b.l>0&&b.h>=b.l))continue;const x=Math.log(b.h/b.l),v=x*x/(4*Math.LN2),k=Math.floor(b.t/HR)*HR;let o=acc.get(k);if(!o){o={s:0,n:0};acc.set(k,o);}o.s+=v;o.n++;}
-    const out=new Map();for(const [k,o] of acc)if(o.n>=8)out.set(k,Math.sqrt(o.s/o.n*105120)*100);return out.size>48?out:null;}
-  /* v105.21 · live views, recorded by the desk every 15 min from today (none of these were stored before) */
-  const LV={rows:[],at:0,loaded:false,K:'v105_21:clocklive'};
-  async function lvLoad(){try{const x=typeof W.mcGet==='function'?await W.mcGet(LV.K):null;if(x&&Array.isArray(x.rows))LV.rows=x.rows;}catch(e){}LV.loaded=true;}
-  function lvRecord(){if(!LV.loaded)return;const now=Date.now(),slot=Math.floor(now/(15*MIN))*15*MIN;if(LV.rows.length&&LV.rows[LV.rows.length-1][0]===slot)return;
-    let rng=null,imp=null,real=null,lead=null;
-    try{const v=W.v105;if(v&&v.rangeAt){const r=v.rangeAt(now);if(Number.isFinite(r))rng=+r.toFixed(3);}}catch(e){}
-    try{const I=W.impulseRead&&W.impulseRead();if(I&&I.ok)imp=I.st>=2?1:0;}catch(e){}
-    try{const R=W.v89&&W.v89.rail();if(R&&Number.isFinite(R.real))real=+R.real.toFixed(2);}catch(e){}
-    try{const T=W.v104&&W.v104.tiles();if(Array.isArray(T)&&T.length&&T.filter(t=>t.st==='na').length<=2)lead=T.filter(t=>t.st==='bad').length;}catch(e){}
-    if(rng==null&&imp==null&&real==null&&lead==null)return;
-    LV.rows.push([slot,rng,imp,real,lead]);const cut=now-180*DAY;while(LV.rows.length&&LV.rows[0][0]<cut)LV.rows.shift();
-    try{if(typeof W.mcPut==='function')W.mcPut(LV.K,{rows:LV.rows});}catch(e){}for(const k of ['rng','imp','real','lead'])delete MX[k];if(['rng','imp','real','lead'].includes(S.metric)){S.dirty=true;render(true);}}
-  const LIVE_COL={rng:1,imp:2,real:3,lead:4};
-  function metricTable(m){const now=Date.now(),c=MX[m];let msl=1;try{msl=W.v100&&W.v100.slot?W.v100.slot():1;}catch(e){}if(c&&now-c.at<10*MIN&&(m!=='iv'||c.msl===msl))return c;
-    const sum=new Float64Array(168),cnt=new Float64Array(168),days=[];for(let i=0;i<168;i++)days.push(new Set());const all=new Set();
-    const add=(t,v)=>{const q=cellOf(t),k=q.wd*24+q.h;sum[k]+=v;cnt[k]++;const d=Math.floor((t+IST_MS)/DAY);days[k].add(d);all.add(d);};
-    let kind='chg';
-    if(m==='iv'){const r=ivRows();if(!r)return null;for(const [t,d] of r)add(t,d);}
-    else if(m==='dvol'){const r=dvolRows();if(!r)return null;for(const [t,o,c2] of r)add(t,c2-o);}
-    else if(m==='vov'){const r=dvolRows();if(!r)return null;kind='rate';for(const [t,o,c2] of r){const x=Math.log(c2/o);add(t,x*x);}}
-    else if(m==='spd'||m==='edge'){const R=rvHours(),I=ivLevels();if(!R||!I)return null;kind=m==='spd'?'ratio':'edge';
-      for(const [t,rv] of R){const iv=I.get(t);if(!(iv>0))continue;add(t,m==='spd'?rv/iv:iv-rv);}if(!all.size)return null;}
-    else if(LIVE_COL[m]){kind=m;const j=LIVE_COL[m];for(const r of LV.rows){const v=r[j];if(v!=null&&Number.isFinite(v))add(r[0],v);}
-      const v=new Array(168).fill(null),n=new Array(168).fill(0);for(let k=0;k<168;k++){n[k]=cnt[k];if(cnt[k])v[k]=sum[k]/cnt[k];}
-      const out={m,v,n,days:all.size,at:now,kind,sd:1,msl,live:true,rows:LV.rows.length};MX[m]=out;return out;}
-    else return null;
-    const v=new Array(168).fill(null),n=new Array(168).fill(0);let tot=0,tn=0;
-    for(let k=0;k<168;k++){n[k]=days[k].size;if(cnt[k]){v[k]=sum[k]/cnt[k];tot+=sum[k];tn+=cnt[k];}}
-    if(kind==='rate'){const mean=tn?tot/tn:0;for(let k=0;k<168;k++)v[k]=v[k]==null||!(mean>0)?null:v[k]/mean;}
-    const vals=v.filter(x=>x!=null),sd=vals.length?Math.sqrt(vals.reduce((a,x)=>a+x*x,0)/vals.length):0;
-    const out={m,v,n,days:all.size,at:now,kind,sd,msl};MX[m]=out;return out;}
-  function mTier(T,x){if(x==null)return -1;if(T.kind==='rate'||T.kind==='ratio')return tierOf(x);
-    if(T.kind==='edge'){const q=T.sd||1;return x>=0.5*q?0:x>=0?1:x>=-0.5*q?2:3;}
-    if(T.kind==='rng')return x<0.8?0:x<1?1:x<=1.5?2:3;
-    if(T.kind==='imp')return x<0.1?0:x<0.25?1:x<0.5?2:3;
-    if(T.kind==='real')return x<=-1?0:x<0?1:x<1?2:3;
-    if(T.kind==='lead')return x<0.5?0:x<1.5?1:x<2.5?2:3;const q=T.sd||1;return x<-0.5*q?0:x<0?1:x<=0.5*q?2:3;}
-  const MNAME={rv:'RV',iv:'ATM IV',vov:'VoV',dvol:'DVOL',spd:'Speed vs IV',edge:'Edge',rng:'Range',imp:'Impulse',real:'Tonight',lead:'Leading'};
-  function metric(m){if(!MNAME[m])return S.metric;S.metric=m;try{localStorage.setItem('v82_clock24_metric',m);}catch(e){}S.dirty=true;render(true);syncHead();return m;}
-
-  /* ---------- public maths ---------- */
-  function active(){return S.view==='prior'?PRIOR:S.blend;}
-  function table(){const t=active(),out=[];for(let wd=0;wd<7;wd++)out.push(t.slice(wd*24,wd*24+24));return out;}
-  function prior(){const out=[];for(let wd=0;wd<7;wd++)out.push(PRIOR.slice(wd*24,wd*24+24));return out;}
-  function rateAt(ms,t){const c=cellOf(ms);return (t||active())[c.wd*24+c.h];}
-  // time-weighted mean of the relative variance rate over [a,b], minute resolution (§7.2 B1 "variance-weighted over hours until planned exit")
-  // v105.15: same sampled mean, counted one IST hour at a time (was one call per minute: ~4,000 date conversions for a
-  // 3-day hold, and the Tonight rail asks ~100 times per refresh)
-  function varianceShare(a,b){
-    a=Number(a);b=Number(b);if(!(b>a))return 1;
-    const t=active();let s=0,n=0;
-    const step=(b-a)>14*DAY?15*MIN:MIN;
-    let x=a;
-    while(x<b){const L=x+IST_MS,hEnd=Math.floor(L/HR)*HR+HR-IST_MS,lim=Math.min(hEnd,b),k=Math.ceil((lim-x)/step);
-      const dn=Math.floor(L/DAY),wd=((dn+3)%7+7)%7,h=Math.floor((L-dn*DAY)/HR);s+=t[wd*24+h]*k;n+=k;x+=k*step;}
-    return n?s/n:1;
-  }
-  function tierOf(v){return v<0.8?0:v<1.0?1:v<=1.3?2:3;}
-  function tier(wd,h){const t=active();const k=((wd%7)+7)%7*24+((h%24)+24)%24;return tierOf(t[k]);}
-  function meta(){return {src:S.src,view:S.view,days:S.days,at:S.at,ver:S.ver,n:S.n.slice()};}
-  function view(v){if(v!=='prior'&&v!=='data')return S.view;S.view=v;try{localStorage.setItem(LS_VIEW,v);}catch(e){}S.dirty=true;render(true);syncHead();return v;}
-
-  /* ---------- render ---------- */
-  const $=id=>HAS_DOM?document.getElementById(id):null;
-  function lifeNow(){try{const p=W.Signal&&typeof W.Signal.plan==='function'?W.Signal.plan():null;return p&&p.lifeStart&&p.lifeEnd?p:null;}catch(e){return null;}}
-  function lifeCells(p){const set=new Set();if(!p)return set;const a=Math.floor(p.lifeStart/HR)*HR;for(let x=a;x<p.lifeEnd&&x<a+8*DAY;x+=HR){const c=cellOf(x);set.add(c.wd*24+c.h);}return set;}
-  function hm(ms){const d=new Date(ms+IST_MS);return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');}
-  function render(force){
-    const el=$('clock24');if(!el)return;
-    try{if(!force&&(document.hidden||el.offsetParent===null))return;}catch(e){}
-    const now=Date.now(),c=cellOf(now),cur=c.wd*24+c.h,p=lifeNow(),life=lifeCells(p);
-    const lifeKey=p?[p.lifeStart,p.lifeEnd].join('|'):'';
-    if(!force&&!S.dirty&&cur===S.lastCell&&lifeKey===S.lastLife)return;
-    S.lastCell=cur;S.lastLife=lifeKey;S.dirty=false;
-    if(S.metric!=='rv'){renderMetric(el,cur,life,p);return;}
-    const t=active();
-    let html='<div class="heat" role="img" aria-label="variance rate by IST hour and weekday"><div></div>';
-    {const cH=cur%24;for(let h=0;h<24;h++)html+=`<div class="h num${h===cH?' cur':''}">${h%3===0||h===cH?h:''}</div>`;}
-    {const hs=new Set();for(const k of life)hs.add(k%24);html+='<div></div>';for(let h=0;h<24;h++)html+=`<div class="lbar${hs.has(h)?' on':''}"></div>`;}
-    for(let wd=0;wd<7;wd++){const isT=wd===Math.floor(cur/24);html+=`<div class="d${isT?' today':''}" title="${isT?'Today, '+todayLab():''}">${DAYS[wd]}${isT?'<b>'+todayLab()+'</b>':''}</div>`;
-      for(let h=0;h<24;h++){const k=wd*24+h,v=t[k],tr=tierOf(v),cls=['c'];if(k===cur)cls.push('now');if(wd===Math.floor(cur/24))cls.push('trow');if(h===cur%24)cls.push('tcol');if(life.has(k))cls.push('life');
-        html+=`<div class="${cls.join(' ')}" data-tier="${tr}" style="background:${COLS[tr]}" title="${DAYS[wd]} ${String(h).padStart(2,'0')}:00 IST · ${v.toFixed(2)}× flat · ${TIER_NAME[tr]}${S.view==='data'&&S.n[k]?' · '+S.n[k]+' d':''}${k===cur?' · now':''}${life.has(k)?' · in the life':''}"></div>`;}}
-    html+='</div>';
-    const srcTxt=S.view==='prior'?'research prior':(S.src==='data'||S.src==='cache')?`your data · ${num(S.days)} d${S.days<MIN_DAYS?' (prior-weighted)':''}`:'prior · no data yet';
-    const lifeTxt=p?`▣ life ${num(hm(p.lifeStart))}→${num(hm(p.lifeEnd))}`:'▣ life';
-    html+=`<div class="heatleg"><span>calm</span>${COLS.map((x,i)=>`<i style="background:${x}" title="${TIER_NAME[i]}"></i>`).join('')}<span>heavy</span><span style="margin-left:auto;white-space:nowrap" title="${escH(srcTxt)}">▢ now · ${lifeTxt}</span></div>`;
-    html+=`<div class="heatleg" style="padding-top:0"><span>${srcTxt}</span><span style="margin-left:auto;white-space:nowrap">US block ${num('18:30–03:30')} · ${num('1.00')}× = flat-IV rate</span></div>`;
-    el.innerHTML=html;
-  }
-  function renderMetric(el,cur,life,p){
-    const m=S.metric,T=metricTable(m),nm=MNAME[m];
-    if(!T){el.innerHTML=`<div class="heatleg" style="padding:14px 4px">No ${nm} history stored yet. ${m==='iv'||m==='spd'||m==='edge'?'The IV charts and the BTC 5-minute history fill it as the desk records.':'DVOL history loads from Deribit a few seconds after the desk opens.'}</div>`;S.dirty=true;return;}
-    const f=x=>T.kind==='rate'?x.toFixed(2)+'× avg':T.kind==='ratio'?'BTC moved '+x.toFixed(2)+'× what IV priced':T.kind==='edge'?'IV − RV '+(x>0?'+':'')+x.toFixed(1)+' pts':T.kind==='rng'?'Range '+x.toFixed(2)+'×':T.kind==='imp'?Math.round(x*100)+'% of readings fast or impulse':T.kind==='real'?'IV '+(x>0?'+':'')+x.toFixed(2)+' vs clock':T.kind==='lead'?x.toFixed(1)+' of 8 tiles against':(x>0?'+':'')+x.toFixed(2)+' pts/h';
-    let html=`<div class="heat" role="img" aria-label="${nm} by IST hour and weekday"><div></div>`;
-    {const cH=cur%24;for(let h=0;h<24;h++)html+=`<div class="h num${h===cH?' cur':''}">${h%3===0||h===cH?h:''}</div>`;}
-    {const hs=new Set();for(const k of life)hs.add(k%24);html+='<div></div>';for(let h=0;h<24;h++)html+=`<div class="lbar${hs.has(h)?' on':''}"></div>`;}
-    for(let wd=0;wd<7;wd++){const isT=wd===Math.floor(cur/24);html+=`<div class="d${isT?' today':''}" title="${isT?'Today, '+todayLab():''}">${DAYS[wd]}${isT?'<b>'+todayLab()+'</b>':''}</div>`;
-      for(let h=0;h<24;h++){const k=wd*24+h,x=T.v[k],tr=mTier(T,x),cls=['c'];if(k===cur)cls.push('now');if(wd===Math.floor(cur/24))cls.push('trow');if(h===cur%24)cls.push('tcol');if(life.has(k))cls.push('life');
-        const thin=T.live&&x!=null&&T.n[k]<3;
-        html+=`<div class="${cls.join(' ')}${thin?' thin':''}" data-tier="${tr}" style="background:${tr<0?'var(--panel2)':COLS[tr]}" title="${DAYS[wd]} ${String(h).padStart(2,'0')}:00 IST · ${nm} ${x==null?(T.live?'not recorded yet':'no data'):f(x)}${T.n[k]?' · '+T.n[k]+(T.live?' readings':' d'):''}${k===cur?' · now':''}${life.has(k)?' · in the life':''}"></div>`;}}
-    html+='</div>';
-    const LOHI={ratio:['pays','costs'],edge:['pays','costs'],rng:['calm','wide'],imp:['calm','fast'],real:['below clock','above clock'],lead:['clear','against']}[T.kind];
-    const lo=LOHI?LOHI[0]:T.kind==='rate'?'calm':'falls',hi=LOHI?LOHI[1]:T.kind==='rate'?'heavy':'rises';
-    const lifeTxt=p?`▣ life ${num(hm(p.lifeStart))}→${num(hm(p.lifeEnd))}`:'▣ life';
-    html+=`<div class="heatleg"><span>${lo}</span>${COLS.map((x,i)=>`<i style="background:${x}"></i>`).join('')}<span>${hi}</span><span style="margin-left:auto;white-space:nowrap">▢ now · ${lifeTxt}</span></div>`;
-    const SRC={iv:'Delta ATM IV of the master expiry, change inside each hour',dvol:'Deribit DVOL, change inside each hour',vov:'DVOL variance per hour vs its average (vol of vol)',
-      spd:'BTC realised speed ÷ the ATM IV you sell, per hour · green = IV paid more than BTC moved',edge:'ATM IV minus the hour\'s realised vol, vol points · green = premium beat the move',
-      rng:'24 h BTC move ÷ DVOL day move, recorded every 15 min',imp:'share of 15-min readings with Impulse fast or impulse',real:'Tonight: IV minus the clock path (above the clock = red)',lead:'how many of the 8 Leading tiles were against'};
-    const RIGHT={rate:num('1.00')+'× = average hour',ratio:num('1.00')+'× = IV priced the move exactly',edge:'0 = premium equal to the move',chg:'green = it usually falls then'}[T.kind]||(T.live?`recording · ${num(T.days)} d · faded = under 3 readings`:'');
-    html+=`<div class="heatleg" style="padding-top:0"><span>${SRC[m]||nm}${T.live?'':' · '+num(T.days)+' d'}</span><span style="margin-left:auto;white-space:nowrap">${RIGHT}</span></div>`;
-    // the read: this hour, and the next calm stretch within a day
-    {const x=T.v[cur];let rd='';if(x!=null){rd=`<b>This hour (${DAYS[Math.floor(cur/24)]} ${String(cur%24).padStart(2,'0')}:00):</b> ${f(x)}`+(T.n[cur]?` · ${T.n[cur]} ${T.live?'readings':'days'}`:'')+'.';
-        let st=-1,len=0;for(let i=1;i<=24;i++){const k=(cur+i)%168,tr=mTier(T,T.v[k]);if(tr===0||tr===1){if(st<0)st=k;len++;if(len>=3)break;}else{st=-1;len=0;}}
-        if(st>=0&&len>=3)rd+=` Next calm stretch from ${DAYS[Math.floor(st/24)]} ${String(st%24).padStart(2,'0')}:00.`;}
-      else rd=T.live?'Not recorded for this hour yet. The desk records every 15 minutes while it is open.':'No data for this hour.';
-      html+=`<div class="c24read">${rd}</div>`;}
-    el.innerHTML=html;}
-
-  /* header toggle "your data | prior" — only if the shell gives us #clock24Head */
-  function syncHead(){
-    const hd=$('clock24Head');if(!hd)return;
-    let sp=hd.querySelector('.sp');
-    if(!sp){sp=document.createElement('span');sp.className='sp';sp.innerHTML='<span data-m="rv">RV</span><span data-m="iv">ATM IV</span><span data-m="vov">VoV</span><span data-m="dvol">DVOL</span><span data-m="spd">Speed vs IV</span><span data-m="edge">Edge</span><span data-m="rng" class="lv">Range<em>live</em></span><span data-m="imp" class="lv">Impulse<em>live</em></span><span data-m="real" class="lv">Tonight<em>live</em></span><span data-m="lead" class="lv">Leading<em>live</em></span><span class="c24-sep"></span><span data-v="data">your data</span><span data-v="prior">prior</span>';hd.appendChild(sp);}
-    if(!sp.__c24){sp.__c24=true;sp.addEventListener('click',e=>{const t=e.target&&e.target.closest?e.target.closest('[data-m],[data-v]'):null;if(!t)return;const v=t.getAttribute('data-v'),m=t.getAttribute('data-m');if(m)metric(m);else if(v)view(v);});}
-    for(const b of sp.querySelectorAll('[data-v]')){b.classList.toggle('on',b.getAttribute('data-v')===S.view);b.hidden=S.metric!=='rv';}
-    for(const b of sp.querySelectorAll('[data-m]'))b.classList.toggle('on',b.getAttribute('data-m')===S.metric);
-    {const sep=sp.querySelector('.c24-sep');if(sep)sep.hidden=S.metric!=='rv';}
-    {const tn=hd.firstChild;if(tn&&tn.nodeType===3)tn.nodeValue=`24×7 clock · ${MNAME[S.metric]} by hour · IST `;}
-  }
-
-  /* ---------- wiring ---------- */
-  W.Clock24={table,prior,varianceShare,tier,render:()=>render(true),meta,view,metric,recompute:()=>{recompute(true);render(true);},
-    __test:{PRIOR_UTC:PRIOR_UTC.slice(),prior:PRIOR.slice(),tierOf,blendWith,computeData,cellOf,lv:()=>LV,lvRecord}};
-  if(!HAS_DOM)return;
-  try{
-    syncHead();
-    loadCache();
-    lvLoad().then(()=>{setTimeout(lvRecord,90000);setInterval(()=>{try{lvRecord();}catch(e){}},60000);});
-    recompute(true);render(true);
-    if(W.desk80&&typeof W.desk80.on==='function'){
-      W.desk80.on('tick',()=>{try{if(document.hidden)return;if(recompute(false))render(true);else render(false);}catch(e){}});
-      W.desk80.on('life',()=>{try{S.dirty=true;render(false);}catch(e){}});
-      W.desk80.on('visible',d=>{try{if(d&&!d.hidden)render(true);}catch(e){}});
-      W.desk80.on('theme',()=>{try{render(true);}catch(e){}});
-    }else{
-      setInterval(()=>{try{if(document.hidden)return;if(recompute(false))render(true);else render(false);}catch(e){}},1000);
-    }
-    setTimeout(()=>{try{recompute(true);render(true);}catch(e){}},20000);     // after the engine's 5-m history has loaded (loadLong at +12 s)
-  }catch(e){console.warn('clock24',e);}
-})();
-
-</script>
+<!-- v105.26: 24×7 clock module removed (panel, hour tables, live recorder) -->
 <script data-module="events24">
 /* ==============================================================================================
    events24.js — v80 Events24: 24×7 event list (#evPanel) + ticker countdowns (#tkEv)
@@ -20471,7 +20202,7 @@ function run(force){const now=Date.now();if(!force&&(D.hidden||D.body.dataset.pa
     `<span>Overrides tonight</span><b>${X.ov&&X.ov.length?X.ov.map(esc).join('<br>'):'none'}</b>`+
     `<span>Take · stop · breach</span><b>${ex?Math.round(ex.tp*100)+'% · '+ex.sl+'× credit · '+f2(ex.breach)+'Δ':'—'}</b></div></div>`;}
   const more=D.body.classList.contains('v89-more');
-  h+=`<div class="c89"><div class="mo89"><button type="button" aria-pressed="${more}">${more?'Hide more':'More'}</button><button type="button" data-go="flowTapePanel">Option flow</button><button type="button" data-go="posPanelWrap">Positioning</button><button type="button" data-go="clockPanel">RV · IV by hour</button><button type="button" data-go="studyPanelWrap">Vol turn</button><button type="button" data-go="evPanelWrap">Events</button></div></div>`;
+  h+=`<div class="c89"><div class="mo89"><button type="button" aria-pressed="${more}">${more?'Hide more':'More'}</button><button type="button" data-go="flowTapePanel">Option flow</button><button type="button" data-go="posPanelWrap">Positioning</button><button type="button" data-go="studyPanelWrap">Vol turn</button><button type="button" data-go="evPanelWrap">Events</button></div></div>`;
   if(el.__h!==h){el.innerHTML=h;el.__h=h;}}
 
 /* ---------------- boot ---------------- */
@@ -22628,7 +22359,11 @@ W.v105={charts:()=>({edge:{chart:PANES.edge.chart,ser:PANES.edge.ser,id:PANES.ed
 let coarse=false;try{coarse=matchMedia('(pointer:coarse)').matches;}catch(e){}
 if(!coarse||!('IntersectionObserver' in W))return;
 const SEL=['#volRow','#chartp','#v89Rail','#v104Lead'];
-const io=new IntersectionObserver(es=>{for(const e of es){const off=!e.isIntersecting;if(e.target.classList.contains('cv-off')!==off){e.target.classList.toggle('cv-off',off);
+const io=new IntersectionObserver(es=>{for(const e of es){const off=!e.isIntersecting;if(e.target.classList.contains('cv-off')!==off){
+  /* v105.27: a hidden section keeps its real height. It used a 700 px placeholder: Tonight (~190 px) grew to 700 px when hidden,
+     which pulled it back into range, so it was shown, shrank, was hidden again — every frame — and the page jumped ~500 px. */
+  if(off){const h=e.target.offsetHeight;if(!(h>0))continue;e.target.style.setProperty('contain-intrinsic-size','auto '+h+'px','important');}
+  e.target.classList.toggle('cv-off',off);
   if(!off)try{W.dispatchEvent(new Event('desk:section-shown'));}catch(x){}}}},{rootMargin:'450px 0px'});
 const seen=new WeakSet();
 // a jump to something inside a skipped section (Desk brief links, "Go to", page anchors) shows that section first
@@ -23169,18 +22904,6 @@ function fix(){try{if(D.hidden||Date.now()-last<5000)return;if(window.__lwcReg&&
   }catch(e){}}
 window.v24edge={fix:fix};setInterval(fix,1200);})();
 </script>
-<style id="v105_21ClockCss">
-/* v105.21 · 24×7 clock repair: the trade life is one amber line above the hours (no outline on every cell); today = the day label only */
-#clock24 .heat .c.life:not(.now){box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.28),0 2px 3px -1px rgba(0,0,0,.55)!important}
-#clock24 .heat .c.trow:not(.now){box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.28),0 2px 3px -1px rgba(0,0,0,.55)!important}
-#clock24 .heat .lbar{height:3px;border-radius:2px;margin-bottom:2px}
-#clock24 .heat .lbar.on{background:var(--amber,#F2A93B)}
-#clock24 .heat .c.thin{opacity:.5}
-#clock24 .c24read{margin:6px 10px 8px;padding:7px 10px;border-left:3px solid var(--amber,#F2A93B);background:color-mix(in srgb,var(--bg) 70%,var(--panel));font-size:12px;border-radius:0 6px 6px 0;color:var(--text)}
-#clock24Head .sp{display:flex;flex-wrap:wrap;gap:4px;row-gap:4px;justify-content:flex-end}
-#clock24Head .sp .lv{border-style:dashed!important}
-#clock24Head .sp .lv em{font-style:normal;font-size:9px;color:var(--amber,#F2A93B);margin-left:3px}
-@media (max-width:760px){#clock24Head{flex-wrap:wrap}#clock24Head .sp{justify-content:flex-start;width:100%;margin-top:6px}}
-</style>
+
 </body>
 </html>
