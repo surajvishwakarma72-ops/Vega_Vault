@@ -1,5 +1,10 @@
 <!doctype html>
 <!--
+  v105.24 (14 Oct 2026): BTC chart no longer opens with the candles squeezed into the left third — range buttons
+    (1D…1Y) set the view by bar count (fewer bars than asked → they fill the width) and script#v105_24Edge slides the
+    view back to the live edge when over a quarter of it is empty future and the chart was not touched for 5 s.
+    History: the newest page of candles / DVOL (ends within 2 h, ≤36 h long) skips the slow lane; the lane opens at
+    3.5 s (was 6 s). Phone test: first chart bars 8.8 → 6.4 s, full 1,500 bars by 39 s (v105.23: not within 40 s).
   v105.23 (14 Oct 2026): chart is the core on desktop — BTC candle pane 208 → 358 px at 1440×900 (350 → 506 at 1920×1080):
     ADX strip 84–120 px (was 150), Edge/Range clamp(62,7.6vh,92), Speed vs IV 60 px; side column 296–360 px and can be
     hidden (button#v23Tog, localStorage v23_side_hidden) to give the chart the full width.
@@ -339,11 +344,14 @@ W.clearInterval=function(id){return ci.call(W,id);};
 var F=W.fetch?W.fetch.bind(W):null,LOW=[],lowActive=0,LOW_MAX=coarse?4:6;
 P.ready=false;
 P.markReady=function(){if(P.ready)return;P.ready=true;P.readyAt=Date.now()-P.t0;flushLow();};
-D.addEventListener('DOMContentLoaded',function(){st.call(W,P.markReady,6000);},{once:true});
+D.addEventListener('DOMContentLoaded',function(){st.call(W,P.markReady,3500);},{once:true});   // v105.24: history starts 3.5 s after the page is read (was 6 s)
 var H=3600;
 function isLow(u){try{
-  if(u.indexOf('/history/candles')>0){var m=/[?&]start=(\d+)/.exec(u),n=/[?&]end=(\d+)/.exec(u);if(m&&n&&(+n[1])-(+m[1])>4*H)return true;if(m&&Date.now()/1000-(+m[1])>2*86400)return true;return false;}
-  if(u.indexOf('get_volatility_index_data')>0){var a=/start_timestamp=(\d+)/.exec(u),b=/end_timestamp=(\d+)/.exec(u);return !!(a&&b&&(+b[1])-(+a[1])>4*H*1000);}
+  if(u.indexOf('/history/candles')>0){var m=/[?&]start=(\d+)/.exec(u),n=/[?&]end=(\d+)/.exec(u);
+    /* v105.24: the newest page (ends within 2 h of now, up to 36 h long) is what the chart shows first — never queued */
+    if(m&&n&&Date.now()/1000-(+n[1])<2*H&&(+n[1])-(+m[1])<=36*H)return false;
+    if(m&&n&&(+n[1])-(+m[1])>4*H)return true;if(m&&Date.now()/1000-(+m[1])>2*86400)return true;return false;}
+  if(u.indexOf('get_volatility_index_data')>0){var a=/start_timestamp=(\d+)/.exec(u),b=/end_timestamp=(\d+)/.exec(u);if(a&&b&&Date.now()-(+b[1])<2*H*1000&&(+b[1])-(+a[1])<=36*H*1000)return false;return !!(a&&b&&(+b[1])-(+a[1])>4*H*1000);}
   if(u.indexOf('/klines')>0){var s=/startTime=(\d+)/.exec(u);return !!(s&&Date.now()-(+s[1])>6*H*1000);}
   if(u.indexOf('history.deribit.com')>=0||u.indexOf('get_last_trades_by_currency_and_time')>0)return true;
 }catch(e){}return false;}
@@ -16345,7 +16353,14 @@ Signs follow Settings → Dealer positioning.`;
     try{const ch=window.paChart?window.paChart():window.__gexChart;if(!ch)return;const s=window.__gexSeries;let last=null;
       try{const d=s&&s.data?s.data():null;if(d&&d.length)last=d[d.length-1].time;}catch(x){}
       if(last==null&&window.__lwcReg&&window.__lwcReg.lastTime)last=window.__lwcReg.lastTime();
-      if(last==null)return;ch.timeScale().setVisibleRange({from:last-days*86400,to:last+Math.min(days,3)*3600});}catch(x){}});
+      if(last==null)return;
+      /* v105.24: set by bar count, not by clock time. With fewer bars loaded than the range asks for (history still
+         arriving, phone), the time-based range left the candles in the left third and empty space on the right. */
+      const d=s&&s.data?s.data():null,n=d?d.length:0;
+      if(n>=2){let g=Infinity;for(let i=Math.max(1,n-60);i<n;i++){const x=d[i].time-d[i-1].time;if(x>0&&x<g)g=x;}if(!isFinite(g))g=300;
+        let w=days*86400/g;const pad=Math.max(2,Math.min(Math.min(days,3)*3600/g,w*0.08));if(w>n-1+pad)w=n-1+pad;
+        ch.timeScale().setVisibleLogicalRange({from:n-1+pad-w,to:n-1+pad});return;}
+      ch.timeScale().setVisibleRange({from:last-days*86400,to:last+Math.min(days,3)*3600});}catch(x){}});
   // expected move toggle is read by the signal's chart band (window.v80EmOn)
   const em=$('emBtn');window.v80EmOn=LS('v80_em')!=='0';if(em){em.setAttribute('aria-pressed',String(window.v80EmOn));em.addEventListener('click',()=>{window.v80EmOn=!window.v80EmOn;LS('v80_em',window.v80EmOn?'1':'0');em.setAttribute('aria-pressed',String(window.v80EmOn));bus&&bus.emit('em',{on:window.v80EmOn});});}
   // full screen: the whole desk stays (ticker, header), the chart platform fills the rest
@@ -23140,6 +23155,19 @@ function mount(){var inn=D.getElementById('v22SideIn');if(!inn)return false;var 
   if(inn.firstChild!==b)inn.insertBefore(b,inn.firstChild);set(lsg());return true;}
 function go(){if(!mount())return;new MutationObserver(function(){var inn=D.getElementById('v22SideIn'),b=D.getElementById('v23Tog');if(inn&&b&&inn.firstChild!==b)inn.insertBefore(b,inn.firstChild);}).observe(D.getElementById('v22SideIn'),{childList:true});}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',go);else go();})();
+</script>
+<script id="v105_24Edge">/* v105.24 · live-edge guard for the BTC chart (and the panes that follow it).
+   If the newest candle sits far from the right edge — more than a quarter of the view is empty future — and nobody has
+   touched the chart for 5 s, the view slides back so the newest candle is near the right edge (same zoom, or tighter
+   when fewer candles are loaded than the zoom would show). Replay and Go-to are left alone. */
+(function(){var D=document,last=0;
+['pointerdown','touchstart','wheel'].forEach(function(ev){addEventListener(ev,function(e){try{if(e.target&&e.target.closest&&e.target.closest('#chartp'))last=Date.now();}catch(x){}},{passive:true,capture:true});});
+function fix(){try{if(D.hidden||Date.now()-last<5000)return;if(window.__lwcReg&&window.__lwcReg.on)return;if(D.body.classList.contains('rp-on'))return;
+  var m=window.paChart&&window.paChart(),s=window.__gexSeries;if(!m||!s)return;var n=s.data().length;if(n<10)return;
+  var ts=m.timeScale(),r=ts.getVisibleLogicalRange();if(!r)return;var w=r.to-r.from,over=r.to-(n-1);
+  if(over>Math.max(14,w*0.25)||(r.from<-Math.max(4,w*0.15)&&over>4)){var pad=Math.max(2,Math.min(12,w*0.06)),nw=Math.min(w,n-1+pad);ts.setVisibleLogicalRange({from:n-1+pad-nw,to:n-1+pad});}
+  }catch(e){}}
+window.v24edge={fix:fix};setInterval(fix,1200);})();
 </script>
 <style id="v105_21ClockCss">
 /* v105.21 · 24×7 clock repair: the trade life is one amber line above the hours (no outline on every cell); today = the day label only */
