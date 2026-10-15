@@ -1,5 +1,19 @@
 <!doctype html>
 <!--
+  v120 (16 Oct 2026, preview, not deployed): Asia / London / New York boxes on the ADX chart too (with the box-break chips;
+    no speed strip on the short ADX strip). BTC chart opens straight on the saved range (1D…) at the live edge — no zoom
+    snap a few seconds after opening; older candles only fill in on the left. Session boxes, NY check and chips appear as
+    soon as a chart's data arrives or a tab is switched (watcher, script[data-module=v120]) instead of waiting 4.5–7.5 s.
+  v119 (16 Oct 2026, preview, not deployed): Asia (05:30–12:30), London (12:30–18:30) and New York (18:30–02:30, grows as
+    it runs) boxes on all six charts; session background colours removed from the IV / RV / VoV / DVOL charts (white).
+  v118 (16 Oct 2026, preview, not deployed): session boxes on all six charts + NY check (script[data-module=v118]).
+    London box (12:30–18:30 IST), London high carried into NY, NY open + "wait 60 min", running NY high, "London high swept";
+    IV: coloured 1-hour line, 3-day median line, "−x pt off NY high", SELL ✓ k/3 (peak passed after 60 min and ≥1 pt off the
+    NY high + line falling; London swept = 3rd); RV/VoV/DVOL "↓ agrees", Edge room, Range "Waking ↑". NY check in the Tonight
+    card: Peak passed · Line falling · Others agree (next expiry / RV / VoV / DVOL); outside NY: Falling · IV high · Others agree.
+    v115 box breaks now tagged "Box ↓" (the SELL comes from the NY rule). Delta key card: shorter, copy buttons for every
+    address, "your address changed" note (remembers the address the key last worked from), re-check when the network or the
+    screen comes back.
   v117 (15 Oct 2026, preview, not deployed): boxes walk with the chart (overlay redrawn for 0.6 s after every scroll/zoom,
     after every touch release and once a second — the price axis re-scales a frame later); IV · RV · VoV · DVOL share one
     right-axis width so candles line up; phone vol charts taller (IV 260–360 px, others 190–260 px); Speed strip slimmer.
@@ -6135,7 +6149,7 @@ function sessColors(){
 function sessOfBarTime(time){return SessCal.nameAt((Number(time)-IST_SEC)*1000);}   // v22: bar times are IST-shifted; the hours are those of that day (daylight saving)
 function sessShade(time){
   const c=sessColors(),name=TF_SEC[chartPrefs.tf]>=14400?'OFF':sessOfBarTime(time);
-  return {time,value:1,topColor:c[name],bottomColor:c[name],lineColor:'rgba(0,0,0,0)'};
+  return {time,value:1,topColor:c.OFF,bottomColor:c.OFF,lineColor:'rgba(0,0,0,0)'};   /* v119: no session background colour on any chart (boxes mark the sessions) */
 }
 function sessStartsAt(time){const tf=TF_SEC[chartPrefs.tf];return tf<14400&&sessOfBarTime(time)!=='OFF'&&sessOfBarTime(time-tf)!==sessOfBarTime(time);}
 // v50: every bar time on an IV chart: its candles, the forecast, an RV overlay, and the blank bars the RV panel adds so RV
@@ -8672,6 +8686,14 @@ function deskUpdate(){
     const u=cssVar('--c-up')||'#26A69A',d=cssVar('--c-dn')||'#EF5350';
     G.candles.applyOptions({upColor:u,downColor:d,borderUpColor:u,borderDownColor:d,wickUpColor:u,wickDownColor:d,priceLineColor:cssVar('--muted')});
   }
+  /* v120: one range fit for the first paint and the 1D…1Y buttons. Width comes from the timeframe (not the smallest gap
+     between the bars loaded so far), and for 1D–3D the candles sit at the live edge with the final zoom even before the
+     full history is in, so older candles only fill in on the left — no zoom snap and no empty right side on opening. */
+  window.v120Fit=function(ch,n,days){try{if(!ch||!(n>=2))return false;days=+days||+(localStorage.getItem('v82_range')||1)||1;
+    const g=(typeof TF_SEC==='object'&&TF_SEC[chartPrefs&&chartPrefs.tf])||300;let w=Math.max(4,days*86400/g);
+    let pad=Math.max(2,Math.min(Math.min(days,3)*3600/g,w*0.08));
+    if(days>3&&w>n-1+pad){w=n-1+pad;pad=Math.max(2,Math.min(pad,w*0.08));w=n-1+pad;}
+    ch.timeScale().setVisibleLogicalRange({from:n-1+pad-w,to:n-1+pad});return true;}catch(e){return false;}};
   function paintGex(scroll){
     if(!G.chart)return;
     G.chart.applyOptions(chartThemeOptions());G.chart.applyOptions({watermark:{visible:true,text:'BTC · GAMMA'}});
@@ -8703,7 +8725,7 @@ function deskUpdate(){
     if(scroll)G.chart.timeScale().scrollToRealTime();
     /* v110: set the saved range (1D…) in the same paint as the first candles, and again at once on a timeframe change.
        Before, the chart opened zoomed in and snapped to 1D 2.5–5 s later — the "jump" on opening. */
-    if(!replayOn&&data.length>=20&&(tfChanged||!G.r110)&&window.v82Range){G.r110=1;try{window.v82Range(true);}catch(e){}}
+    if(!replayOn&&data.length>=20&&(tfChanged||!G.r110)){G.r110=1;if(window.v120Fit(G.chart,data.length))window.__v82done=1;if(window.v82Range)try{window.v82Range(true);}catch(e){}}
     evDirty();schedProfile();
   }
   function shownLast(){try{const d=G.candles.data();return d.length?d[d.length-1]:G.last;}catch(e){return G.last;}}
@@ -14537,6 +14559,7 @@ Signs follow Settings → Dealer positioning.`;
       /* v105.24: set by bar count, not by clock time. With fewer bars loaded than the range asks for (history still
          arriving, phone), the time-based range left the candles in the left third and empty space on the right. */
       const d=s&&s.data?s.data():null,n=d?d.length:0;
+      if(n>=2&&window.v120Fit&&window.v120Fit(ch,n,days))return;
       if(n>=2){let g=Infinity;for(let i=Math.max(1,n-60);i<n;i++){const x=d[i].time-d[i-1].time;if(x>0&&x<g)g=x;}if(!isFinite(g))g=300;
         let w=days*86400/g;const pad=Math.max(2,Math.min(Math.min(days,3)*3600/g,w*0.08));if(w>n-1+pad)w=n-1+pad;
         ch.timeScale().setVisibleLogicalRange({from:n-1+pad-w,to:n-1+pad});return;}
@@ -19963,20 +19986,34 @@ function ipLook(){if(IPQ.busy||Date.now()-IPQ.at<5*60e3)return;IPQ.busy=true;IPQ
   const get=u=>fetch(u,{cache:'no-store'}).then(r=>r.json()).then(j=>j&&j.ip||null).catch(()=>null);
   Promise.all([get('https://api.ipify.org?format=json'),get('https://api64.ipify.org?format=json')]).then(([a,b])=>{IPQ.v4=a;IPQ.v6=b&&b!==a?b:null;IPQ.busy=false;setHtml='';try{render();}catch(e){}});}
 function wlBox(A){ipLook();const d=A.errDetail||{},ctx=d.context||{},seen=ctx.client_ip||ctx.ip||ctx.request_ip||null,code=A.errCode||'ip_not_whitelisted';
-  const ipc=v=>`<code class="v22ip">${esc(v)}</code>`;
-  return `<div class="v22wl"><p><b>Delta refused the key because of its IP list.</b> The key only works from the IP addresses saved on it, and this device is not on that list. Nothing is wrong with the desk or the key itself.</p>
-  <p class="s">Delta's answer: ${esc(code)}${A.errStatus?' · HTTP '+A.errStatus:''} · tried ${esc((A.tries||[]).join(' · ')||'—')}</p>
-  <p>Delta saw: ${seen?ipc(seen):'<span class="s">not given</span>'} · this device now: ${IPQ.v4?ipc(IPQ.v4):IPQ.busy?'<span class="s">looking…</span>':'<span class="s">unknown</span>'}${IPQ.v6?' · IPv6 '+ipc(IPQ.v6):''}</p>
-  <ol class="v22fix"><li><b>Best:</b> on Delta India → API keys, make a new key with <b>Read</b> only and leave the IP whitelist empty, if Delta allows it for read-only keys. Paste the new key here.</li>
-  <li><b>Or</b> add the address above to the key's whitelist. It holds while you stay on the same network: home broadband usually keeps its IP for days, mobile data changes it often, so the error comes back.</li>
-  <li>The Vercel relay does not help here: Vercel's own IP changes too, so it cannot be whitelisted.</li></ol></div>`;}
+  /* v118: shorter card, copy buttons, both addresses, and what changed since the key last worked */
+  const ok=(()=>{try{return JSON.parse(localStorage.getItem('v118_okip')||'null');}catch(e){return null;}})();
+  const ipb=(v,lab)=>`<span class="v118ip"><code>${esc(v)}</code><button type="button" data-v118copy="${esc(v)}">Copy</button>${lab?`<small>${lab}</small>`:''}</span>`;
+  const six=seen&&seen.includes(':'),cur=[IPQ.v4,IPQ.v6].filter(Boolean);
+  const changed=ok&&ok.ips&&ok.ips.length&&cur.length&&!cur.some(x=>ok.ips.includes(x));
+  const all=[...new Set([seen,IPQ.v4,IPQ.v6].filter(Boolean))];
+  return `<div class="v22wl v118wl"><p><b>Delta refused the key: this network's address is not on the key's IP list.</b></p>
+  ${changed?`<p class="v118chg">Your address changed. The key last worked ${ok.at?'at '+hm(ok.at)+' ':''}from ${ok.ips.map(x=>`<code>${esc(x)}</code>`).join(' / ')} — mobile data and a new Wi-Fi give a new address.</p>`:''}
+  <div class="v118ips">${seen?ipb(seen,six?'Delta saw this (IPv6) — add exactly this':'Delta saw this'):''}${IPQ.v4&&IPQ.v4!==seen?ipb(IPQ.v4,'this device, IPv4'):''}${IPQ.v6&&IPQ.v6!==seen?ipb(IPQ.v6,'this device, IPv6'):''}${!all.length?`<span class="s">${IPQ.busy?'looking up this device…':'address not known'}</span>`:''}</div>
+  ${all.length>1?`<button type="button" class="v18btn" data-v118copy="${esc(all.join(', '))}">Copy all ${all.length} addresses</button>`:''}
+  <ol class="v22fix"><li><b>Quick fix:</b> on Delta India → Account → API keys → edit this key → add the address${all.length>1?'es':''} above → save → <b>Check now</b>. Phones often use IPv6, so add the IPv6 one too.</li>
+  <li><b>Lasting fix:</b> make a new key with <b>Read</b> only and no IP list, if Delta allows it, and paste it here. Or open the desk on home Wi-Fi, whose address stays the same for days.</li></ol>
+  <details class="v118more"><summary>Why the Vercel relay can't help</summary><p class="s">Vercel's own address changes too, so it can't be put on the list. Delta's answer: ${esc(code)}${A.errStatus?' · HTTP '+A.errStatus:''} · tried ${esc((A.tries||[]).join(' · ')||'—')}.</p></details></div>`;}
+/* v118: remember the address the key worked from; copy buttons; re-check when the network or the screen comes back */
+function okIpSave(){try{const A=W.v100&&W.v100.api;if(!A||A.err||!A.at)return;const ips=[IPQ.v4,IPQ.v6].filter(Boolean);if(!ips.length){ipLook();return;}localStorage.setItem('v118_okip',JSON.stringify({ips,at:A.at}));}catch(e){}}
+setInterval(okIpSave,60000);setTimeout(okIpSave,15000);
+D.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-v118copy]');if(!b)return;const v=b.dataset.v118copy;
+  const done=()=>{const t=b.textContent;b.textContent='Copied ✓';setTimeout(()=>{b.textContent=t;},1500);};
+  try{navigator.clipboard.writeText(v).then(done,()=>{prompt('Copy this:',v);});}catch(x){prompt('Copy this:',v);}});
+{const recheck=()=>{try{const A=W.v100&&W.v100.api;if(A&&A.on&&A.on()&&A.err){IPQ.at=0;ipLook();W.v100.poll&&W.v100.poll();}}catch(e){}};
+ addEventListener('online',()=>setTimeout(recheck,1500));D.addEventListener('visibilitychange',()=>{if(!D.hidden)setTimeout(recheck,800);});}
 function keyCard(){const A=W.v100&&W.v100.api;if(!A)return '';const on=A.on(),k=(()=>{try{return A.key()||{};}catch(e){return {};}})(),S=strangleNow();
   if(!on)return `<section class="v18c v18" id="v100Conn"><div class="v18h"><h3>Connect Delta (read-only)</h3></div>
     <p>The desk only reads your positions and fills. It cannot place orders or withdraw. The key stays on this device. On Delta India: Account → API keys → tick only <b>Read</b>.</p>
     <label class="v18f">API key<input id="v100Key" type="text" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
     <label class="v18f">API secret<input id="v100Sec" type="password" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
     <div class="v18btns"><button type="button" class="v18btn pri" data-v100="save">Test &amp; save</button></div></section>`;
-  const st=A.err?`<span class="neg">✕ ${esc(A.err)}</span>`:A.at?`<span class="pos">✓ Connected · read access · last sync ${hm(A.at)}</span>`:'<span class="am">Connecting…</span>';
+  const st=A.err?`<span class="v118st r">✕ ${esc(A.err)}</span>`:A.at?`<span class="v118st g">✓ Connected · read only · synced ${hm(A.at)}</span>`:'<span class="v118st a">Connecting…</span>';
   const pos=A.err?'':S?`<span class="pos">✓ Open position: ${esc(day(settle(S.exp)))} strangle · ${S.legs.map(l=>(l.type==='P'?'put ':'call ')+Math.round(l.K)).join(' / ')}</span>`:A.at?'No short strangle open on Delta right now. It is picked up within 30 s of your first fill.':'';
   return `<section class="v18c v18" id="v100Conn"><div class="v18h"><h3>Connect Delta (read-only)</h3><span class="r">key ${esc(String(k.key||'').slice(0,4))}…</span></div>
     <p>${st}</p>${pos?`<p>${pos}</p>`:''}${A.err&&/whitelist/i.test(A.err)?wlBox(A):A.err?`<p>Tried: ${esc((A.tries||[]).join(' · ')||'—')}</p><p>Delta often blocks signed requests sent straight from a browser page (and from a file opened on the phone). The desk then uses its relay on Vercel, <b>api/delta-proxy.js</b>. Add that file and <b>vercel.json</b> to the GitHub repo once, let Vercel deploy, then press Check now.</p>`:A.at?`<p class="s">Route: ${esc(A.route==='proxy'?'via the Vercel relay':'direct to Delta')}</p>`:''}
@@ -20314,6 +20351,7 @@ function targets(){const out=[];let P=null;try{P=typeof panes!=='undefined'?pane
   try{const E=W.v105&&W.v105.charts?W.v105.charts():null,mp=masterPane();
     if(E&&E.edge&&E.edge.chart)out.push({k:'edge',pi:mp,chart:E.edge.chart,ser:E.edge.ser,el:D.getElementById(E.edge.id+'C')});
     if(E&&E.rng&&E.rng.chart)out.push({k:'rng',pi:mp,chart:E.rng.chart,ser:E.rng.ser,el:D.getElementById(E.rng.id+'C')});}catch(e){}
+  try{const ac=W.paAdxChart&&W.paAdxChart(),as=W.paAdxSeries&&W.paAdxSeries();if(ac&&as)out.push({k:'adx',pi:masterPane(),chart:ac,ser:as,el:D.getElementById('paAdx')});}catch(e){}   // v120: ADX gets the session boxes too
   return out.filter(t=>t.el&&t.ser);}
 const ST=new Map();   // per chart object: {t, hist, ov, res, key}
 function closed(ser){let d=null;try{d=ser.__reg&&Array.isArray(ser.__reg.full)&&ser.__reg.full.length?ser.__reg.full:ser.data();}catch(e){}if(!d||d.length<20)return null;const c=d.filter(x=>x&&fin(x.close)&&fin(x.open));return c.length>20?c.slice(0,-1):null;}
@@ -20331,7 +20369,7 @@ function stripFor(S,t,c){const ch=t.chart;
 function analyse(){const T=targets(),byK={};
   for(const t of T){let S=ST.get(t.chart);if(!S){S={};ST.set(t.chart,S);}S.t=t;const c=closed(t.ser);S.c=c;if(!c){S.res=null;continue;}
     const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(S.key!==key){S.key=key;S.res=boxes(c);}
-    if(t.k!=='rv')stripFor(S,t,c);byK[t.k]=S;}
+    if(t.k!=='rv'&&t.k!=='adx')stripFor(S,t,c);byK[t.k]=S;}
   // IV breaks → signals
   const iv=byK.iv,out={sell:null,exit:null,events:[]};
   if(iv&&iv.res){const c=iv.c,u=iv.res.u;
@@ -20364,12 +20402,12 @@ function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(
     if(main||t.k==='rng')h+=`<div class="v115l" style="left:${a+2}px;top:${(b.kind==='top'?y0-14:y1+4)}px;color:rgb(${rgb})">${t.k==='rng'?'Quiet base':b.kind==='top'?'Top box':'Base box'}</div>`;}
   if(main)for(const ev of SIG.events){const i=nearIdx(c,ev.sec),x=X(i),y=Y(c[i].close);if(x==null||y==null||x<ox||x>W0)continue;
     if(ev.type==='sell'){const sp=ev.sp!=null?ev.sp.toFixed(2)+'×':'—';
-      if(ev.st==='checking')h+=chip(x,y,GREY,'Breakdown?',sp,0,true,true);else if(ev.st!=='fake'&&ev.sp==null)h+=chip(x,y,GREY,'Breakdown ✓','speed n/a · '+ev.agree+'/4',0,true,true);else if(ev.ok)h+=chip(x,y,GRN,'SELL ✓',sp+' · '+ev.agree+'/4',0,true,true);else h+=chip(x,y,'227,174,69',ev.st==='fake'?'✗ fake break':'✗ speed '+sp,'',0,true,true);}
+      if(ev.st==='checking')h+=chip(x,y,GREY,'Breakdown?',sp,0,true,true);else if(ev.st!=='fake'&&ev.sp==null)h+=chip(x,y,GREY,'Box ↓','speed n/a · '+ev.agree+'/4',0,true,false);else if(ev.ok)h+=chip(x,y,GRN,'Box ↓ ✓',sp+' · '+ev.agree+'/4',0,true,false);else h+=chip(x,y,'227,174,69',ev.st==='fake'?'✗ fake break':'✗ speed '+sp,'',0,true,true);}
     else if(ev.type==='exit'&&ev.st!=='fake')h+=chip(x,y,RED,'EXIT ↑',ev.sp!=null?ev.sp.toFixed(2)+'×':'',0,false,true);}
   if(t.k==='edge'&&SIG.sell&&SIG.sell.room!=null){const i=nearIdx(c,SIG.sell.sec);if(i>=0){const x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,GREY,'room '+(SIG.sell.room>=0?'+':'')+SIG.sell.room.toFixed(1),'',0,true,false);}}
   if((t.k==='dv'||t.k==='vov')&&SIG.sell&&SIG.sell.st!=='fake'){const S2=S;if(fell(S2.c,SIG.sell.sec,S2.res.u)){const i=nearIdx(c,SIG.sell.sec),x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,GRN,'↓ agrees','',0,true,false);}}
   if(t.k==='rng'&&SIG.wake){const i=nearIdx(c,SIG.wake.sec),x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,RED,'Waking ↑','exit warning',0,false,true);}
-  if(t.k!=='rv')h+=`<div class="v115s" style="top:${oy+t.el.clientHeight*0.80}px">SPEED VS IV · 1×</div>`;
+  if(t.k!=='rv'&&t.k!=='adx')h+=`<div class="v115s" style="top:${oy+t.el.clientHeight*0.80}px">SPEED VS IV · 1×</div>`;
   if(ov.__h!==h){ov.__h=h;ov.innerHTML=h;}}
 /* v117: boxes walk with the chart. A scroll or zoom moves the time axis at once, but the price axis re-scales a frame or
    two later (autoscale), and phones hold chart paints while a finger is down — so the overlay is redrawn for ~0.6 s after
@@ -20440,5 +20478,188 @@ W.v115={boxes,unitOf,signals:()=>SIG,trapHtml:trap,railExtras,tick,__st:ST};
 .v115t.r{border-color:color-mix(in srgb,var(--neg) 45%,transparent)}.v115t.r em{background:color-mix(in srgb,var(--neg) 16%,transparent);color:var(--neg)}
 </style>
 
+<script data-module="v118">
+/* v118 · Session boxes on all six charts + NY check (16 Oct 2026, preview). Built from the test on his own IV history
+   (claude/test-direction-methods-iv-vov-2026-10-16.md): selling at the NY open walked into a new NY high 75 % of the time;
+   after 60 min and ≥1 pt off the NY high it was 14–16 %; with the London high swept and back below, 8 %.
+   Sessions (IST, as tested): London 12:30–18:30, New York 18:30–02:30 (trading day starts 05:30).
+   On IV · RV · VoV · DVOL · Edge · Range:
+     London box (session high / low), London high carried into NY as a dashed line, NY open line with the first hour
+     hatched ("wait 60 min"), running NY high, "London high swept" tag when NY goes above it and closes back below.
+   IV only (the tested chart): coloured 1-hour line (avg of 4 closes: green = 2 closes below and falling, red = 2 above and
+     rising), dashed 3-day median ("IV high" above it), "−x pt off NY high" once 60 min have passed, SELL ✓ k/3 when the peak
+     has passed and the line is falling (London swept is the third, bonus tick).
+   RV / VoV / DVOL "↓ agrees" when they fell ≥ 1 usual move over the 30 min into the SELL; Edge shows the room; Range breaking
+   its London high in NY shows "Waking ↑". Read-only; nothing is ordered. */
+(function(){'use strict';
+const W=window,D=document,fin=Number.isFinite,DAY=86400,LON0=750*60,NY0=1110*60,NYEND=(1590)*60,DSTART=330*60;
+const tod=t=>((t%DAY)+DAY)%DAY;                                 // chart time is IST wall clock
+const dayKey=t=>Math.floor((t-DSTART)/DAY);                      // trading day 05:30 → 05:30
+const sessT=(dk,sec)=>dk*DAY+DSTART+((sec-DSTART+DAY)%DAY);      // IST second-of-day → chart time inside trading day dk
+function unit(c,i){const d=[];for(let k=Math.max(1,i-200);k<i;k++){const x=Math.abs(c[k].close-c[k-1].close);if(x>0)d.push(x);}if(d.length<10)return null;d.sort((a,b)=>a-b);return d[d.length>>1];}
+function idxAt(c,t){let lo=0,hi=c.length-1;if(!c.length||t<c[0].time)return -1;while(lo<hi){const m=(lo+hi+1)>>1;if(c[m].time<=t)lo=m;else hi=m-1;}return lo;}
+/* ---------- per chart: sessions of the last 3 trading days ---------- */
+function sessions(c){if(!c||c.length<20)return [];const out=[],last=dayKey(c[c.length-1].time);
+  for(let dk=last-2;dk<=last;dk++){const L0=sessT(dk,LON0),L1=sessT(dk,NY0),N1=sessT(dk,NYEND);
+    const A0=sessT(dk,DSTART);let ah=-Infinity,al=Infinity,an=0,aLast=null,nl=Infinity;
+    let lh=-Infinity,ll=Infinity,ln=0,nh=-Infinity,nhAt=null,first=null;const ny=[];
+    for(const b of c){if(b.time>=A0&&b.time<L0){ah=Math.max(ah,b.high);al=Math.min(al,b.low);an++;aLast=b.time;}
+      if(b.time>=L0&&b.time<L1){lh=Math.max(lh,b.high);ll=Math.min(ll,b.low);ln++;}
+      else if(b.time>=L1&&b.time<N1){if(first==null)first=b.time;ny.push(b);if(b.high>nh){nh=b.high;nhAt=b.time;}if(b.low<nl)nl=b.low;}}
+    if(ln<4&&an<4&&!ny.length)continue;
+    const i0=idxAt(c,L1),u=unit(c,Math.max(10,i0))||0;
+    let sweep=null,broke=false;for(let k=0;k<ny.length;k++){const b=ny[k];if(b.high>lh+0.5*u)broke=true;if(broke&&!sweep&&b.close<lh){sweep=b.time;}}
+    out.push({dk,A0,L0,L1,N1,asia:an>=4?{h:ah,l:al}:null,lon:ln>=4,lh,ll,ny:ny.length?{first,nh,nhAt,nl,bars:ny}:null,sweep:ln>=4?sweep:null,broke:ln>=4&&broke,u});}
+  return out;}
+/* ---------- IV signal ---------- */
+function ma4(c,i){return i<3?null:(c[i].close+c[i-1].close+c[i-2].close+c[i-3].close)/4;}
+function lineState(c,i){if(i<5)return 0;const a=ma4(c,i),b=ma4(c,i-1);if(c[i].close<a&&c[i-1].close<b&&a<b)return -1;if(c[i].close>a&&c[i-1].close>b&&a>b)return 1;return 0;}
+function median3d(c){const n=c.length;if(n<20)return null;const t1=c[n-1].time,v=[];for(let i=n-1;i>=0&&c[i].time>t1-3*DAY;i--)v.push(c[i].close);if(v.length<20)return null;v.sort((a,b)=>a-b);return v[v.length>>1];}
+const ST={};
+function others(t,u){const S=W.v115&&W.v115.__st;if(!S)return {n:0,of:0,list:[]};let n=0,of=0;const list=[];
+  for(const X of S.values()){if(!X.t||!X.c||!['rv','vov','dv'].includes(X.t.k))continue;const c=X.c,i=idxAt(c,t);if(i<2)continue;const uu=unit(c,i)||0;of++;if(c[i].close-c[i-2].close<=-uu&&uu>0){n++;list.push(X.t.k);}}
+  // next expiry's IV (same time)
+  try{const sl=W.v100&&W.v100.slot?W.v100.slot():null,map={0:0,1:2,2:1},nx=sl==null?null:map[sl<2?sl+1:1],P=typeof panes!=='undefined'?panes:null;
+    const p=P&&P.find(x=>x&&x.i===nx);const F=p&&p.series&&p.series.__reg?p.series.__reg.full:null;
+    if(F&&F.length>10){const i=idxAt(F,t);if(i>=2&&F[i].close!=null&&F[i-2].close!=null){of++;const d=[];for(let k=Math.max(1,i-200);k<i;k++){if(F[k].close!=null&&F[k-1].close!=null){const x=Math.abs(F[k].close-F[k-1].close);if(x>0)d.push(x);}}d.sort((a,b)=>a-b);const uu=d.length?d[d.length>>1]:0;if(uu>0&&F[i].close-F[i-2].close<=-uu){n++;list.push('next');}}}}catch(e){}
+  return {n,of,list};}
+function ivSignal(c,ses){const today=ses[ses.length-1];if(!today)return null;const out={day:today,sell:null,peak:null,line:0,high:null,swept:!!today.sweep};
+  const n=c.length;if(!n)return out;const i=n-1,last=c[i];out.line=lineState(c,i);out.med=median3d(c);out.high=out.med!=null&&last.close>out.med;
+  // sell scan through today's NY bars (first bar that satisfies; kept)
+  if(today.ny){let nh=-Infinity;for(const b of today.ny.bars){nh=Math.max(nh,b.high);const k=idxAt(c,b.time),mins=(b.time-today.L1)/60;
+      const off=nh-b.close,ls=lineState(c,k);
+      if(mins>=60&&off>=1&&ls===-1&&!out.sell){out.sell={t:b.time,off,swept:!!(today.sweep&&today.sweep<=b.time)};}}
+    const mins=(last.time-today.L1)/60;out.mins=mins;out.off=today.ny.nh-last.close;out.peak=mins>=60&&out.off>=1;}
+  return out;}
+/* ---------- drawing ---------- */
+const OV=new WeakMap();
+function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentElement;if(!bx||!bx.clientWidth)return;
+  let ov=OV.get(S);if(!ov||!ov.isConnected){ov=D.createElement('div');ov.className='v118ov';bx.appendChild(ov);OV.set(S,ov);}
+  const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,H=t.el.clientHeight,Wd=t.el.clientWidth;
+  const X=tm=>{const v=ts.timeToCoordinate(tm);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
+  const c=S.c,ses=ST[t.k]&&ST[t.k].ses||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
+  const xAt=tm=>{const i=idxAt(c,tm);if(i<0)return null;const x=X(c[i].time);return x;};
+  const main=t.k==='iv';let h='';
+  const clampX=x=>Math.max(ox,Math.min(ox+Wd,x));
+  const box=(t0,t1,hi,lo,cls,lab)=>{const a=xAt(Math.max(t0,c[0].time)),z=xAt(t1-1);if(a==null||z==null||z<ox||a>ox+Wd)return '';const y0=Y(hi),y1=Y(lo);if(y0==null||y1==null)return '';
+    const l=clampX(a-half),r=clampX(z+half);let o=`<div class="v118B ${cls}${main?'':' f'}" style="left:${l}px;top:${y0}px;width:${Math.max(2,r-l)}px;height:${Math.max(3,y1-y0)}px"></div>`;
+    if(lab&&a>=ox)o+=`<div class="v118t ${cls}" style="left:${a+3}px;top:${y1+3}px">${lab}</div>`;return o;};
+  for(const s of ses){
+    if(s.asia)h+=box(s.A0,s.L0,s.asia.h,s.asia.l,'as',main?'Asia':'');
+    if(s.lon)h+=box(s.L0,s.L1,s.lh,s.ll,'lon',main?'London · high '+s.lh.toFixed(1):'');
+    if(s.ny){const lastT=s.ny.bars[s.ny.bars.length-1].time;h+=box(s.L1,lastT+1,s.ny.nh,s.ny.nl,'nyb',main&&t.k!=='rng'?'':(main?'NY':''));}
+    if(!s.ny)continue;
+    const n0=xAt(s.ny.first),nl=xAt(s.ny.bars[s.ny.bars.length-1].time),w1=xAt(s.L1+3600);
+    if(n0!=null&&n0>=ox-2&&n0<=ox+Wd){const xs=n0-half;h+=`<div class="v118ny" style="left:${xs}px;top:${oy}px;height:${H-4}px"></div>`;
+      const xe=w1!=null?Math.min(w1-half,ox+Wd):xs+30;h+=`<div class="v118w" style="left:${xs}px;top:${oy}px;width:${Math.max(0,xe-xs)}px;height:${H-4}px"></div>`;
+      if(main)h+=`<div class="v118t ny" style="left:${xs+3}px;top:${oy+H*0.6}px">NY open<br><i>wait 60 min</i></div>`;}
+    // London high carried into NY
+    const yl=s.lon?Y(s.lh):null;if(yl!=null&&n0!=null&&nl!=null){const l=clampX(n0-half),r=clampX(nl+half);if(r>l)h+=`<div class="v118lh" style="left:${l}px;top:${yl}px;width:${r-l}px"></div>`;}
+    // running NY high
+    if(t.k!=='rng'){const yh=Y(s.ny.nh),xh=xAt(s.ny.nhAt);if(yh!=null&&xh!=null&&nl!=null){const l=clampX(xh),r=clampX(nl+half);if(r>l){h+=`<div class="v118nh" style="left:${l}px;top:${yh}px;width:${r-l}px"></div>`;if(main)h+=`<div class="v118t nh" style="left:${l}px;top:${yh-12}px">NY high ${s.ny.nh.toFixed(1)}</div>`;}}}
+    if(s.sweep&&t.k!=='adx'){const i=idxAt(c,s.sweep),x=X(c[i].time),y=Y(c[i].high);if(x!=null&&y!=null&&x>=ox&&x<=ox+Wd){
+      if(t.k==='rng')h+=`<div class="v118c r" style="left:${Math.max(ox+2,x-60)}px;top:${y-26}px">London high broken</div>`;
+      else h+=`<div class="v118c o${main?'':' f'}" style="left:${Math.max(ox+2,x-(main?118:92))}px;top:${y-6}px">London high swept${main?' ✓':''}</div>`;}}
+    if(t.k==='rng'&&s.broke&&!s.sweep){const b=s.ny.bars[s.ny.bars.length-1],x=X(b.time),y=Y(b.close);if(x!=null&&y!=null)h+=`<div class="v118c r" style="left:${Math.max(ox+2,x-150)}px;top:${y-28}px"><b>Waking ↑</b> exit warning</div>`;}
+  }
+  // IV extras + agreement chips
+  const sig=ST.iv&&ST.iv.sig;
+  if(main&&sig){const s=sig.day;if(sig.sell){const i=idxAt(c,sig.sell.t),x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=ox+Wd){
+        const k=2+(sig.sell.swept?1:0);h+=`<div class="v118c g" style="left:${Math.min(ox+Wd-96,x+6)}px;top:${y-8}px"><b>SELL ✓</b> <span>${k}/3</span></div>`;
+        const yh=Y(s.ny.nh);if(yh!=null)h+=`<div class="v118pk" style="left:${x-3}px;top:${yh}px;height:${Math.max(0,y-yh)}px"></div><div class="v118t pk" style="left:${x+4}px;top:${(yh+y)/2-6}px">−${sig.sell.off.toFixed(1)} pt off NY high</div>`;}}}
+  if(!main&&sig&&sig.sell&&['rv','vov','dv'].includes(t.k)){const i=idxAt(c,sig.sell.t);if(i>=2){const u=unit(c,i)||0;if(u>0&&c[i].close-c[i-2].close<=-u){const x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null)h+=`<div class="v118c g f" style="left:${Math.min(ox+Wd-70,x+4)}px;top:${y+8}px">↓ agrees</div>`;}}}
+  if(t.k==='edge'&&sig&&sig.sell){const i=idxAt(c,sig.sell.t);if(i>=0){const x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null)h+=`<div class="v118c n f" style="left:${Math.min(ox+Wd-70,x+4)}px;top:${y+8}px">room ${c[i].close>=0?'+':''}${c[i].close.toFixed(1)}</div>`;}}
+  h+=`<div class="v118s" style="left:${ox+4}px;top:${oy+H-14}px"></div>`;
+  if(ov.__h!==h){ov.__h=h;ov.innerHTML=h;}}
+/* ---------- IV lines: 1-hour line + 3-day median ---------- */
+const LN={};
+function ivLines(S){const ch=S.t.chart,c=S.c;if(!c||c.length<10)return;let L=LN[S.t.pi];
+  if(!L||L.chart!==ch){try{L={chart:ch,ma:ch.addLineSeries({lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null}),key:'',med:null,medLine:null};LN[S.t.pi]=L;}catch(e){return;}}
+  const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(L.key===key)return;L.key=key;
+  const from=Math.max(3,c.length-700),pts=[];for(let i=from;i<c.length;i++){const s=lineState(c,i);pts.push({time:c[i].time,value:ma4(c,i),color:s<0?'#1a9e8f':s>0?'#E5484D':'rgba(139,159,177,.9)'});}
+  try{L.ma.setData(pts);}catch(e){}
+  const med=median3d(c);if(med!=null){try{if(!L.medLine)L.medLine=S.t.ser.createPriceLine({price:med,color:'rgba(227,174,69,.9)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'3-day median'});else L.medLine.applyOptions({price:med});}catch(e){}}}
+/* ---------- loop ---------- */
+function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=sessions(X.c);ST[k].S=X;
+    if(k==='iv'){ST.iv.sig=ivSignal(X.c,ST.iv.ses);try{ivLines(X);}catch(e){}if(ST.iv.sig&&ST.iv.sig.sell)ST.iv.sig.agree=others(ST.iv.sig.sell.t);}}
+  if(ST.iv&&ST.iv.sig){const s=ST.iv.sig,last=ST.iv.S.c[ST.iv.S.c.length-1];s.agreeNow=others(last.time);}}
+let raf=0,until=0;function frame(){raf=0;const S=W.v115&&W.v115.__st;if(S)for(const X of S.values())try{draw(X);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
+function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
+const subd=new WeakSet();
+function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v118',e);}
+  const S=W.v115&&W.v115.__st;if(S)for(const X of S.values()){const ch=X.t&&X.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}
+  redraw();}
+setInterval(tick,3000);setTimeout(tick,4500);setInterval(()=>{if(!D.hidden)redraw();},1000);
+for(const ev of ['touchend','pointerup','wheel'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
+/* ---------- NY check (replaces the Trap check line in the NY window; outside it: Falling · IV high · Others agree) ---------- */
+function check(){const s=ST.iv&&ST.iv.sig;if(!s)return W.v115&&W.v115.__trap0?W.v115.__trap0():'';
+  let pos=false;try{pos=!!(W.v18&&W.v18.lab&&W.v18.lab().cur);}catch(e){}
+  const now=Date.now()/1000+19800,inNY=s.day&&s.day.ny&&now>=s.day.L1&&now<s.day.N1,ag=s.agreeNow||{n:0,of:0};
+  const it=(b,t,tip)=>`<span class="${b?'g':'n'}" title="${tip}">${b?'✓':'✕'} ${t}</span>`;
+  let items,v,cls;
+  if(inNY){const wait=(s.mins||0)<60;const ok=[!!s.peak,s.line===-1,ag.n>=1];
+    items=it(ok[0],'Peak passed',wait?'first 60 min of NY: wait':`IV ${(s.off||0).toFixed(1)} pt below the NY high (needs ≥1 after 60 min)`)+it(ok[1],'Line falling','1-hour line: 2 closes below it and falling')+it(ok[2],'Others agree',ag.of?`${ag.n} of ${ag.of} (next expiry / RV / VoV / DVOL) fell over the last 30 min`:'no other chart yet')+(s.swept?'<span class="g" title="NY went above the London high and closed back below — bigger falls in the test">✦ London swept</span>':'');
+    if(pos){const bad=(s.line===1?1:0)+(ag.n===0&&ag.of?1:0);v=bad>=2?'HALVE / EXIT':bad?'WATCH':'HOLD';cls=bad>=2?'r':bad?'a':'g';}
+    else{v=wait?'WAIT · 1st hour':ok.every(Boolean)?'SELL OK':'WAIT';cls=v==='SELL OK'?'g':'a';}
+    return `<div class="v115t ${cls}"><b>NY check</b>${items}<em>${v}</em></div>`;}
+  const ok=[s.line===-1,!!s.high,ag.n>=1];
+  items=it(ok[0],'Falling','1-hour line: 2 closes below it and falling')+it(ok[1],'IV high',s.med!=null?'3-day median '+s.med.toFixed(1):'needs 3 days of IV')+it(ok[2],'Others agree',ag.of?`${ag.n} of ${ag.of} fell over the last 30 min`:'no other chart yet');
+  if(pos){const bad=(s.line===1?1:0)+(ag.n===0&&ag.of?1:0);v=bad>=2?'HALVE / EXIT':bad?'WATCH':'HOLD';cls=bad>=2?'r':bad?'a':'g';}
+  else{v=ok.every(Boolean)?'SELL OK':'WAIT';cls=v==='SELL OK'?'g':'a';}
+  return `<div class="v115t ${cls}"><b>Trap check</b>${items}<small title="outside the NY window the test found selling much weaker">not NY</small><em>${v}</em></div>`;}
+function hook(){if(!W.v115){setTimeout(hook,500);return;}if(!W.v115.__trap0){W.v115.__trap0=W.v115.trapHtml;W.v115.trapHtml=()=>{try{return check();}catch(e){return W.v115.__trap0();}};}}
+hook();
+W.v118={sessions,ivSignal,others,state:()=>ST,tick};
+})();
+</script>
+<script data-module="v120">
+/* v120 · show the boxes and checks as soon as data lands. v115 / v118 run every 3 s (first at 4–4.5 s), so a chart could
+   sit without its boxes for up to 7 s after opening, after an expiry switch or after tapping Edge / Range / ADX. This watcher
+   reads a cheap signature (bars loaded, last bar, chart width) every 0.5 s for the first 2 min, then every 1.5 s, and runs
+   both at once when it changes. */
+(function(){'use strict';const W=window,D=document,t0=Date.now();let last='',busy=false;
+function sig(){const a=[];const add=(ser,el)=>{let n=0,t=0;try{const f=ser&&ser.__reg&&ser.__reg.full;if(f&&f.length){n=f.length;t=f[n-1].time;}}catch(e){}a.push(n+':'+t+':'+(el&&el.clientWidth||0));};
+  try{const P=typeof panes!=='undefined'?panes:null;if(P)for(const p of P){if(!p)continue;const b=D.getElementById('pane'+p.i);if(!b||!b.classList.contains('on'))continue;
+    add(p.series,D.getElementById('chart'+p.i));add(p.rvSub,D.getElementById('rvChart'+p.i));add(p.vovSeries,D.getElementById('vovChart'+p.i));const d=W.__dvCharts&&W.__dvCharts[p.i];add(d&&d.series,D.getElementById('dvChart'+p.i));}}catch(e){}
+  try{const E=W.v105&&W.v105.charts&&W.v105.charts();if(E){add(E.edge.ser,D.getElementById(E.edge.id+'C'));add(E.rng.ser,D.getElementById(E.rng.id+'C'));}}catch(e){}
+  try{add(W.paAdxSeries&&W.paAdxSeries(),D.getElementById('paAdx'));}catch(e){}
+  return a.join('|');}
+function run(){if(D.hidden||busy)return;const s=sig();if(s===last)return;last=s;busy=true;
+  try{W.v115&&W.v115.tick&&W.v115.tick();}catch(e){}
+  setTimeout(()=>{try{W.v118&&W.v118.tick&&W.v118.tick();}catch(e){}busy=false;},30);}
+const fast=setInterval(()=>{run();if(Date.now()-t0>120000){clearInterval(fast);setInterval(run,1500);}},500);
+D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#gTabs,[data-gp],.pane-tabs,#v100Master'))setTimeout(run,120);},true);
+})();
+</script>
+<style id="v118Css">
+.v118ov{position:absolute;inset:0;pointer-events:none;z-index:7;font-family:var(--font)}
+.v118B{position:absolute;border:1.2px solid;border-radius:5px;box-sizing:border-box}
+.v118B.as{border-color:rgba(31,120,180,.8);background:rgba(31,120,180,.07)}.v118B.lon{border-color:rgba(201,135,32,.85);background:rgba(227,174,69,.09)}.v118B.nyb{border-color:rgba(124,92,214,.8);background:rgba(124,92,214,.06)}
+.v118B.f{opacity:.7}.v118t.as{color:#1F78B4}
+.v118lh{position:absolute;border-top:1.2px dashed rgba(201,135,32,.8)}
+.v118nh{position:absolute;border-top:1.2px dotted rgba(124,92,214,.9)}
+.v118ny{position:absolute;border-left:1.4px solid #7c5cd6;opacity:.85}
+.v118w{position:absolute;background:repeating-linear-gradient(135deg,rgba(229,72,77,.07) 0 6px,transparent 6px 12px)}
+.v118pk{position:absolute;border-left:1.4px solid #1a9e8f}
+.v118t{position:absolute;font:700 9px/1.2 var(--font);white-space:nowrap}
+.v118t.lon{color:#b07514}.v118t.nh{color:#7c5cd6}.v118t.pk{color:#1a9e8f}
+.v118t.ny{color:#7c5cd6;font-weight:800}.v118t.ny i{font-style:normal;font-weight:600;color:#c2454a}
+.v118c{position:absolute;padding:2px 6px;border-radius:7px;border:1px solid;background:color-mix(in srgb,var(--panel) 94%,transparent);font:800 9px/1.25 var(--font);white-space:nowrap}
+.v118c.f{font-size:8.5px;font-weight:700;opacity:.95}
+.v118c.g{border-color:#1a9e8f;color:#1a9e8f}.v118c.g span{font:600 8.5px/1 var(--mono);color:var(--muted)}
+.v118c.o{border-color:#b07514;color:#b07514}.v118c.r{border-color:#c2454a;color:#c2454a}.v118c.n{border-color:#8b9fb1;color:var(--muted)}
+@media (max-width:760px){.v118t{font-size:8.5px}.v118c{font-size:8.5px}}
+</style>
+
+<style id="v118ApiCss">
+.v118st{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font:700 12px/1.2 var(--font)}
+.v118st.g{color:var(--pos);background:color-mix(in srgb,var(--pos) 12%,transparent)}.v118st.r{color:var(--neg);background:color-mix(in srgb,var(--neg) 10%,transparent)}.v118st.a{color:var(--amber,#E3AE45);background:color-mix(in srgb,var(--amber,#E3AE45) 12%,transparent)}
+.v118wl p{margin:6px 0}.v118chg{padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--amber,#E3AE45) 12%,transparent);border:1px solid color-mix(in srgb,var(--amber,#E3AE45) 45%,transparent)}
+.v118ips{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.v118ip{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.v118ip code{font:600 12px/1.3 var(--mono);padding:4px 7px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);word-break:break-all}
+.v118ip button,.v118wl>button{font:700 11.5px/1 var(--font);padding:7px 10px;border-radius:9px;border:1px solid var(--line2,var(--line));background:var(--panel2);color:var(--text);cursor:pointer}
+.v118ip small{color:var(--muted);font-size:11px;width:100%}
+.v118more summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:4px}
+</style>
 </body>
 </html>
