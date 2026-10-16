@@ -1,24 +1,5 @@
 <!doctype html>
 <!--
-  v135 (16 Oct 2026, preview, not deployed): review + one time axis. script[data-module=v135] + style#v135Css (end of body),
-    window.__v135lock switch (early script; localStorage v135_lock='0' turns it off).
-    · BTC chart = master; IV · RV · VoV · DVOL follow it BY TIME (time→bar maps from each chart's own bars, extrapolated past the
-      ends; invisible gap-fill bars so holes in a vol chart's history do not squeeze time); dragging/zooming a vol chart moves
-      the BTC chart and so every chart. Same left edge, width and price-axis width as the BTC chart; one time axis under the
-      bottom vol chart; dashed hairline through the gaps; v83 crosshair group now includes the vol charts and snaps to each
-      chart's own bar. Old pairwise followers (RV link, VoV lagOf/reconcile/0.4 s re-aligner, DVOL alignTo, IV frameLive,
-      v128 per-chart fit) stand down while the lock is on; v128 − + Fit on a vol chart act on the BTC chart.
-    · Fit to screen (v133.fit): the window is shared out (1 vol chart ≈ 30 %, 2 ≈ 44 %, 3 ≈ 52 %, 4 ≈ 56 %), floor 420 px (was 600).
-    · Bugs fixed: crosshair re-fire storm (series restyles re-fired the last crosshair spot, dragging all charts' crosshairs
-      and time pills to the last bar every tick); Decision-page Leading board frozen; v118 session lines from the wrong
-      expiry; hidden panes voting with stale data; v118 null crash after the 17:30 listing; v127 forcing pattern layers
-      every 2.5 s; v133 fit.adj never reset; v133 clear() left vol heights on phone; v126 "Run now" blocking the 07:05 run;
-      RV 4 h high read only 3.5 h; v134 replays even with Entry signals off.
-    · Smoother: overlay loops (v115/v118/v122) draw one frame a second instead of 0.6 s of every second; crosshair sync once
-      per frame with cached chart lists (no forced layout per move); legends skip identical rewrites; no-op class writes on
-      price tags and impulse tag removed; DVOL shown() cached; v126 trade readings memoised.
--->
-<!--
   v121 (16 Oct 2026, preview, not deployed): tested N2N playbook (backtests in chat, 16 Oct). New layer style#v121Css +
     script[data-module=v121] (window.v121): Leading signals board rebuilt (#v121Lead after a hidden #v104Lead): banner verdict,
     6 pips, 07:00 countdown, 8 tiles — Day & news · NY spike · IV turn (1.5–6 % off NY high, 1st–2nd red) · Term → size
@@ -508,7 +489,6 @@ if(F)W.fetch=function(input,init){var u=typeof input==='string'?input:(input&&in
     LOW.push(j);flushLow();});};
 })();
 </script>
-<script>/* v135 · one time axis switch, read before any chart is drawn */try{window.__v135lock=localStorage.getItem('v135_lock')!=='0';}catch(e){window.__v135lock=true;}</script>
 <meta name="theme-color" content="#0A1014">
 <meta name="robots" content="noindex,nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6340,7 +6320,7 @@ function easeRange(p,ts,lr,from,to){
   p._ease=requestAnimationFrame(step);
 }
 function frameLive(p,force){
-  if(!p||!p.chart||!p.last||window.__v135lock)return;   // v135: the BTC chart frames every vol chart
+  if(!p||!p.chart||!p.last)return;
   if(!force&&p.userMoved)return;
   try{
     const ts=p.chart.timeScale(),lr=ts.getVisibleLogicalRange();if(!lr)return;
@@ -8070,7 +8050,7 @@ function deskUpdate(){
     p.ivWs=p.chart.addLineSeries({priceScaleId:'ws',lineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     p.chart.priceScale('ws').applyOptions({visible:false});
     const link=(a,b)=>a.timeScale().subscribeVisibleLogicalRangeChange(r=>{
-      if(p.rvSyncing||!r||p.rvMode!=='panel'||window.__v135lock)return;p.rvSyncing=true;try{b.timeScale().setVisibleLogicalRange(r);}catch(e){}p.rvSyncing=false;});
+      if(p.rvSyncing||!r||p.rvMode!=='panel')return;p.rvSyncing=true;try{b.timeScale().setVisibleLogicalRange(r);}catch(e){}p.rvSyncing=false;});
     link(p.chart,p.rvChart);link(p.rvChart,p.chart);
     p.chart.subscribeCrosshairMove(param=>{
       if(p.rvMode!=='panel'||p.rvXsync)return;p.rvXsync=true;
@@ -8152,7 +8132,6 @@ function deskUpdate(){
   // legend in the RV panel: RV OHLC + change, IV at that bar, IV/RV
   function rvLegend(i,time){
     const p=panes[i],box=el('rvLeg'+i);if(!box||p.rvMode!=='panel')return;
-    if(time!=null){const k=time+'|'+(p.rvMap&&p.rvMap.size)+'|'+(p.dataMap&&p.dataMap.size);if(p.__rvLk===k)return;p.__rvLk=k;}else p.__rvLk=null;   // v135: the same hovered bar is not rebuilt on every mouse move
     const b=time!=null?p.rvMap?.get(time):p.rvLast,ivb=time!=null?p.dataMap?.get(time):p.last;
     try{box.classList.toggle('nrw',box.parentElement.clientWidth<430);}catch(e){}
     const head=`<b class="lg-title">Realised vol</b><span class="lg-title">${winText(p)}</span>`;
@@ -8475,7 +8454,7 @@ function deskUpdate(){
   const toIv=(p,r)=>pushRange(p.chart,shift(r,lagOf(p)));
   // safety net, once a second: whatever happened in between, the two charts end on the same bars
   function reconcile(p){
-    if(!p.vovChart||!shown(p.i)||window.__v135lock)return;
+    if(!p.vovChart||!shown(p.i))return;
     try{const a=p.chart.timeScale().getVisibleLogicalRange(),b=p.vovChart.timeScale().getVisibleLogicalRange();
       if(!a||!b||near(a,shift(b,lagOf(p))))return;
       if(leads(S[p.i]))toIv(p,b);else toVov(p,a);}catch(e){}
@@ -8512,8 +8491,8 @@ function deskUpdate(){
     // Scroll and zoom move together with the IV chart (and, through it, the RV panel). The chart library reports a
     // range change late, so a simple "I am syncing" flag can swallow the last step of a drag. Instead one chart leads:
     // this panel while it is being dragged or wheeled (and for a moment after, for the glide), the IV chart otherwise.
-    p.chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&!leads(st)&&!window.__v135lock)toVov(p,r);});
-    p.vovChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&leads(st)&&!window.__v135lock)toIv(p,r);});
+    p.chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&!leads(st))toVov(p,r);});
+    p.vovChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&leads(st))toIv(p,r);});
     // a pan, pinch or wheel here stops the auto-framing, exactly as it does on the IV chart
     for(const ev of ['pointerdown','touchstart'])box.addEventListener(ev,()=>{p.userMoved=true;st.active=true;},{passive:true,capture:true});
     box.addEventListener('wheel',()=>{p.userMoved=true;st.holdUntil=Date.now()+1500;},{passive:true,capture:true});
@@ -10542,7 +10521,7 @@ Signs follow Settings → Dealer positioning.`;
     else{let x=null;try{x=reading();}catch(e){}
       if(x&&x.ok){h=`<b>${fx(x.r)}</b>`;cls='s'+x.st;}else h='<b>—</b>';}
     if(S.tag.__h!==h){S.tag.innerHTML=BARS+h;S.tag.__h=h;}
-    if(S.tag.className!=='imp-tag '+cls)S.tag.className='imp-tag '+cls;   // v135: no restyle when nothing changed
+    S.tag.className='imp-tag '+cls;
   }
 
   /* ---------- loop ---------- */
@@ -11879,7 +11858,6 @@ Signs follow Settings → Dealer positioning.`;
     if(!c.chart.__lpR){try{c.chart.timeScale().subscribeVisibleLogicalRangeChange(sched);}catch(e){}c.chart.__lpR=1;}
   }
   function hide(t){if(t.tag&&t.tag.classList.contains('on'))t.tag.classList.remove('on');}
-  const tgc=(e,c,on)=>{if(e.classList.contains(c)!==on)e.classList.toggle(c,on);};   // v135: a no-op class write still restyles the page
   function paint(t,tf,n,left,cur){
     const c=t.cc,G=t.geo;if(!c||!c.box||!G||!G.w){hide(t);return;}c.geo=G;
     wire(t,c);
@@ -11901,14 +11879,14 @@ Signs follow Settings → Dealer positioning.`;
     const tx=fmtT(left,tf);if(t.txt!==tx){tag.querySelector('.lp-t').textContent=tx;t.txt=tx;}
     {const k=Math.max(0,Math.min(100,100-left/(tf*10)))|0,kv=k+'%';if(t.pk!==kv){tag.style.setProperty('--lpk',kv);t.pk=kv;}}
     /* v82: no live dot or glow on the last candle (it hid the candle); the dotted price line + axis label mark the close */
-    tgc(tag,'soon',left<=Math.max(10000,tf*1000*0.1));tgc(tag,'last',left<=10000);tgc(tag,'stale',stale);
+    tag.classList.toggle('soon',left<=Math.max(10000,tf*1000*0.1));tag.classList.toggle('last',left<=10000);tag.classList.toggle('stale',stale);
     const H=G.h-tsH,th=t.th||(c.big?33:29);let y=null;try{y=c.series.priceToCoordinate(b.close);}catch(e){}
     let top,edge='';if(y==null||!Number.isFinite(y)){top=H-th;edge='b';}else{top=y-8;/* v82: price row centred on the line */if(top<0){top=0;edge=y<0?'t':'';}if(top>H-th){top=Math.max(0,H-th);edge=y>H?'b':'';}}
-    tgc(tag,'edge-t',edge==='t');tgc(tag,'edge-b',edge==='b');
+    tag.classList.toggle('edge-t',edge==='t');tag.classList.toggle('edge-b',edge==='b');
     let cw=G.w;try{const el=c.chart.chartElement(),ew=el?el.clientWidth:0;if(ew>0&&ew<G.w-2)cw=ew;}catch(e){}
     const TW=Math.max(psW,52),L=Math.max(0,G.l+cw-TW),st=tag.style;   // v82: the label sits exactly on the price axis, like TradingView
     if(st.left!==L+'px')st.left=L+'px';const Tp=(G.t+top)+'px';if(st.top!==Tp)st.top=Tp;if(st.width!==TW+'px')st.width=TW+'px';
-    tgc(tag,'on',true);
+    tag.classList.add('on');
   }
   function paintAll(){
     if(document.hidden)return;
@@ -13458,7 +13436,6 @@ Signs follow Settings → Dealer positioning.`;
       if(window.__lwcReg&&window.__lwcReg.on&&window.chartReplay){try{window.chartReplay.start(window.__lwcReg.cursor);}catch(x){}b.hidden=true;return;}
       const ts=chart.timeScale();
       try{ts.applyOptions({rightOffset:12});ts.scrollToRealTime();}catch(x){}
-      if(window.__v135lock)try{const m=window.paChart&&window.paChart();if(m&&m!==chart)m.timeScale().scrollToRealTime();}catch(x){}   // v135: the vol charts follow the BTC chart, so it is the one that goes back to live
       let pane=null;try{pane=panes.find(q=>q.chart===chart)||null;}catch(x){}
       const again=()=>{try{if(pane){pane.userMoved=false;frameLive(pane,true);}else ts.scrollToRealTime();}catch(x){}};
       requestAnimationFrame(again);setTimeout(again,250);
@@ -13734,7 +13711,7 @@ Signs follow Settings → Dealer positioning.`;
     for(const ev of ['pointerdown','touchstart'])b.addEventListener(ev,()=>{vovDown[i]=true;vovTouch[i]=Date.now();},{passive:true,capture:true});
     b.addEventListener('wheel',()=>{vovTouch[i]=Date.now();},{passive:true,capture:true});
     for(const ev of ['pointerup','pointercancel','touchend','touchcancel'])addEventListener(ev,()=>{if(vovDown[i]){vovDown[i]=false;vovTouch[i]=Date.now();}},{passive:true,capture:true});}
-  setInterval(()=>{if(document.hidden||typeof panes==='undefined'||window.__v135lock)return;
+  setInterval(()=>{if(document.hidden||typeof panes==='undefined')return;
     for(const p of panes){try{if(!p.chart||!p.vovChart)continue;watchVov(p.i);const b=$('vovBox'+p.i);
       if(!b||b.offsetParent===null||!b.clientHeight||vovDown[p.i]||Date.now()-vovTouch[p.i]<2500)continue;
       alignTo(p.chart,p.vovChart,null);}catch(e){}}},400);
@@ -13742,9 +13719,7 @@ Signs follow Settings → Dealer positioning.`;
   /* ---------- panel on each IV chart ---------- */
   const S=[{},{},{}];
   const viewOf=i=>$('pane'+i)?.dataset.view||'auto';
-  const shownC=[];   // v135: read at most every 300 ms, like the VoV panel (each read forced a page layout on every crosshair move)
-  function shown(i){const now=performance.now(),c=shownC[i];if(c&&now-c.t<300)return c.v;const v=shown0(i);shownC[i]={t:now,v};return v;}
-  function shown0(i){const b=$('dvBox'+i);if(!b||pref.mode==='off')return false;
+  function shown(i){const b=$('dvBox'+i);if(!b||pref.mode==='off')return false;
     if(document.fullscreenElement&&document.fullscreenElement!==document.documentElement&&!document.fullscreenElement.contains(b))return false;
     return b.offsetParent!==null&&b.clientHeight>0;}
   function lagOf(p,st){
@@ -13781,8 +13756,8 @@ Signs follow Settings → Dealer positioning.`;
     window.__dvCharts=window.__dvCharts||[];window.__dvCharts[p.i]={chart:st.chart,series:st.series};
     // v69: the IV chart leads, except while this panel is being dragged, wheeled or pinched (then it leads, for 1.5 s after)
     const leads=()=>!!st.active||Date.now()<(st.holdUntil||0);
-    p.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&!leads()&&!window.__v135lock)alignTo(p.chart,st.chart,st);});
-    st.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&leads()&&!window.__v135lock){p.userMoved=true;alignTo(st.chart,p.chart,null);}});
+    p.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&!leads())alignTo(p.chart,st.chart,st);});
+    st.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&leads()){p.userMoved=true;alignTo(st.chart,p.chart,null);}});
     for(const ev of ['pointerdown','touchstart'])box.addEventListener(ev,()=>{st.active=true;},{passive:true,capture:true});
     box.addEventListener('wheel',()=>{st.holdUntil=Date.now()+1500;},{passive:true,capture:true});
     const release=()=>{if(st.active){st.active=false;st.holdUntil=Date.now()+1500;}};
@@ -16008,7 +15983,7 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MON=['Jan','Feb','Mar','Ap
 const p2=n=>String(n).padStart(2,'0');
 // chart times are IST-shifted epoch seconds (bucketOf), so UTC getters print IST
 const fmtT=(t,dateOnly)=>{const d=new Date(t*1000);const s=`${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;return dateOnly?s:`${s} · ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`;};
-function groupOf(el){const id=el&&el.id||'';if(/^(chartG|paVol|paAdx|ofBox)$/.test(id))return 'btc';const m=/^(chart|rvChart|vovChart|dvChart)(\d)$/.exec(id);if(m)return window.__v135lock?'btc':'vol'+m[2];   /* v135: one group with the BTC chart */if(/^reg[A-Z]/.test(id))return 'reg';return null;}
+function groupOf(el){const id=el&&el.id||'';if(/^(chartG|paVol|paAdx|ofBox)$/.test(id))return 'btc';const m=/^(chart|rvChart|vovChart|dvChart)(\d)$/.exec(id);if(m)return 'vol'+m[2];if(/^reg[A-Z]/.test(id))return 'reg';return null;}
 const vis=el=>!!el&&el.isConnected&&el.offsetParent!==null&&el.clientWidth>0;
 
 /* ---------- 1. one price-scale width per group ---------- */
@@ -16022,10 +15997,7 @@ setInterval(alignScales,1500);setTimeout(alignScales,1200);
 
 /* ---------- 2. synced crosshair + time label ---------- */
 const hooked=new WeakSet();let syncing=false;
-function refSeries(e){const now=performance.now();if(e.__rs&&now-e.__rsAt<1500)return e.__rs;let best=null;   /* v135: counts from the registry copy (series.data() copied every bar on every mouse move) and skips value-less whitespace series; cached 1.5 s */
-  for(const r of e.series){const F=r.full||[],n=F.length;if(!n)continue;let o={};try{o=r.s.options();}catch(x){}if(o.visible===false)continue;const L=F[n-1];if(!L||(L.close==null&&L.value==null))continue;if(!best||n>best.n)best={r,n};}
-  e.__rs=best&&best.r;e.__rsAt=now;return e.__rs;}
-function barAt(rec,t){const F=rec.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<=t)a=m+1;else b=m;}for(let i=Math.max(0,a-1),k=0;i>=0&&k<8;i--,k++){const x=F[i];const v=x&&(x.close!=null?x.close:x.value);if(v!=null)return {t:x.time,v};}const x=F[a];const v=x&&(x.close!=null?x.close:x.value);return v!=null?{t:x.time,v}:null;}
+function refSeries(e){let best=null;for(const r of e.series){let n=0;try{n=r.s.data().length;}catch(x){}let o={};try{o=r.s.options();}catch(x){}if(!n||o.visible===false)continue;if(!best||n>best.n)best={r,n};}return best&&best.r;}
 function valAt(rec,t){const F=rec.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<t)a=m+1;else b=m;}const x=F[Math.min(a,F.length-1)];if(!x)return null;return x.close!=null?x.close:x.value!=null?x.value:null;}
 function pill(e){const host=e.el;if(!host)return null;if(!e.__pill||!e.__pill.isConnected){if(getComputedStyle(host).position==='static')host.style.position='relative';
     const d=document.createElement('div');d.className='v83-tpill';d.hidden=true;host.appendChild(d);e.__pill=d;}return e.__pill;}
@@ -16034,25 +16006,20 @@ function showPill(e,t){const d=pill(e);if(!d)return;if(t==null||axisShown(e)){d.
   if(x==null){const r=refSeries(e),F=r&&r.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<=t)a=m+1;else b=m;}const q=F[Math.max(0,a-1)];if(q)try{x=e.chart.timeScale().timeToCoordinate(q.time);}catch(z){}}   // no bar at exactly that time: nearest earlier bar
   if(x==null){d.hidden=true;return;}const tf=(e.__tf||0);d.textContent=fmtT(t,tf>=86400);d.hidden=false;
   // on the hairline, at the bottom of the plot (where a time axis label would be), never under the price scale
-  let ps=0;try{ps=e.chart.priceScale('right').width()||0;}catch(z){}const tl=d.textContent.length;if(d.__tl!==tl||!d.__w){d.__tl=tl;d.__w=d.offsetWidth||96;}const w=d.__w,max=(e.__cw&&performance.now()-e.__cwAt<1000?e.__cw:(e.__cwAt=performance.now(),e.__cw=e.el.clientWidth))-ps-w;
+  let ps=0;try{ps=e.chart.priceScale('right').width()||0;}catch(z){}const w=d.offsetWidth||96,max=e.el.clientWidth-ps-w;
   d.style.left=Math.max(0,Math.min(max,x-w/2))+'px';d.style.top='';d.style.bottom='2px';}
 function tfOf(e){const r=refSeries(e);if(!r)return 0;const F=r.full;if(!F||F.length<3)return 0;return Math.abs(F[F.length-1].time-F[F.length-2].time);}
 function hook(e){if(hooked.has(e.chart))return;const g=groupOf(e.el);if(!g)return;hooked.add(e.chart);
   try{e.chart.applyOptions({crosshair:{vertLine:{labelVisible:true}}});}catch(x){}
-  e.chart.subscribeCrosshairMove(p=>{if(syncing)return;if(p&&p.point&&!p.sourceEvent)return;   /* v135: a series restyle re-fires the last crosshair spot (no mouse behind it): it used to drag every chart's crosshair to that old bar each tick */
-    XQ.e=e;XQ.g=g;XQ.t=p&&p.time!=null?p.time:null;if(!XQ.raf)XQ.raf=requestAnimationFrame(flushX);});}
-/* v135: one crosshair pass per frame (a mouse sends several moves a frame, each one restyled every chart), with the list of
-   charts in a group cached for half a second (checking visibility forced a page layout per chart per move) */
-const XQ={e:null,g:null,t:null,raf:0},GL={};
-function members(g){const now=performance.now(),c=GL[g];if(c&&now-c.at<500)return c.list;const R=W.__lwcReg,list=[];for(const o of R.charts)if(groupOf(o.el)===g&&vis(o.el))list.push(o);GL[g]={at:now,list};return list;}
-function flushX(){XQ.raf=0;const e=XQ.e,g=XQ.g,t=XQ.t;if(!e)return;syncing=true;
-    try{for(const o of members(g)){o.__tf=o.__tf||tfOf(o);
+  e.chart.subscribeCrosshairMove(p=>{if(syncing)return;syncing=true;
+    try{const t=p&&p.time!=null?p.time:null;const R=W.__lwcReg;
+      for(const o of R.charts){if(groupOf(o.el)!==g||!vis(o.el))continue;o.__tf=o.__tf||tfOf(o);
         if(o===e){showPill(o,t);continue;}   // the chart under the cursor shows its own date/time too
         if(t==null){try{o.chart.clearCrosshairPosition();}catch(x){}showPill(o,null);continue;}
-        showPill(o,t);const r=refSeries(o);if(!r)continue;const q=barAt(r,t);   /* v135: snap to this chart's own bar at or before t (its bars can be 5 m while the BTC chart is 1 m) */
-        try{if(q)o.chart.setCrosshairPosition(q.v,q.t,r.s);else o.chart.clearCrosshairPosition();}catch(x){}}
+        showPill(o,t);const r=refSeries(o);if(!r)continue;const v=valAt(r,t);
+        try{o.chart.setCrosshairPosition(v!=null?v:0,t,r.s);}catch(x){}}
       if(g==='btc')sizeAt(t);
-    }catch(x){}syncing=false;}
+    }catch(x){}syncing=false;});}
 function sweep(){const R=W.__lwcReg;if(!R)return;for(const e of R.charts){try{hook(e);}catch(x){}}}
 setInterval(sweep,2000);setTimeout(sweep,1500);
 
@@ -20208,7 +20175,7 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',go);else go();
    touched the chart for 5 s, the view slides back so the newest candle is near the right edge (same zoom, or tighter
    when fewer candles are loaded than the zoom would show). Replay and Go-to are left alone. */
 (function(){var D=document,last=0;
-['pointerdown','touchstart','wheel'].forEach(function(ev){addEventListener(ev,function(e){try{if(e.target&&e.target.closest&&e.target.closest('#chartp,#charts'))last=Date.now();}catch(x){}},{passive:true,capture:true});});
+['pointerdown','touchstart','wheel'].forEach(function(ev){addEventListener(ev,function(e){try{if(e.target&&e.target.closest&&e.target.closest('#chartp'))last=Date.now();}catch(x){}},{passive:true,capture:true});});
 function fix(){try{if(D.hidden||Date.now()-last<5000)return;if(window.__lwcReg&&window.__lwcReg.on)return;if(D.body.classList.contains('rp-on'))return;
   var m=window.paChart&&window.paChart(),s=window.__gexSeries;if(!m||!s)return;var n=s.data().length;if(n<10)return;
   var ts=m.timeScale(),r=ts.getVisibleLogicalRange();if(!r)return;var w=r.to-r.from,over=r.to-(n-1);
@@ -20433,7 +20400,7 @@ function stripFor(S,t,c){const ch=t.chart;
 function analyse(){const T=targets(),byK={};
   for(const t of T){let S=ST.get(t.chart);if(!S){S={};ST.set(t.chart,S);}S.t=t;const c=closed(t.ser);S.c=c;if(!c){S.res=null;continue;}
     const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(S.key!==key){S.key=key;S.res=boxes(c);}
-    if(t.k==='iv')stripFor(S,t,c);byK[t.k]=S;}for(const [ch,S0] of ST)if(!T.some(x=>x.chart===ch)){S0.c=null;S0.res=null;S0.key=null;}   // v135: hidden panes do not vote with stale data · v123: Speed strip only under IV
+    if(t.k==='iv')stripFor(S,t,c);byK[t.k]=S;}   // v123: Speed strip only under IV
   // IV breaks → signals
   const iv=byK.iv,out={sell:null,exit:null,events:[]};
   if(iv&&iv.res){const c=iv.c,u=iv.res.u;
@@ -20453,7 +20420,7 @@ let SIG={events:[]};
 function chip(x,y,rgb,t1,t2,dark,below,big){return `<div class="v115c" style="left:${Math.max(3,x-14)}px;top:${below?y+9:y-27}px;border-color:rgba(${rgb},${big?1:.75})"><b style="color:rgb(${rgb});font-size:${big?9.5:8.5}px">${t1}</b>${t2?`<span>${t2}</span>`:''}</div>`;}
 function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(!bx||!bx.clientWidth)return;
   let ov=S.ov;if(!ov||!ov.isConnected){ov=D.createElement('div');ov.className='v115ov';bx.appendChild(ov);S.ov=ov;}
-  if(!S.res||!S.c||t.k!=='iv'){if(ov.__h!==''){ov.__h='';ov.innerHTML='';}return;}   // v124: break boxes only on IV (Range keeps its London session box from v118)
+  if(!S.res||!S.c||t.k!=='iv'){ov.innerHTML='';return;}   // v124: break boxes only on IV (Range keeps its London session box from v118)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,c=S.c;
   const X=i=>{const v=ts.timeToCoordinate(c[i].time);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
   let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
@@ -20479,7 +20446,7 @@ function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(
 let raf=0,until=0;function frame(){raf=0;for(const S of ST.values())try{draw(S);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
 function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
 for(const ev of ['touchend','pointerup','wheel'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);setTimeout(redraw,3200);},{passive:true,capture:true});
-setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
+setInterval(()=>{if(!D.hidden)redraw();},1000);
 /* v117: the vol charts (IV · RV · VoV · DVOL) share one right-axis width, so their candles line up under each other */
 function sameAxis(){try{let P=typeof panes!=='undefined'?panes:null;if(!P)return;for(const p of P){if(!p||!p.chart)continue;const box=D.getElementById('pane'+p.i);if(!box||!box.classList.contains('on'))continue;
   const cs=[p.chart,p.rvMode==='panel'?p.rvChart:null,p.vovChart,W.__dvCharts&&W.__dvCharts[p.i]&&W.__dvCharts[p.i].chart].filter(Boolean);let w=0;
@@ -20512,7 +20479,7 @@ function railExtras(R,x,y,Wd,H,now,pane){if(!R||!R.pts||R.pts.length<8)return {s
   if(bars){const one=sy+6+sh-sh/1.6;s+=`<text x="2" y="${sy}" font-size="7.5" font-weight="700" fill="var(--muted)" font-family="var(--font)" letter-spacing=".08em">SPEED VS IV</text><line x1="0" x2="${Wd}" y1="${one.toFixed(1)}" y2="${one.toFixed(1)}" stroke="rgba(227,174,69,.85)" stroke-dasharray="3 3"/>`+bars;}
   return {svg:s,h:bars?sy+6+sh+2-H:0};}
 /* ---------- Trap check ---------- */
-function trap(){const iv=[...ST.values()].find(S=>S.t&&S.t.k==='iv'&&S.c),now=Date.now()/1000+IST_S;
+function trap(){const iv=[...ST.values()].find(S=>S.t&&S.t.k==='iv'),now=Date.now()/1000+IST_S;
   let pos=false;try{pos=!!(W.v18&&W.v18.lab&&W.v18.lab().cur);}catch(e){}
   const s=SIG.sell,peak=!!(s&&s.ok&&s.st==='real'&&now-s.sec<8*3600&&!(SIG.exit&&SIG.exit.sec>s.sec&&SIG.exit.st!=='fake'));
   let paid=null,pane=iv?iv.t.pi:masterPane();{let sum=0,n=0;for(let j=1;j<=4;j++){const v=speedAt(now-j*900,pane);if(v!=null){sum+=v;n++;}}if(n)paid=sum/n;}
@@ -20602,7 +20569,7 @@ function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentEleme
   if(t.k!=='iv'&&t.k!=='rng'){if(ov.__h!==''){ov.__h='';ov.innerHTML='';}return;}   // v123: sessions only on IV (lines) and Range (boxes)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,H=t.el.clientHeight,Wd=t.el.clientWidth;
   const X=tm=>{const v=ts.timeToCoordinate(tm);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
-  const c=S.c,ses=S.__ses118||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
+  const c=S.c,ses=ST[t.k]&&ST[t.k].ses||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
   const xAt=tm=>{const i=idxAt(c,tm);if(i<0)return null;const x=X(c[i].time);return x;};
   const main=t.k==='iv';let h='';
   const clampX=x=>Math.max(ox,Math.min(ox+Wd,x));
@@ -20645,16 +20612,16 @@ function ivLines(S){const ch=S.t.chart,c=S.c;if(!c||c.length<10)return;let L=LN[
   try{L.ma.setData([]);}catch(e){}   // v123: coloured 1-hour line removed (older, untested rule); the 1st–2nd red candles decide
   const med=median3d(c);if(med!=null){try{if(!L.medLine)L.medLine=S.t.ser.createPriceLine({price:med,color:'rgba(227,174,69,.9)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'3-day median'});else L.medLine.applyOptions({price:med});}catch(e){}}}
 /* ---------- loop ---------- */
-function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=X.__ses118=sessions(X.c);ST[k].S=X;
+function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=sessions(X.c);ST[k].S=X;
     if(k==='iv'){ST.iv.sig=ivSignal(X.c,ST.iv.ses);try{ivLines(X);}catch(e){}if(ST.iv.sig&&ST.iv.sig.sell)ST.iv.sig.agree=others(ST.iv.sig.sell.t);}}
-  if(ST.iv&&ST.iv.sig&&ST.iv.S&&ST.iv.S.c&&ST.iv.S.c.length){const s=ST.iv.sig,last=ST.iv.S.c[ST.iv.S.c.length-1];s.agreeNow=others(last.time);}}
+  if(ST.iv&&ST.iv.sig){const s=ST.iv.sig,last=ST.iv.S.c[ST.iv.S.c.length-1];s.agreeNow=others(last.time);}}
 let raf=0,until=0;function frame(){raf=0;const S=W.v115&&W.v115.__st;if(S)for(const X of S.values())try{draw(X);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
 function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
 const subd=new WeakSet();
 function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v118',e);}
   const S=W.v115&&W.v115.__st;if(S)for(const X of S.values()){const ch=X.t&&X.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}
   redraw();}
-setInterval(tick,3000);setTimeout(tick,4500);setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
+setInterval(tick,3000);setTimeout(tick,4500);setInterval(()=>{if(!D.hidden)redraw();},1000);
 for(const ev of ['touchend','pointerup','wheel'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
 /* ---------- NY check (replaces the Trap check line in the NY window; outside it: Falling · IV high · Others agree) ---------- */
 function check(){const s=ST.iv&&ST.iv.sig;if(!s)return W.v115&&W.v115.__trap0?W.v115.__trap0():'';
@@ -20799,7 +20766,7 @@ function events(F){let L=[];try{L=typeof EV_FIXED!=='undefined'?EV_FIXED:[];}cat
   return out.sort((a,b)=>a.t-b.t);}
 /* ---------- the read ---------- */
 function read(now){const F=frame(now),s=series(F.n2n),R={F,now};
-  R.sat=F.dow===6;R.thu=F.dow===4;R.ev=events(F);R.evNext=R.ev.find(e=>e.ok>now)||null;
+  R.sat=F.dow===6||F.dow===0;R.sun=F.dow===0;R.fri=F.dow===5;R.thu=F.dow===4;R.ev=events(F);R.evNext=R.ev.find(e=>e.ok>now)||null;
   R.inNY=now>=F.open&&now<F.end;R.mins=(now-F.open)/MIN;
   R.iv=liveAtm(F.n2n);R.cur=liveAtm(F.cur);
   if(s){const pre=med(within(s,F.open-75*MIN,F.open-15*MIN));R.pre=pre;
@@ -20810,11 +20777,11 @@ function read(now){const F=frame(now),s=series(F.n2n),R={F,now};
     R.vov=vov(s,now);R.iv15=at(s,now-15*MIN);
     const a=F.listing+3*HR;if(now>=a+30*MIN){const ivA=med(within(s,a,a+30*MIN));let ck=null;try{ck=W.v89&&W.v89.clockIv?W.v89.clockIv(ivA,a,now,F.settle):null;}catch(x){}R.clock=fin(ck)?ck:null;R.tonight=R.clock!=null&&R.iv!=null?R.iv-R.clock:null;}else R.tonightWait=a+30*MIN;}
   if(R.cur!=null&&R.iv!=null&&R.iv>0)R.term=(R.cur-R.iv)/R.iv*100;
-  const cl=btcCloses(now,10*60+10);if(cl&&R.iv){R.rv6=rvOver(cl,now,360);R.rv6h1=rvOver(cl,now-HR,360);R.rv6pk=Math.max(...[0,30,60,90,120,150,180,210,240].map(m=>rvOver(cl,now-m*MIN,360)||0));
+  const cl=btcCloses(now,7*60+10);if(cl&&R.iv){R.rv6=rvOver(cl,now,360);R.rv6h1=rvOver(cl,now-HR,360);R.rv6pk=Math.max(...[0,30,60,90,120,150,180,210,240].map(m=>rvOver(cl,now-m*MIN,360)||0));
     const sp=t=>{const r=rvOver(cl,t,60),iv=at(s,t)||R.iv;return r!=null&&iv?r/iv:null;};R.speed=sp(now);let mx=null;for(let m=15;m<=120;m+=15){const v=sp(now-m*MIN);if(v!=null)mx=mx==null?v:Math.max(mx,v);}R.speedMax2h=mx;}
   try{const V=W.v105;if(V){const e=V.edgeAt?V.edgeAt(now):null,r=V.rangeAt?V.rangeAt(now):null;R.edge=fin(e)?e:null;R.range=fin(r)?r:null;}}catch(x){}
   try{R.imp=W.impulseRead?W.impulseRead():null;}catch(x){}
-  try{const L=W.v18&&W.v18.lab?W.v18.lab():null,c=L&&L.cur;if(c&&c.last&&c.last.legs){R.pos=c;R.legs=c.last.legs.map(l=>({type:l.type,x:fin(l.entry)&&l.entry>0&&fin(l.mark)?l.mark/l.entry:null}));}}catch(x){}
+  try{const L=W.v18&&W.v18.lab?W.v18.lab():null,c=L&&L.cur;if(c&&c.last&&c.last.legs){R.pos=c;try{if(c.openedAt&&s){const v=at(s,c.openedAt);R.ivEntry=v!=null?v:null;}}catch(x){}R.legs=c.last.legs.map(l=>({type:l.type,x:fin(l.entry)&&l.entry>0&&fin(l.mark)?l.mark/l.entry:null}));}}catch(x){}
   return judge(R);}
 /* ---------- the verdict ---------- */
 function judge(R){const F=R.F,now=R.now,K=(W.__rule&&W.__rule())||{offLo:1.5,offHi:6,spd:1.5,edge:3,range:1};   // v126: thresholds can be tuned from the rule check (Apply)
@@ -20829,16 +20796,24 @@ function judge(R){const F=R.F,now=R.now,K=(W.__rule&&W.__rule())||{offLo:1.5,off
   const full=R.term!=null&&R.term>0&&(R.spike==null||R.spike<=2)&&R.nConf>=2;R.size=full?'FULL':'HALF';
   let v='WAIT',cls='a',why='';
   if(R.pos){const L=(R.legs||[]).filter(l=>l.x!=null),mx=L.length?Math.max(...L.map(l=>l.x)):null;R.legMax=mx;
-    const late=now>=F.D0+26.5*HR&&now<F.exit,newHi=R.nyHigh!=null&&R.iv!=null&&R.iv>R.nyHigh+0.2&&R.iv15!=null&&R.iv>R.iv15;
+    const xT=R.fri?F.D0+39*HR:F.exit;   // v136: Friday (weekend) trades plan Sat 15:00
+    const late=now>=F.D0+26.5*HR&&now<xT,newHi=R.nyHigh!=null&&R.iv!=null&&R.iv>R.nyHigh+0.2&&R.iv15!=null&&R.iv>R.iv15;
     if(mx!=null&&mx>=2){v='EXIT · leg 2×';cls='r';}
     else if(R.imp&&R.imp.ok&&R.imp.st===3){v='EXIT · Impulse';cls='r';}
     else if(late&&newHi){v='EXIT · IV new high';cls='r';}
-    else if(now>=F.exit&&now<F.exit+10*HR){v='BOOK NOW · 07:00 passed';cls='a';}
-    else{v='HOLD · book 07:00';cls='g';}
+    else if(now>=xT&&now<xT+10*HR){v='BOOK NOW · '+(R.fri?'Sat 15:00':'07:00')+' passed';cls='a';}
+    else if(R.fri&&now>=F.exit&&R.ivEntry!=null&&R.iv!=null&&R.iv>R.ivEntry){v='EXIT 07:00 · IV above entry';cls='r';}
+    else{v=R.fri?'HOLD · plan Sat 15:00 (07:00 if IV above entry)':'HOLD · book 07:00';cls='g';}
     R.verdict={v,cls,why};return R;}
-  if(R.sat&&now>=F.D0+12*HR&&now<F.exit){v='NO TRADE · Saturday';cls='r';}
+  if(R.sat&&now>=F.D0+12*HR&&now<F.exit){v='NO TRADE · '+(R.sun?'Sunday':'Saturday');cls='r';}
   else if(!R.inNY){v=now<F.open?'WAIT · NY opens '+hm(F.open):'NY window over';cls='n';}
   else if(R.evNext&&now<R.evNext.ok){v='WAIT · '+R.evNext.code+' '+hm(R.evNext.t)+' → sell after '+hm(R.evNext.ok);cls='a';}
+  else if(R.fri){const dF=R.iv!=null&&R.iv<25?0.10:0.12,ft=dF.toFixed(2)+'Δ';R.delta=dF;R.dPut=Math.min(R.dPut,dF);   // v136: Friday weekend entry — tested: sell 60–120 min after the open, waiting for IV off its high costs the weekend fall
+    if(R.mins<60){v='WAIT · Fri window opens '+hm(F.open+60*MIN);cls='a';}
+    else if(R.iv==null){v='WAIT · IV loading';cls='n';}
+    else if(R.speed!=null&&R.speed>=K.spd){v='WAIT · BTC fast (Speed '+R.speed.toFixed(1)+'×)';cls='a';}
+    else if(R.mins>150){v='LATE · HALF · Fri · '+ft;cls='a';R.size='HALF';}
+    else{v='SELL · FRIDAY · '+ft;cls='g';}}
   else if(R.mins<60){v='WAIT · 1st hour';cls='a';}
   else if(R.iv==null||R.nyHigh==null){v='WAIT · IV loading';cls='n';}
   else if(R.spike!=null&&R.spike<=0){v='WAIT · no NY spike';cls='a';}
@@ -20917,7 +20892,7 @@ function pill(R){const el=$('ph89');if(!el)return;let t='',c='a';const F=R.F,now
   if(!tag){tag=D.createElement('b');el.appendChild(tag);}tag.className='v121ph '+c;if(tag.textContent!==t)tag.textContent=t;}
 function tick(){if(D.hidden)return;let R=null;try{R=read(Date.now());}catch(e){console.warn('v121 read',e);return;}
   W.v121.last=R;try{pill(R);}catch(e){}
-  const pg=$('pgDesk'),dp=$('pgDecision');if(pg&&!pg.classList.contains('on')&&!(dp&&dp.classList.contains('on')))return;   /* v135: the board lives on the Decision page too */
+  const pg=$('pgDesk');if(pg&&!pg.classList.contains('on'))return;
   const el=mount();if(!el)return;let h='';try{h=board(R);}catch(e){console.warn('v121 board',e);return;}if(h!==html){html=h;el.innerHTML=h;}}
 /* term chip on the N2N chart header (renderPaneMeta calls this) */
 function termChip(e){try{const F=frame(Date.now());if(e!==F.n2n)return null;const c=liveAtm(F.cur),n=liveAtm(F.n2n);if(c==null||n==null)return null;const t=(c-n)/n*100;
@@ -21086,7 +21061,7 @@ function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=reques
 const subd=new WeakSet();
 function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v122',e);}
   for(const S of ST.values()){const ch=S.t&&S.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}redraw();}
-setInterval(tick,3000);setTimeout(tick,5000);setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
+setInterval(tick,3000);setTimeout(tick,5000);setInterval(()=>{if(!D.hidden)redraw();},1000);
 for(const ev of ['touchend','pointerup','wheel','resize'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
 W.v122={tick,__st:ST,__test:{ivA,vovA,rvA,dvA,rd}};
 })();
@@ -21309,7 +21284,7 @@ function evaluate(data){const {nights,ivOnly}=data,K=CFG,rows=[];
 /* ---------- run (daily, after the 07:00 book) ---------- */
 let RUN=null,DATA=null,busy=false,prog='';
 async function runCheck(force){if(busy)return;const now=Date.now(),last=LSg('v126_check',null),today=dk(now),h=(now+IST)%DAY/HR;
-  if(!force&&last&&last.day===today&&((last.at||0)+IST)%DAY/HR>=7.08)return;if(!force&&h<7.08)return;if(!FN()||!W.v121.frame)return;
+  if(!force&&last&&last.day===today)return;if(!force&&h<7.08)return;if(!FN()||!W.v121.frame)return;
   busy=true;prog='loading archive…';render();
   try{DATA=await loadNights((i,n)=>{prog=`reading night ${i} of ${n}…`;render();});prog='testing…';render();await new Promise(r=>setTimeout(r,30));
     RUN=evaluate(DATA);const keep=Object.assign({},RUN);LSs('v126_check',keep);}
@@ -21353,7 +21328,7 @@ function tradesHtml(){const L=LSg('v99_trades',[])||[],cur=LSg('v99_trade',null)
   if(!all.length)return `<details id="v126t"><summary>My trades · from Delta fills <span class="v6m">none logged yet · connect the Delta key in Settings (read-only)</span></summary><p class="v6nt">Each trade the desk sees in your fills is kept here with the readings at its entry minute.</p></details>`;
   const N=DATA&&DATA.nights?new Map(DATA.nights.map(n=>[n.d,n])):null;
   const rowOf=x=>{const t=x.openedAt,cr=(x.fills||[]).reduce((a,f)=>a+(f.cr||0)*(f.lots||0),0),lots=(x.fills||[]).reduce((a,f)=>a+(f.lots||0),0);let rd='';
-    if(N&&t){const F=W.v121.frame(t),n=N.get(dk(F.D0+12*HR));if(n){const tm=Math.floor(t/MIN)*MIN,RC=n.rc||(n.rc=new Map());if(!RC.has(tm))RC.set(tm,readAt(tm,F,n.s,n.sc,n.cl));const R=RC.get(tm);if(R){const ok=R.offPct!=null&&R.offPct>=CFG.offLo&&R.offPct<=CFG.offHi&&R.reds>=1&&R.reds<=2;
+    if(N&&t){const F=W.v121.frame(t),n=N.get(dk(F.D0+12*HR));if(n){const R=readAt(Math.floor(t/MIN)*MIN,F,n.s,n.sc,n.cl);if(R){const ok=R.offPct!=null&&R.offPct>=CFG.offLo&&R.offPct<=CFG.offHi&&R.reds>=1&&R.reds<=2;
       rd=[['IV turn',ok],['VoV',R.cVov],['Speed',R.cSpd],['Tonight',R.cTon],['Term',R.term!=null?R.term>0:null]].map(([l,v])=>`${v===true?'✓':v===false?'✕':'·'} ${l}`).join(' · ');}}}
     if(!rd)rd='<span style="color:var(--muted)">readings after the next rule check</span>';
     return `<tr><td class="v6n">${t?dk(t):'—'}</td><td class="v6n">${t?hm(t):'—'}</td><td class="v6n">${x.Kc||'—'} C / ${x.Kp||'—'} P</td><td class="v6n">${lots?lots+' lots':''}${cr?' · $'+Math.round(cr):''}</td><td>${rd}</td><td class="v6n">${x.open?'open':x.closedAt?hm(x.closedAt):'—'}</td><td class="v6n">${fin(x.pnlUsd)?(x.pnlUsd>=0?'+':'')+'$'+x.pnlUsd.toFixed(2):'—'}</td></tr>`;};
@@ -21413,12 +21388,15 @@ body.charts-row #charts .pane.on>.v127-off.v127-off,#charts .pane>.v127-off.v127
 (function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);
 const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const LIST=[['spd','Speed vs IV','RV ÷ IV bars · 1× and 1.5× lines','btc'],['edge','Edge','IV − expected RV · above +3 = too quiet','btc'],['rng','Range 24H','24 h move ÷ DVOL day move · 1–2× good','btc'],
-  ['adx','ADX 14','trend strength · +DI / −DI','btc'],['iv','ATM IV','candles of the chosen expiry · SELL zone','vol'],['rv','Realised vol (RV)','6 h RV · 4 h high · peaked & falling','vol'],
+  ['adx','ADX 14','trend strength · +DI / −DI','btc'],['ready','Entry · Hold · Exit','tested rules + the day\'s own rule: green entry · amber IV only · blue hold · red exit','btc'],['iv','ATM IV','candles of the chosen expiry · SELL zone · Friday path','vol'],['rv','Realised vol (RV)','1 h RV (area) and 6 h RV (dashed) · falling = good','vol'],
   ['vov','Vol of vol (VoV)','turned down ✓ / spiking','vol'],['dv','DVOL','Deribit 30-day index · pre-NY band','vol'],['ton','Tonight','IV vs the clock path · from 21:00','rail'],
   ['gex','Dealer gamma','γ flip · call / put walls · flows line · profile on the BTC chart','btc'],
+  ['term','Term spread','Current − N2N · Next − N2N · forward vol · tested: Current above N2N → IV fell 85%','btc'],['skew','25Δ skew','risk reversal of the master expiry · puts rich = put-leg danger','btc'],
+  ['fund','Funding + OI','Delta perp funding (a year) + open interest · crowding gauge','btc'],['liq','Liquidations','OKX BTC swaps, last 15 min · alarm badge on the BTC chart','btc'],
+  ['strk','Strikes + expected move','your strangle (or tonight\'s suggested) strikes and the ±1σ band to expiry on the BTC chart','btc'],['legs','Leg multiple','call × and put × vs the 2× stop · only while a trade is open','btc'],
   ['sig','Entry signals','tested N2N playbook · SELL / EXIT marks on the BTC chart','btc'],['pat','Chart patterns','head & shoulders · double top / bottom · BOS / CHoCH','btc'],['cdl','Candle patterns','engulfing · hammer · star labels on candles','btc']];
-const IND={spd:()=>$('cvLane'),edge:()=>$('v105EdgeBox'),rng:()=>$('v105RangeBox'),adx:()=>$('paAdxBox')};
-const DEF={spd:true,edge:false,rng:false,adx:false,iv:true,rv:false,vov:false,dv:false,ton:false,gex:false,sig:true,pat:true,cdl:false};   // v133: a clean first screen; tick more in the menu
+const IND={spd:()=>$('cvLane'),edge:()=>$('v105EdgeBox'),rng:()=>$('v105RangeBox'),adx:()=>$('paAdxBox'),term:()=>$('v137Term'),skew:()=>$('v137Skew'),fund:()=>$('v137Fund'),ready:()=>$('v138Ready'),iv:()=>$('v138Iv'),rv:()=>$('v138Rv'),vov:()=>$('v138Vov'),dv:()=>$('v138Dv')};   // v137: new lanes
+const DEF={spd:true,edge:false,rng:false,adx:false,iv:true,rv:false,vov:false,dv:false,ton:false,gex:false,sig:true,pat:true,cdl:false,term:true,skew:false,fund:false,liq:false,ready:true,strk:true,legs:true};   // v133: a clean first screen; tick more in the menu
 let on=Object.assign({},DEF,LSg('v133_ind',{}));
 function save(){LSs('v133_ind',on);}
 function refit(){try{W.paRefit&&W.paRefit();}catch(e){}setTimeout(()=>{try{W.dispatchEvent(new Event('resize'));}catch(e){}},60);setTimeout(()=>{try{W.v128&&W.v128.refit&&W.v128.refit();}catch(e){}},700);}
@@ -21452,10 +21430,10 @@ function apply(force){D.body.dataset.v127='1';D.body.dataset.gpane='none';let ch
   for(const k in IND){const el=IND[k]();if(el&&on[k]&&el.classList.contains('v80-hide')){el.classList.remove('v80-hide');ch=true;}}   // the old Panes menu could still be hiding it
   if(W.__v133Gex!==!!on.gex){W.__v133Gex=!!on.gex;D.body.classList.toggle('v133-gex',!!on.gex);ch=true;}else D.body.classList.toggle('v133-gex',!!on.gex);
   try{W.v133&&W.v133.fit&&W.v133.fit();}catch(e){}
-  if(force||!layers.done)try{layers();}catch(e){}try{W.v134sig&&W.v134sig.enable(!!on.sig);}catch(e){}
+  try{layers();}catch(e){}try{W.v134sig&&W.v134sig.enable(!!on.sig);}catch(e){}
   count();if(ch||force)refit();}
 /* v134: pattern items drive the price-action layers (same buttons as the old layer menu) */
-function layers(){const want={charts:!!on.pat,struct:!!on.pat,candles:!!on.cdl};let n=0;for(const k in want){const b=D.querySelector('.pa-tg[data-k="'+k+'"]');if(!b)continue;n++;if((b.getAttribute('aria-pressed')==='true')!==want[k])b.click();}if(n===3)layers.done=1;}   /* v135: once, then the Layers menu is yours */
+function layers(){const want={charts:!!on.pat,struct:!!on.pat,candles:!!on.cdl};for(const k in want){const b=D.querySelector('.pa-tg[data-k="'+k+'"]');if(b&&(b.getAttribute('aria-pressed')==='true')!==want[k])b.click();}}
 function tick(){try{button();apply(false);}catch(e){console.warn('v132 ind',e);}}
 setTimeout(tick,600);setTimeout(tick,2000);setInterval(()=>{if(!D.hidden)tick();},2500);addEventListener('resize',()=>setTimeout(()=>apply(false),200));
 W.v127={tick,state:()=>({on})};W.v132ind={open:openMenu,state:()=>on,apply};})();
@@ -21506,10 +21484,10 @@ function controls(t){const host=t.lane?t.el:t.el.parentElement;if(!host)return;l
     z.addEventListener('pointerdown',e=>e.stopPropagation());
     z.addEventListener('click',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.preventDefault();e.stopPropagation();const a=b.dataset.z,T=z.__t;if(!T)return;
       /* the BTC chart leads Edge/Range/ADX/Speed; the IV chart leads RV/VoV/DVOL of its pane (they follow it) */
-      const M=MASTER.has(T.k)||!!W.__v135lock,L=M?null:(T.k==='iv'?T:(ivOf(T.pi)||T)),ch=M?master():L.chart;   /* v135: every chart follows the BTC chart */
-      if(a==='in')zoom(ch,0.7);else if(a==='out')zoom(ch,1/0.7);else{if(M)fitMaster();else{fit(L.chart,L.ser);if(L!==T)fit(T.chart,T.ser);}}});}
+      const L=MASTER.has(T.k)?null:(T.k==='iv'?T:(ivOf(T.pi)||T)),ch=MASTER.has(T.k)?master():L.chart;
+      if(a==='in')zoom(ch,0.7);else if(a==='out')zoom(ch,1/0.7);else{if(MASTER.has(T.k))fitMaster();else{fit(L.chart,L.ser);if(L!==T)fit(T.chart,T.ser);}}});}
   z.__t=t;let ps=64;try{if(t.chart)ps=t.chart.priceScale('right').width()||64;}catch(e){}const r=(t.lane?8:ps+8)+'px';if(z.style.right!==r)z.style.right=r;
-  if(!MASTER.has(t.k)&&t.chart&&!W.__v135lock){const st=FIT.get(t.chart)||{n:0,user:false,at:0};if(!FIT.has(t.chart)){FIT.set(t.chart,st);const h=t.el.parentElement;if(h)for(const ev of ['pointerdown','wheel','touchstart'])h.addEventListener(ev,e=>{if(!e.target.closest('.v128z'))st.user=true;},{passive:true});}
+  if(!MASTER.has(t.k)&&t.chart){const st=FIT.get(t.chart)||{n:0,user:false,at:0};if(!FIT.has(t.chart)){FIT.set(t.chart,st);const h=t.el.parentElement;if(h)for(const ev of ['pointerdown','wheel','touchstart'])h.addEventListener(ev,e=>{if(!e.target.closest('.v128z'))st.user=true;},{passive:true});}
     /* fit when data first arrives, and again while the history is still filling in (the desk re-sets the range as it loads) — until you touch the chart */
     const n=bars(t.ser).length;if(!st.user&&n>=20&&(st.n===0||n>st.n*1.3)&&Date.now()-st.at>1500){if(fit(t.chart,t.ser)){st.n=n;st.at=Date.now();}}}}
 function lines(){let P=null;try{P=typeof panes!=='undefined'?panes:null;}catch(e){}if(!P)return;
@@ -21518,7 +21496,7 @@ function lines(){let P=null;try{P=typeof panes!=='undefined'?panes:null;}catch(e
 function tick(){if(D.hidden)return;try{lines();for(const t of targets())controls(t);}catch(e){console.warn('v128',e);}}
 setTimeout(tick,1500);setTimeout(tick,4000);setInterval(tick,2500);
 addEventListener('resize',()=>setTimeout(tick,300));
-function refit(){if(W.__v135lock)return;for(const t of targets()){if(MASTER.has(t.k)||!t.chart)continue;const st=FIT.get(t.chart);if(st&&st.user)continue;fit(t.chart,t.ser);}}
+function refit(){for(const t of targets()){if(MASTER.has(t.k)||!t.chart)continue;const st=FIT.get(t.chart);if(st&&st.user)continue;fit(t.chart,t.ser);}}
 W.v128={tick,fit,zoom,refit};})();
 </script>
 <style id="v130Css">
@@ -21728,27 +21706,25 @@ const dk=ms=>new Date(ms+IST).toISOString().slice(0,10),hm=ms=>new Date(ms+IST).
 D.body.classList.add('v133');
 /* ---------- fit the Trade page to the window ---------- */
 function fit(){if(innerWidth<=760||D.body.classList.contains('gfs'))return clear();const top=$('v22Top'),cp=$('chartp'),pg=$('paneG');if(!top||!cp||!pg||!$('pgDesk')||!$('pgDesk').classList.contains('on'))return;
-  const on=(W.v132ind&&W.v132ind.state&&W.v132ind.state())||{};const vols=['iv','rv','vov','dv'].filter(k=>on[k]);
-  const fk=innerWidth+'x'+innerHeight+'|'+JSON.stringify(on);if(fit.k!==fk){fit.k=fk;fit.adj=0;}const y0=top.getBoundingClientRect().top+scrollY,H=Math.max(420,innerHeight-y0-20-(fit.adj||0));   /* v135: was 600, so a 768-px laptop always scrolled */
+  const on=(W.v132ind&&W.v132ind.state&&W.v132ind.state())||{};const vols=W.__v138?[]:['iv','rv','vov','dv'].filter(k=>on[k]);   // v138: vol charts live inside the one chart panel
+  const y0=top.getBoundingClientRect().top+scrollY,H=Math.max(600,innerHeight-y0-20-(fit.adj||0));
   // vol charts first: each gets a fixed, readable strip; the BTC block takes what is left
-  /* v135: the window is shared out so the BTC block and every picked vol chart fit on one screen (1 vol chart ≈ 30 %,
-     2 ≈ 44 %, 3 ≈ 52 %, 4 ≈ 56 % of the height); the page scrolls only when a chart would get too short to read */
-  const nV=vols.length,VG=14;let each=0;if(nV){const share=nV===1?0.30:nV===2?0.44:nV===3?0.52:0.56;each=Math.max(nV>=3?100:130,Math.min(260,Math.round((H*share-8)/nV-VG)));}
-  const volsH=nV?nV*(each+VG)+8:0;
+  const each=vols.length?Math.max(150,Math.min(240,Math.round(H*(vols.length>=3?0.17:vols.length===2?0.2:0.25)))):0;
+  const volsH=vols.length?vols.length*(each+2)+8:0;
   const hd=($('gTop')?$('gTop').offsetHeight:34)+($('gBot')?$('gBot').offsetHeight:24)+($('gTabs')&&$('gTabs').offsetHeight||0)+4;
-  const lanes=['cvLane','v105EdgeBox','v105RangeBox'].map($).filter(e=>e&&getComputedStyle(e).display!=='none');
+  const lanes=['cvLane','v138Iv','v138Rv','v138Vov','v138Dv','v105EdgeBox','v105RangeBox','v137Term','v137Skew','v137Fund','v138Legs'].map($).filter(e=>e&&getComputedStyle(e).display!=='none');
   const adx=$('paAdxBox'),adxOn=adx&&getComputedStyle(adx).display!=='none';const nL=lanes.length+(adxOn?1:0);
   // many ticks: the block grows (the page scrolls) instead of clipping a lane
-  const Hb=Math.max(H-volsH,hd+34+200+nL*84);
+  const extra=W.__v138X?W.__v138X(lanes):0;const Hb=Math.max(460,H-volsH,hd+34+300+nL*100+extra);
   set(cp,'height',Hb+'px');set(cp,'min-height',Hb+'px');set(cp,'max-height',Hb+'px');
   const ph=Hb-hd;set(pg,'height',ph+'px');set(pg,'min-height',ph+'px');set(pg,'max-height',ph+'px');
   // indicator lanes share at most ~45 % of the block, so the candles keep the larger part
-  const lh=nL?Math.max(84,Math.min(150,Math.floor((ph-34)*0.40/nL))):0;
-  for(const l of lanes){set(l,'height',lh+'px');set(l,'max-height',lh+'px');set(l,'flex','0 0 auto');set(l,'margin-top','0px');set(l,'margin-bottom','0px');}
-  clearTimeout(fit.c);fit.c=setTimeout(()=>{const over=D.documentElement.scrollHeight-innerHeight;if(over>0&&over<240&&(fit.adj||0)<240&&Hb===H-volsH){fit.adj=(fit.adj||0)+over;fit();}},700);
+  const lh=nL?Math.max(96,Math.min(150,Math.floor((ph-34)*0.45/nL))):0;
+  for(const l of lanes){const hh=W.__v138H?W.__v138H(l.id,lh):lh;set(l,'height',hh+'px');set(l,'max-height',hh+'px');set(l,'flex','0 0 auto');set(l,'margin-top','0px');set(l,'margin-bottom','0px');}
+  clearTimeout(fit.c);fit.c=setTimeout(()=>{const over=D.documentElement.scrollHeight-innerHeight;if(over>0&&over<240&&(fit.adj||0)<240){fit.adj=(fit.adj||0)+over;fit();}},700);
   D.querySelectorAll('#charts .pane.on').forEach(p=>{for(const [k,sel] of [['iv',':scope>.chart-box'],['rv',':scope>.rv-box'],['vov',':scope>.vov-box'],['dv',':scope>.dv-box']]){const el=p.querySelector(sel);if(!el)continue;if(on[k]){set(el,'height',each+'px');set(el,'min-height',each+'px');}}});}
 function set(el,p,v){if(el.style.getPropertyValue(p)!==v){el.style.setProperty(p,v,'important');clearTimeout(fit.t);fit.t=setTimeout(()=>{try{W.paRefit&&W.paRefit();W.dispatchEvent(new Event('resize'));}catch(e){}},80);}}
-function clear(){for(const id of ['paneG','chartp','cvLane','v105EdgeBox','v105RangeBox']){const e=$(id);if(e)for(const p of ['height','min-height','max-height','flex'])e.style.removeProperty(p);}D.querySelectorAll('#charts .pane>.chart-box,#charts .pane>.rv-box,#charts .pane>.vov-box,#charts .pane>.dv-box').forEach(e=>{e.style.removeProperty('height');e.style.removeProperty('min-height');});}
+function clear(){for(const id of ['paneG',...(W.__v138&&innerWidth<=760?[]:['chartp']),'cvLane','v105EdgeBox','v105RangeBox']){const e=$(id);if(e)for(const p of ['height','min-height','max-height','flex'])e.style.removeProperty(p);}}
 /* ---------- Decision page: notice, news, market context ---------- */
 function moves(){const dp=$('pgDecision');if(!dp)return;
   const fw=$('freshWarning');if(fw&&fw.parentElement!==dp){fw.classList.add('v133-moved');dp.insertBefore(fw,dp.firstChild);}
@@ -21841,6 +21817,7 @@ function hourly(){const M=new Map(),put=b=>{if(!b||!(b.h>0)||!(b.l>0))return;con
 function adxArr(){const H=hourly();if(H.length<50||typeof adxSeries!=='function')return null;return adxSeries(H,14);}
 function adxAt(A,t){if(!A)return null;let v=null;for(const p of A){if(p.t+HR<=t)v=p.v;else break;}return v;}
 /* ---------- replay the live verdict at time t ---------- */
+function ivAt(e,t){const a=candles[e];if(!a||!a.length)return null;const ts=Math.floor(t/1000);let lo=0,hi=a.length-1;if(a[0][0]>ts)return null;while(lo<hi){const m=(lo+hi+1)>>1;if(a[m][0]<=ts)lo=m;else hi=m-1;}const v=a[lo][4];return v>0?(v<5?v*100:v):null;}
 function cut(a,tSec){let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m][0]<=tSec)lo=m+1;else hi=m;}return a.slice(0,lo);}
 function readAt(t){const F=W.v121.frame(t),keep={},es=[F.n2n,F.cur];
   for(const e of es)if(candles[e]){keep[e]=candles[e];candles[e]=cut(keep[e],Math.floor(t/1000));}
@@ -21848,21 +21825,30 @@ function readAt(t){const F=W.v121.frame(t),keep={},es=[F.n2n,F.cur];
   try{rec.lastAtm=null;W.v18=null;R=W.v121.read(t);}catch(e){R=null;}
   finally{rec.lastAtm=kA;W.v18=k18;for(const e in keep)candles[e]=keep[e];}
   return R;}
-function compute(){if(!S.on)return;if(!W.v121||!W.v121.read||!W.v121.frame||typeof candles==='undefined'||typeof rec==='undefined')return;
-  const now=Date.now(),A=adxArr(),out=[],nights=new Set();
-  for(let d=0;d<4;d++){const F=W.v121.frame(now-d*DAY);if(nights.has(F.base))continue;nights.add(F.base);
+function compute(){if(!W.v121||!W.v121.read||!W.v121.frame||typeof candles==='undefined'||typeof rec==='undefined')return;
+  const now=Date.now(),A=adxArr(),out=[],nights=new Set(),grid=[];
+  for(let d=0;d<5;d++){const F=W.v121.frame(now-d*DAY);if(nights.has(F.base))continue;nights.add(F.base);if(F.dow===6||F.dow===0)continue;   // v136: no entries on Sat / Sun nights
     if(!candles[F.n2n]||!candles[F.n2n].length)continue;
     const Q=15*MIN,t0=Math.ceil((F.open+60*MIN)/Q)*Q,t1=Math.min(F.end,now);let entry=null,blocked=null;
     for(let t=t0;t<=t1;t+=Q){const R=readAt(t);if(!R||!R.verdict)continue;const v=R.verdict.v||'';
-      const ivOk=/^SELL/.test(v)||/^LATE · HALF/.test(v);if(!ivOk)continue;
-      const a=adxAt(A,t),a3=adxAt(A,t-3*HR),adxOk=a==null||a3==null?null:(a<=40&&a<=a3);
+      const ivOk=/^SELL/.test(v)||/^LATE · HALF/.test(v);
+      const a=adxAt(A,t),a3=adxAt(A,t-3*HR),adxOk=a==null||a3==null?null:(a<=40&&a<=a3),spOk=R.speed==null?null:R.speed<1.5;
+      let dayOk=null;try{if(W.v136&&W.v136.ruleOK&&F.dow>=1&&F.dow<=4){const e60=ivAt(F.n2n,t-HR);dayOk=W.v136.ruleOK(F.dow,{e:R.iv,e60:e60!=null?e60:R.iv,off:R.offPct||0,spike:R.spike});}else if(F.dow===5)dayOk=t<=F.open+150*MIN;}catch(x){}   // v138.3: the day's own tested rule
+      grid.push([t,ivOk&&adxOk!==false&&spOk!==false&&dayOk!==false?'g':ivOk?'a':'n']);   // v138: entry readiness strip
+      if(!ivOk||entry)continue;if(dayOk===false){if(!blocked)blocked={t,a,a3,day:true};continue;}
       if(adxOk===false){if(!blocked)blocked={t,a,a3};continue;}
-      entry={t,v,a,size:R.size,d:R.dPut<R.delta?'C '+R.delta.toFixed(2)+'/P '+R.dPut.toFixed(2):R.delta.toFixed(2)+'Δ',adx:adxOk};break;}
+      entry={t,v,a,size:R.size,d:R.dPut<R.delta?'C '+R.delta.toFixed(2)+'/P '+R.dPut.toFixed(2):R.delta.toFixed(2)+'Δ',adx:adxOk};}
+    let exT=null;
     if(entry){out.push({t:entry.t,k:'sell',txt:'SELL '+(/^LATE/.test(entry.v)?'LATE·HALF':entry.size)+' '+entry.d+(entry.adx==null?' · ADX ?':'')});
       let ex=null;for(let t=entry.t+15*MIN;t<=Math.min(F.exit,now);t+=15*MIN){if(t<=entry.t+12*HR){const a=adxAt(A,t),a3=adxAt(A,t-3*HR);if(a!=null&&a3!=null&&a-a3>=2){ex={t,txt:'EXIT · ADX ↑'};break;}}}
-      if(!ex&&F.exit<=now)ex={t:F.exit,txt:'BOOK 07:00'};if(ex)out.push({t:ex.t,k:'exit',txt:ex.txt});}
-    else if(blocked)out.push({t:blocked.t,k:'skip',txt:'ADX ✕ no sell'});}
-  S.sig=out;S.at=now;const key=JSON.stringify(out);if(key!==S.key){S.key=key;try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}}
+      if(!ex&&F.dow===5&&F.exit<=now){const iv7=ivAt(F.n2n,F.exit),iv0=ivAt(F.n2n,entry.t);if(iv7!=null&&iv0!=null&&iv7>iv0)ex={t:F.exit,txt:'EXIT 07:00 · IV above entry'};else if(F.D0+39*HR<=now)ex={t:F.D0+39*HR,txt:'BOOK Sat 15:00'};}
+      const dX=(()=>{try{return W.v136&&W.v136.dayRule?W.v136.dayRule(F.dow).exit:null;}catch(x){return null;}})(),bookT=dX==='15'?F.D0+39*HR:F.exit;   // v138.3: the day's tested exit time
+      if(!ex&&F.dow!==5&&bookT<=now)ex={t:bookT,txt:'BOOK '+(dX==='15'?'15:00':'07:00')};if(ex)out.push({t:ex.t,k:'exit',txt:ex.txt});
+      // hold: every 15 min from the entry to the exit (or now)
+      for(let i=grid.length-1;i>=0;i--)if(grid[i][0]>entry.t&&grid[i][0]<=F.end)grid.splice(i,1);
+      const stopT=ex?ex.t:Math.min(now,F.dow===5?F.D0+39*HR:bookT);for(let t=entry.t+Q;t<stopT;t+=Q)grid.push([t,'h']);if(ex)grid.push([ex.t,'x']);}
+    else if(blocked)out.push({t:blocked.t,k:'skip',txt:blocked.day?'day rule ✕ no sell':'ADX ✕ no sell'});}
+  S.sig=out;S.grid=grid.sort((p,q)=>p[0]-q[0]);S.at=now;const key=JSON.stringify(out);if(key!==S.key){S.key=key;try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}}
 /* ---------- markers for the BTC chart (called by the price-action layer) ---------- */
 function marks(bars){if(!S.on||!S.sig.length||!bars||!bars.length)return[];const up=getComputedStyle(D.body).getPropertyValue('--c-up').trim()||'#26A69A',dn=getComputedStyle(D.body).getPropertyValue('--c-dn').trim()||'#EF5350';
   const out=[];for(const s of S.sig){const tc=Math.floor(s.t/1000)+IST;if(tc<bars[0].time)continue;let lo=0,hi=bars.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(bars[m].time<=tc)lo=m;else hi=m-1;}
@@ -21871,7 +21857,7 @@ function marks(bars){if(!S.on||!S.sig.length||!bars||!bars.length)return[];const
     else if(s.k==='exit')out.push({time,position:'belowBar',shape:'arrowUp',color:dn,text:s.txt,size:1.2});
     else out.push({time,position:'aboveBar',shape:'circle',color:'#E3AE45',text:s.txt,size:0.8});}
   return out;}
-function enable(v){if(S.on===v)return;S.on=v;if(v)try{compute();}catch(e){}try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}
+function enable(v){if(S.on===v)return;S.on=v;try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}
 /* ---------- Entry check / My position → P&L page ---------- */
 function moveTrade(){const t=$('v18Trade'),pg=$('pgPnl');if(!t||!pg)return;let box=$('v134Pos');
   if(!box){box=D.createElement('section');box.id='v134Pos';box.innerHTML='<h3>OPEN POSITION · ENTRY CHECK — live Delta marks; with no trade open this is a what-if for a new strangle, not your P&amp;L</h3>';pg.appendChild(box);}
@@ -21881,153 +21867,709 @@ function run(){try{moveTrade();}catch(e){}try{compute();}catch(e){console.warn('
 setTimeout(run,4000);setTimeout(run,15000);setTimeout(run,45000);setInterval(()=>{if(!D.hidden)run();},5*MIN);setInterval(()=>{try{moveTrade();}catch(e){}},3000);
 W.v134sig={marks,enable,compute,state:()=>S,__test:{readAt,adxArr,hourly}};})();
 </script>
-
-<style id="v135Css">
-/* v135 · one time axis: IV · RV · VoV · DVOL sit exactly under the BTC chart (same left edge, same width, same price-axis width) */
-body.v135 #charts .pane>.chart-box>[id^="chart"],body.v135 #charts .pane .rv-chart,body.v135 #charts .pane .vov-chart,body.v135 #charts .pane .dv-chart{box-sizing:border-box}
-.v135x{position:absolute;left:0;top:0;width:1px;will-change:transform;pointer-events:none;z-index:7;background:repeating-linear-gradient(to bottom,var(--muted,#8a8f98) 0 4px,transparent 4px 8px);opacity:.55;display:none}
+<style id="v136Css">
+#v136Chip{display:inline-flex;align-items:center;margin-left:8px;font:700 11.5px/1 var(--font);letter-spacing:.06em;color:#fff;border-radius:999px;padding:6px 11px;white-space:nowrap}
+#v136Chip.g{background:#188E58}#v136Chip.b{background:#2F7CC0}#v136Chip.a{background:#A86F00}#v136Chip.r{background:#C23B3B}
+@media (max-width:760px){#v136Chip{display:none}}
+#v136Day{max-width:1380px;margin:0 auto 16px;display:flex;flex-direction:column;gap:12px;font-family:var(--font);color:var(--text)}
+#v136Day h3{margin:2px 0 0;font:600 12px/1.3 var(--font);letter-spacing:.08em;color:var(--muted)}
+#v136Day .v6d-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+#v136Day .v6d-strip>div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;background:var(--panel)}
+#v136Day .v6d-strip b{font-size:12.5px;letter-spacing:.08em}#v136Day .v6d-strip span{font-size:11px;color:var(--muted)}
+#v136Day .v6d-strip>div.on{background:var(--text);color:var(--bg,#fff)}#v136Day .v6d-strip>div.on span{color:inherit;opacity:.75}
+#v136Day .v6c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+#v136Day .v6c .l{font-size:11px;letter-spacing:.08em;color:var(--muted)}
+#v136Day .v6c .s{font-size:12px;color:var(--muted)}
+#v136Day .v6ban{flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+#v136Day .v6ban .v{font-size:24px;font-weight:700}
+#v136Day .v6ban .cd{margin-left:auto;font:600 12.5px var(--mono,monospace);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+#v136Day .g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#v136Day .g5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+#v136Day .g2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:10px}
+#v136Day .t{border-top:3px solid var(--muted)}#v136Day .t.g{border-top-color:#188E58}#v136Day .t.a{border-top-color:#A86F00}#v136Day .t.r{border-top-color:#C23B3B}#v136Day .t.b{border-top-color:#2F7CC0}
+#v136Day .t b.val{font-size:17px}
+#v136Day .gc .hd{display:flex;align-items:baseline;gap:8px}#v136Day .gc .hd b{font-size:14px;letter-spacing:.08em}#v136Day .gc .gr{margin-left:auto;font-size:21px;font-weight:700}
+#v136Day .gc.on{border:2px solid var(--text)}
+#v136Day .gc .ln{font-size:12.5px}
+#v136Day .ok{color:#188E58}#v136Day .bad{color:#C23B3B}#v136Day .amb{color:#A86F00}
+#v136Day table{width:100%;border-collapse:collapse;font-size:12.5px}#v136Day td,#v136Day th{padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}#v136Day th{color:var(--muted);font-weight:600}
+#v136Day .mono{font-family:var(--mono,monospace)}
+#v136Day button{font:600 12.5px var(--font);padding:7px 12px;border-radius:8px;border:1px solid var(--line2,var(--line));background:var(--panel);color:var(--text);cursor:pointer;min-height:32px}
+#v136Day button.pri{background:#2F7CC0;border-color:#2F7CC0;color:#fff}
+#v136Day svg text{fill:var(--muted);font-size:11px}
+#v136ByDay{max-width:1380px;margin:14px auto 0}
+@media (max-width:1100px){#v136Day .g5{grid-template-columns:repeat(2,minmax(0,1fr))}#v136Day .g4{grid-template-columns:repeat(2,minmax(0,1fr))}#v136Day .g2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){#v136Day .v6d-strip{grid-template-columns:repeat(4,minmax(0,1fr))}#v136Day .g5,#v136Day .g4{grid-template-columns:minmax(0,1fr)}}
 </style>
-<script data-module="v135">
-/* v135 (16 Oct 2026, preview, not deployed) · one time axis for the BTC chart and the vol charts.
-   Before: IV led RV / VoV / DVOL, the BTC chart led its own lanes, and the two groups were only pulled together once a second
-   by bar number (IV and BTC carry different bar lists, so the same bar number is a different time) — the vol charts sat
-   hours off the BTC chart, on a different zoom, and 35 px to the left (the drawing bar).
-   Now:
-   · the BTC chart is the master. Every pan / zoom of it moves IV, RV, VoV and DVOL to the SAME TIME WINDOW at once (time → bar
-     maps built from each chart's own bars, extrapolated past the ends), in the same frame;
-   · drag or zoom any vol chart and the BTC chart (and with it every other chart) follows it;
-   · the vol charts get the BTC chart's left edge and width and one shared price-axis width, so a time sits at the same pixel
-     on every chart, and one dashed hairline runs through all of them under the cursor;
-   · the old pairwise followers (IV → RV / VoV / DVOL, the 0.4 s VoV re-aligner, the IV auto-framing and v128's per-chart fit)
-     stand down while this is on; zoom − + Fit on a vol chart act on the BTC chart.
-   window.__v135lock is the switch (localStorage v135_lock = '0' turns it off; applies on reload). */
-(function(){'use strict';const W=window,D=document;
-let ON=true;try{ON=localStorage.getItem('v135_lock')!=='0';}catch(e){}
-W.__v135lock=ON;if(!ON){W.v135={on:false};return;}
-D.body.classList.add('v135');
-const R=()=>W.__lwcReg;
-function master(){try{return W.paChart?W.paChart():null;}catch(e){return null;}}
-function masterEl(){return D.getElementById('chartG');}
-const vis=el=>!!el&&el.isConnected&&el.offsetParent!==null&&el.clientWidth>0&&el.clientHeight>0;
-function P(){try{return typeof panes!=='undefined'?panes:null;}catch(e){return null;}}
-/* ---------- the charts that follow ---------- */
-const FC={at:-1e9,list:[]};
-function followers(fresh){const now=performance.now();if(!fresh&&now-FC.at<500)return FC.list;const out=[],ps=P();FC.at=now;FC.list=out;if(!ps)return out;   // cached ½ s: a visibility check forces a page layout
-  for(const p of ps){if(!p)continue;const i=p.i;
-    const add=(ch,id,k)=>{if(!ch)return;const el=D.getElementById(id);if(vis(el))out.push({ch,el,k,p});};
-    add(p.chart,'chart'+i,'iv');if(p.rvMode==='panel')add(p.rvChart,'rvChart'+i,'rv');add(p.vovChart,'vovChart'+i,'vov');
-    const dv=W.__dvCharts&&W.__dvCharts[i];if(dv)add(dv.chart,'dvChart'+i,'dv');}
+<script data-module="v136">
+/* v136 (16 Oct 2026, preview, not deployed). Day-wise desk.
+   - Day mode chip in the header and a Day section on top of the Decision page:
+     Mon–Thu: Day coach playbook for tonight · Fri: Weekend entry card · Sat / Sun: Hold only (+ Sunday risk clock).
+   - Day coach: one year of N2N IV from the archive (IndexedDB suraj_archive_v1), graded by weeknight; the day's own rule
+     (one condition) and exit time. Self-improvement: every Saturday from 07:05 (or the first open after) it re-tests every
+     candidate rule per day on all recorded nights and proposes a change only if it holds in both halves of the data,
+     each side has enough nights, and it is a single condition. Nothing changes until Apply. Log kept (v136_log).
+   - Live verdict (v121): Sunday night = no trade; Friday = sell 60–120 min after the NY open (0.12Δ, 0.10 if IV < 25),
+     hold to Sat 15:00, exit 07:00 if IV is back above the entry IV. Chart marks follow the same rules.
+   - P&L page: your Delta trades split by entry night (Mon … Fri, weekend). */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);
+const MIN=6e4,HR=36e5,DAY=864e5,IST=19800000;const fin=Number.isFinite;
+const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hm=t=>new Date(t+IST).toISOString().slice(11,16);
+const DN=['SUN','MON','TUE','WED','THU','FRI','SAT'],DL=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const EXP=['Wed','Thu','Fri','Sat','Sun','Mon','Tue'];   // N2N expiry weekday for an entry on that night (entry +3 days)
+/* ---------- tested defaults (1-year test, 16 Oct 2026) ---------- */
+const DEF={1:{rule:'ivge35',exit:'07'},2:{rule:'none',exit:'07'},3:{rule:'fall1h',exit:'15'},4:{rule:'fall1h',exit:'15'},5:{rule:'fri',exit:'15'}};
+const RULES={none:{n:'no extra rule',f:()=>true},fall1h:{n:'IV falling over the last hour',f:r=>r.e<r.e60},rise1h:{n:'IV still rising at entry',f:r=>r.e>=r.e60},
+  ivge35:{n:'N2N IV ≥ 35',f:r=>r.e>=35},iv2535:{n:'N2N IV 25–35',f:r=>r.e>=25&&r.e<35},ivge25:{n:'N2N IV ≥ 25',f:r=>r.e>=25},
+  off15:{n:'IV ≥ 1.5% below its NY high',f:r=>r.off>=1.5},near:{n:'IV within 1.5% of its NY high (enter early)',f:r=>r.off<1.5},
+  spike:{n:'NY spike (IV above pre-NY)',f:r=>r.spike!=null&&r.spike>0},fri:{n:'60–120 min after the NY open',f:()=>true}};
+const CAND=['fall1h','rise1h','ivge35','iv2535','ivge25','off15','near','spike'];
+const S={rows:null,stats:null,busy:false,err:null,at:0,html:'',rules:Object.assign({},DEF,LSg('v136_rules',{})),log:LSg('v136_log',[]),prop:LSg('v136_prop',null)};
+/* ---------- archive: N2N IV per night ---------- */
+function idb(){return new Promise((res,rej)=>{let r;try{r=indexedDB.open('suraj_archive_v1');}catch(e){return rej(e);}const to=setTimeout(()=>rej(new Error('archive timeout')),8000);
+  r.onupgradeneeded=()=>{try{r.transaction.abort();}catch(e){}};r.onsuccess=()=>{clearTimeout(to);res(r.result);};r.onerror=()=>{clearTimeout(to);rej(r.error||new Error('no archive'));};});}
+function getAll(db,st){return new Promise((res,rej)=>{try{const t=db.transaction(st,'readonly'),o=t.objectStore(st),ks=o.getAllKeys(),vs=o.getAll();t.oncomplete=()=>res([ks.result||[],vs.result||[]]);t.onerror=()=>rej(t.error);}catch(e){rej(e);}});}
+const d0=d=>Date.parse(d+'T00:00:00Z')-IST,dk=t=>new Date(t+IST).toISOString().slice(0,10);
+async function loadRows(){const db=await idb();let ks=[],vs=[];try{[ks,vs]=await getAll(db,'iv');}finally{try{db.close();}catch(e){}}
+  const byE=new Map();for(let i=0;i<ks.length;i++){const k=String(ks[i]),[e,d]=k.split('|'),r=vs[i];if(!e||!d||!r||!r.c)continue;let m=byE.get(e);if(!m){m=new Map();byE.set(e,m);}m.set(d,r.c);}
+  const ivAt=(e,t,tol)=>{const m=byE.get(e);if(!m)return null;tol=tol||40;const base=Math.floor(t/MIN)*MIN;
+    for(let k=0;k<=tol;k++)for(const sg of (k?[-1,1]:[1])){const tt=base+sg*k*MIN,c=m.get(dk(tt));if(!c)continue;const v=c[Math.round((tt-d0(dk(tt)))/MIN)];if(fin(v)&&v>0)return v<5?v*100:v;}return null;};
+  const days=new Set();for(const m of byE.values())for(const d of m.keys())days.add(d);
+  const rows=[];
+  for(const d of [...days].sort()){const F=W.v121.frame(d0(d)+20*HR);if(F.dow<1||F.dow>5)continue;if(dk(F.D0)!==d)continue;
+    const e=F.n2n;if(!byE.has(e))continue;
+    const off={},X={};for(const m of [30,60,90,120,150,210])off[m]=ivAt(e,F.open+m*MIN);
+    X['07']=ivAt(e,F.D0+31*HR);X['15']=ivAt(e,F.D0+39*HR);if(off[90]==null||X['07']==null||X['15']==null)continue;
+    const pre=ivAt(e,F.open-30*MIN);let hi=null;for(let m=0;m<=150;m+=10){const v=ivAt(e,F.open+m*MIN,8);if(v!=null)hi=hi==null?v:Math.max(hi,v);}if(hi==null)hi=off[90];
+    const ent=F.dow===5?90:90;   // the common entry point of the test (≈ 1.5 h after the open)
+    const r={d,dow:F.dow,e:off[ent],e60:off[30],pre,hi,spike:pre!=null?hi-pre:null,off:(hi-off[ent])/hi*100,x07:X['07']-off[ent],x15:X['15']-off[ent],path:null};
+    if(r.e60==null)r.e60=r.e;
+    if(F.dow===5){r.path=[];for(let h=-1;h<=20;h++){const v=ivAt(e,F.open+90*MIN+h*HR,40);r.path.push(v!=null?v-off[ent]:null);}}
+    rows.push(r);}
+  return rows;}
+/* ---------- stats ---------- */
+const med=a=>{if(!a.length)return null;const x=a.slice().sort((p,q)=>p-q),n=x.length;return n%2?x[n>>1]:(x[n/2-1]+x[n/2])/2;};
+function sum(R,k){const v=R.map(r=>r[k]).filter(fin);if(!v.length)return null;return {n:v.length,med:med(v),fell:v.filter(x=>x<0).length/v.length*100,bad:v.filter(x=>x>1).length,worst:Math.max(...v)};}
+function grade(s){if(!s)return {g:'—',c:''};const f=s.fell,m=s.med;
+  if(f>=90&&m<=-3)return {g:'A',c:'g'};if(f>=80&&m<=-2.5)return {g:'B+',c:'b'};if(f>=78)return {g:'B',c:'b'};if(f>=72)return {g:'C',c:'a'};return {g:'C−',c:'r'};}
+function judgeRule(R,key,x){const f=RULES[key].f,A=R.filter(f),B=R.filter(r=>!f(r));if(A.length<15||B.length<8)return null;
+  const h=Math.floor(R.length/2),H=[R.slice(0,h),R.slice(h)];
+  const a=sum(A,x),b=sum(B,x);const halves=H.map(P=>{const pa=sum(P.filter(f),x),pb=sum(P.filter(r=>!f(r)),x);return pa&&pb&&pa.n>=5&&pb.n>=3?(pa.fell-pb.fell):null;});
+  return {key,a,b,diff:a.fell-b.fell,both:halves.every(v=>v!=null&&v>0),hurt:halves.every(v=>v!=null&&v<-5)};}
+function compute(rows){const out={};
+  for(const dw of [1,2,3,4,5]){const R=rows.filter(r=>r.dow===dw);const s07=sum(R,'x07'),s15=sum(R,'x15');
+    const bestX=s07&&s15&&(s15.med<=s07.med-0.3&&s15.bad<=s07.bad+3)?'15':'07';const base=bestX==='07'?s07:s15;
+    const J=dw===5?[]:CAND.map(k=>judgeRule(R,k,'x'+bestX)).filter(Boolean);
+    const works=J.filter(j=>j.both&&j.diff>=5&&j.a.med<=base.med+0.1).sort((p,q)=>q.diff-p.diff)[0]||null;
+    const hurts=J.filter(j=>j.hurt).sort((p,q)=>p.diff-q.diff)[0]||null;
+    let path=null;if(dw===5){path=[];for(let i=0;i<22;i++){const v=R.map(r=>r.path&&r.path[i]).filter(fin);path.push(v.length>=10?med(v):null);}}
+    out[dw]={n:R.length,s07,s15,bestX,g:grade(base),works,hurts,path,with:works?works.a:null};}
   return out;}
-/* ---------- time ↔ bar number, per chart ---------- */
-const MAP=new WeakMap();
-function entry(ch){const r=R();if(!r)return null;for(const e of r.charts)if(e.chart===ch)return e;return null;}
-function tmap(ch){const e=entry(ch);if(!e)return null;const r=R(),cut=r.on&&r.cut?r.cut:(a=>a);
-  let sig='';const lists=[];for(const s of e.series){const f=cut(s.full||[]);if(!f.length)continue;lists.push(f);sig+=f.length+':'+f[0].time+':'+f[f.length-1].time+'|';}
-  let m=MAP.get(ch);if(m&&m.sig===sig)return m;
-  let n=0;for(const f of lists)n+=f.length;const A=new Float64Array(n);let k=0;
-  for(const f of lists)for(let i=0;i<f.length;i++){const t=f[i].time;if(typeof t==='number')A[k++]=t;}
-  const S=A.subarray(0,k).sort();let u=0;for(let i=0;i<S.length;i++)if(i===0||S[i]!==S[u-1])S[u++]=S[i];
-  const T=S.slice(0,u);
-  const med=(a,b)=>{const g=[];for(let i=Math.max(1,a);i<Math.min(T.length,b);i++)g.push(T[i]-T[i-1]);g.sort((x,y)=>x-y);return g.length?g[g.length>>1]:60;};
-  m={sig,T,s0:med(1,40),s1:med(T.length-60,T.length)};MAP.set(ch,m);return m;}
-/* holes in a vol chart's own bars (history still loading, a gap in the recording) squeeze time, because the chart places
-   bars by count, not by clock. Each vol chart gets an invisible bar every step from its first to its last bar, so a time
-   always sits at the same place as on the BTC chart. */
-function fillGaps(f){const ch=f.ch,e=entry(ch);if(!e)return;const r=R(),cut=r.on&&r.cut?r.cut:(a=>a);
-  let T0=Infinity,Tn=-Infinity,n=0,step=0;
-  for(const s of e.series){if(s.s.__v135ws)continue;const F=cut(s.full||[]);if(F.length<3)continue;const a=F[0].time,b=F[F.length-1].time;if(typeof a!=='number')continue;
-    if(a<T0)T0=a;if(b>Tn)Tn=b;n=Math.max(n,F.length);const g=[];for(let i=Math.max(1,F.length-40);i<F.length;i++)g.push(F[i].time-F[i-1].time);g.sort((x,y)=>x-y);const st=g[g.length>>1];if(st>0&&(!step||st<step))step=st;}
-  if(!(step>0)||!isFinite(T0)||!isFinite(Tn))return;const cnt=Math.floor((Tn-T0)/step)+1;if(cnt>200000)return;
-  const key=T0+'|'+Tn+'|'+step;if(ch.__v135gk===key)return;const G=ch.__v135g;
-  if(!ch.__v135ws){try{ch.__v135ws=ch.addLineSeries({priceScaleId:'v135ws',lineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:true});ch.__v135ws.__v135ws=1;ch.priceScale('v135ws').applyOptions({visible:false});}catch(x){return;}}
-  ch.__v135gk=key;
-  if(G&&G.step===step&&G.T0<=T0&&Tn>G.Tn&&(Tn-G.Tn)%step===0&&(Tn-G.Tn)/step<50){try{for(let t=G.Tn+step;t<=Tn;t+=step)ch.__v135ws.update({time:t});G.Tn=Tn;}catch(x){}MAP.delete(ch);return;}   // a new bar: append
-  const d=new Array(cnt);for(let i=0;i<cnt;i++)d[i]={time:Tn-(cnt-1-i)*step};
-  try{ch.__v135ws.setData(d);ch.__v135g={T0:Tn-(cnt-1)*step,Tn,step};}catch(x){}MAP.delete(ch);}
-function idxOf(m,t){const T=m.T,n=T.length;if(!n)return null;if(t<=T[0])return (t-T[0])/m.s0;if(t>=T[n-1])return n-1+(t-T[n-1])/m.s1;
-  let a=0,b=n-1;while(b-a>1){const c=(a+b)>>1;if(T[c]<=t)a=c;else b=c;}return a+(t-T[a])/(T[b]-T[a]);}
-function timeOf(m,L){const T=m.T,n=T.length;if(!n)return null;if(L<=0)return T[0]+L*m.s0;if(L>=n-1)return T[n-1]+(L-(n-1))*m.s1;
-  const a=Math.floor(L),f=L-a;return T[a]+(T[a+1]-T[a])*f;}
-/* src's visible window (by time) onto dst */
-function push(src,dst){try{const ms=tmap(src),md=tmap(dst);if(!ms||!md||ms.T.length<2||md.T.length<2)return false;
-    const r=src.timeScale().getVisibleLogicalRange();if(!r)return false;
-    const a=timeOf(ms,r.from),b=timeOf(ms,r.to);if(a==null||b==null||!(b>a))return false;
-    const want={from:idxOf(md,a),to:idxOf(md,b)};if(!(want.to>want.from))return false;
-    const ts=dst.timeScale(),cur=ts.getVisibleLogicalRange();
-    if(cur&&Math.abs(cur.from-want.from)<0.02&&Math.abs(cur.to-want.to)<0.02)return true;
-    // bars per pixel can go far below the chart's own minimum when the BTC chart shows days of a 1-minute IV chart
-    const px=Math.max(1,dst.timeScale().width()||1),bs=px/Math.max(1e-6,want.to-want.from);
-    if(bs<((dst.__v135mbs)||0.5)){dst.__v135mbs=Math.max(0.001,bs*0.5);try{dst.applyOptions({timeScale:{minBarSpacing:dst.__v135mbs}});}catch(e){}}
-    ts.setVisibleLogicalRange(want);return true;}catch(e){return false;}}
-/* ---------- who leads ---------- */
-const LEAD={ch:null,until:0,down:false};
-function leader(){if(LEAD.ch&&(LEAD.down||performance.now()<LEAD.until))return LEAD.ch;return null;}
-function chartAt(target){if(!target||!target.closest)return null;
-  if(target.closest('.v128z,button,select,input,a'))return null;
-  for(const f of followers()){const box=f.el.parentElement||f.el;if(box.contains(target))return f.ch;}
-  if(target.closest('#chartp'))return master();return null;}
-for(const ev of ['pointerdown','touchstart'])addEventListener(ev,e=>{const c=chartAt(e.target);LEAD.ch=c;LEAD.down=!!c;LEAD.until=0;},{passive:true,capture:true});
-for(const ev of ['pointerup','pointercancel','touchend','touchcancel'])addEventListener(ev,()=>{if(LEAD.down){LEAD.down=false;LEAD.until=performance.now()+1600;}},{passive:true,capture:true});   // touch glide
-addEventListener('wheel',e=>{const c=chartAt(e.target);if(c){LEAD.ch=c;LEAD.until=performance.now()+450;}},{passive:true,capture:true});
-/* ---------- moving together ---------- */
-let inPush=false;
-function fromMaster(skip){const m=master();if(!m)return;inPush=true;try{for(const f of followers()){if(f.ch===skip)continue;push(m,f.ch);growIv(f);}}finally{inPush=false;}}
-function growIv(f){if(f.k!=='iv')return;const p=f.p;p.userMoved=true;   // the core's own framing stays off; the BTC chart frames
-  try{const r=f.ch.timeScale().getVisibleLogicalRange();if(r&&r.from<30&&p.total>p.cap&&!p.capBusy){p.capBusy=true;setTimeout(()=>{p.capBusy=false;p.cap=p.total;try{renderPane(p.i);}catch(e){}fromMaster();},60);}}catch(e){}}
-const hooked=new WeakSet();let mraf=0;
-function hook(){const m=master();if(m&&!hooked.has(m)){hooked.add(m);m.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(!mraf)mraf=requestAnimationFrame(()=>{mraf=0;const l=leader();fromMaster(l&&l!==m?l:null);});});}   // once a frame, however many moves the mouse sent
-  for(const f of followers()){if(hooked.has(f.ch))continue;hooked.add(f.ch);const ch=f.ch;
-    ch.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(inPush)return;const m2=master();if(!m2)return;
-      if(leader()===ch){push(ch,m2);}            // you are moving this chart: the BTC chart (and so every chart) follows
-      else queueResync();});}}                    // someone else moved it (new data, a re-frame): back onto the BTC window
-let rq=0;function queueResync(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;const l=leader();if(l&&l!==master()){const m=master();if(m)push(l,m);}fromMaster(l);});}
-/* ---------- same left edge, same width, same price axis ---------- */
-function geometry(){const mEl=masterEl(),m=master();if(!vis(mEl)||!m)return;const F=followers();if(!F.length)return;
-  // one price-axis width for the BTC chart and every vol chart
-  let w=0;const all=[m].concat(F.map(f=>f.ch));if(geometry.vw!==innerWidth){geometry.vw=innerWidth;for(const c of all)c.__v135psw=0;}for(const c of all){try{w=Math.max(w,c.priceScale('right').width()||0);}catch(e){}}w=Math.ceil(Math.min(Math.max(w,64),130));
-  for(const c of all){axisWrap(c);c.__v135psw=w;try{const o=c.options().rightPriceScale||{};if(o.minimumWidth!==w)c.__v135ao({rightPriceScale:{minimumWidth:w}});}catch(e){}}
-  const mr=mEl.getBoundingClientRect();
-  for(const f of F){const el=f.el,r=el.getBoundingClientRect(),cs=el.style;
-    const ml=parseFloat(cs.getPropertyValue('margin-left'))||0,mrg=parseFloat(cs.getPropertyValue('margin-right'))||0;
-    const nl=Math.round(ml+(mr.left-r.left)),nr=Math.round(mrg+(r.right-mr.right));
-    if(Math.abs(nl-ml)>=1||Math.abs(nr-mrg)>=1){
-      const L=Math.max(-24,nl),Rr=Math.max(-24,nr);   /* a few px past the card's padding is fine when the BTC chart is the wider one */cs.setProperty('margin-left',L+'px','important');cs.setProperty('margin-right',Rr+'px','important');cs.setProperty('width',`calc(100% - ${L+Rr}px)`,'important');}}}
-/* ---------- one time axis, under the bottom vol chart (the others' own code keeps setting theirs: their setting is overridden) ---------- */
-function axisWrap(ch){if(ch.__v135ao)return ch.__v135ao;const ao=ch.applyOptions.bind(ch);ch.__v135ao=ao;
-  ch.applyOptions=function(o){if(o&&o.timeScale&&('visible' in o.timeScale)&&ch.__v135axis!=null)o=Object.assign({},o,{timeScale:Object.assign({},o.timeScale,{visible:ch.__v135axis})});
-    // a smaller price-axis width from an older layer would shift this chart's candles sideways until the next tick
-    if(o&&o.rightPriceScale&&o.rightPriceScale.minimumWidth!=null&&ch.__v135psw&&o.rightPriceScale.minimumWidth<ch.__v135psw)o=Object.assign({},o,{rightPriceScale:Object.assign({},o.rightPriceScale,{minimumWidth:ch.__v135psw})});
-    return ao(o);};return ao;}
-function axes(F){let low=null,lb=-1e9;for(const f of F){const b=f.el.getBoundingClientRect().bottom;if(b>lb){lb=b;low=f;}}
-  for(const f of F){const ao=axisWrap(f.ch),want=f===low;let cur=null;try{cur=f.ch.options().timeScale.visible;}catch(e){}
-    if(f.ch.__v135axis!==want||cur!==want){f.ch.__v135axis=want;try{ao({timeScale:{visible:want,timeVisible:true,secondsVisible:false}});}catch(e){}}}}
-/* ---------- one hairline through every chart ---------- */
-let hair=null;function hairEl(){if(!hair||!hair.isConnected){hair=D.createElement('div');hair.className='v135x';hair.setAttribute('aria-hidden','true');D.body.appendChild(hair);}return hair;}
-let hx=null;const HG={at:-1e9};
-// page geometry for the hairline, read at most every ½ s (reading it on every mouse move forced a page layout)
-function hairGeo(){const now=performance.now();if(now-HG.at<500)return HG;HG.at=now;HG.ok=false;const mEl=masterEl(),m=master();if(!vis(mEl)||!m)return HG;const F=followers();if(!F.length)return HG;
-  const mr=mEl.getBoundingClientRect();let ps=0;try{ps=m.priceScale('right').width()||0;}catch(e){}let bot=mr.bottom;for(const f of F){const r=f.el.getBoundingClientRect();bot=Math.max(bot,r.bottom);}
-  Object.assign(HG,{ok:true,l:mr.left+scrollX,r:mr.right-ps+scrollX,top:mr.bottom+scrollY,h:Math.max(0,bot-mr.bottom)});return HG;}
-function hairAt(clientX){const h=hairEl();if(clientX==null){if(h.style.display!=='none')h.style.display='none';return;}const G=hairGeo();const px=clientX+scrollX;
-  if(!G.ok||px<G.l||px>G.r){if(h.style.display!=='none')h.style.display='none';return;}
-  h.style.transform=`translate(${Math.round(px)}px,${Math.round(G.top)}px)`;const hh=Math.round(G.h)+'px';if(h.style.height!==hh)h.style.height=hh;if(h.style.display!=='block')h.style.display='block';}
-let hraf=0,hpend=undefined;function hairSoon(x){hpend=x;if(!hraf)hraf=requestAnimationFrame(()=>{hraf=0;hairAt(hpend);});}
-addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const c=chartAt(e.target);if(!c){if(hx!==null){hx=null;hairSoon(null);}return;}hx=e.clientX;hairSoon(hx);},{passive:true});   // one update a frame
-addEventListener('scroll',()=>{if(hx!=null)hairAt(null);hx=null;},{passive:true});
-/* ---------- crosshair: the vol charts join the BTC group (v83), and snap to their own nearest bar ---------- */
-/* ---------- legends: an identical rewrite is skipped (they were rebuilt several times per mouse move, each one a page layout) ---------- */
-const IH=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-function dedupe(el){if(!el||el.__v135d||!IH)return;el.__v135d=1;
-  Object.defineProperty(el,'innerHTML',{configurable:true,get(){return IH.get.call(this);},
-    set(v){v=String(v);if(v===this.__lh&&IH.get.call(this)===this.__ls)return;IH.set.call(this,v);this.__lh=v;this.__ls=IH.get.call(this);}});}
-function legends(){D.querySelectorAll('#legendG,#paAdxLeg,#v105EdgeBox>.aa-leg,#v105RangeBox>.aa-leg,[id^="legend"],[id^="rvLeg"],[id^="vovLeg"],[id^="dvLeg"]').forEach(dedupe);}
-/* ---------- loop ---------- */
-function tick(){if(D.hidden)return;try{legends();followers(true);for(const f of followers())fillGaps(f);hook();geometry();axes(followers());if(!leader())fromMaster(null);}catch(e){console.warn('v135',e);}}
-setTimeout(tick,1200);setTimeout(tick,3000);setInterval(tick,1000);
-addEventListener('resize',()=>setTimeout(tick,120));
-try{new ResizeObserver(()=>{requestAnimationFrame(()=>{try{geometry();fromMaster(null);}catch(e){}});}).observe(D.documentElement);}catch(e){}
-W.v135={on:true,followers,push,tmap,idxOf,timeOf,geometry,sync:()=>fromMaster(null),leader};})();
+/* ---------- weekly self-improvement ---------- */
+function weekly(st){const now=Date.now(),ist=new Date(now+IST),key=dk(now-((ist.getUTCDay()+1)%7)*DAY);   // the Saturday that starts this week
+  const due=ist.getUTCDay()===6?(ist.getUTCHours()*60+ist.getUTCMinutes()>=425):true;if(!due||LSg('v136_week','')===key||!S.rows||S.rows.length<100)return;   // needs the archive loaded
+  const P=[];for(const dw of [1,2,3,4]){const c=st[dw];if(!c||!c.n)continue;const cur=S.rules[dw]||{};const want=c.works?c.works.key:'none';
+    if(want!==cur.rule&&c.works)P.push({dw,what:'rule',from:cur.rule,to:want,why:`fell ${c.works.a.fell.toFixed(0)}% vs ${c.works.b.fell.toFixed(0)}% without · both halves agree · n ${c.works.a.n}/${c.works.b.n}`});
+    else if(!c.works&&cur.rule&&cur.rule!=='none'){const j=judgeRule(S.rows.filter(r=>r.dow===dw),cur.rule,'x'+c.bestX);if(j&&!j.both)P.push({dw,what:'rule',from:cur.rule,to:'none',why:`${RULES[cur.rule].n} no longer holds in both halves`});}
+    if(c.bestX!==cur.exit)P.push({dw,what:'exit',from:cur.exit,to:c.bestX,why:(()=>{const A=c['s'+c.bestX],B=c['s'+cur.exit]||{med:0,bad:0,n:0};return `${c.bestX}:00 median ${A.med.toFixed(1)} pts, ${A.bad} bad nights · ${cur.exit}:00 median ${B.med.toFixed(1)}, ${B.bad} bad nights`;})()});}
+  const kept=[1,2,3,4].filter(dw=>st[dw]&&st[dw].n&&!P.some(p=>p.dw===dw)).map(dw=>({at:now,dw,txt:'kept: '+RULES[(S.rules[dw]||{}).rule||'none'].n+' · exit '+((S.rules[dw]||{}).exit||'07')+':00',st:'Kept'}));
+  S.prop=P.length?{at:now,items:P}:null;LSs('v136_prop',S.prop);
+  S.log=kept.concat(P.map(p=>({at:now,dw:p.dw,txt:(p.what==='rule'?'rule '+RULES[p.from||'none'].n+' → '+RULES[p.to].n:'exit '+p.from+':00 → '+p.to+':00')+' · '+p.why,st:'Proposed'}))).concat(S.log).slice(0,40);LSs('v136_log',S.log);LSs('v136_week',key);}
+function apply(){if(!S.prop)return;for(const p of S.prop.items){const r=Object.assign({},S.rules[p.dw]);if(p.what==='rule')r.rule=p.to;else r.exit=p.to;S.rules[p.dw]=r;}
+  LSs('v136_rules',Object.fromEntries(Object.entries(S.rules).filter(([k])=>k>=1&&k<=4)));S.log=[{at:Date.now(),dw:0,txt:'applied '+S.prop.items.length+' change(s)',st:'Applied'}].concat(S.log).slice(0,40);LSs('v136_log',S.log);S.prop=null;LSs('v136_prop',null);S.html='';paint();}
+function ignore(){if(!S.prop)return;S.log=[{at:Date.now(),dw:0,txt:'ignored '+S.prop.items.length+' proposal(s)',st:'Ignored'}].concat(S.log).slice(0,40);LSs('v136_log',S.log);S.prop=null;LSs('v136_prop',null);S.html='';paint();}
+async function load(force){if(S.busy||(!force&&S.rows&&Date.now()-S.at<6*HR))return;if(!W.v121||!W.v121.frame)return;S.busy=true;
+  try{S.rows=await loadRows();S.stats=compute(S.rows);S.at=Date.now();S.err=null;weekly(S.stats);}catch(e){S.err=String(e&&e.message||e);}finally{S.busy=false;S.html='';paint();}}
+/* ---------- mode ---------- */
+function mode(now){const ist=new Date(now+IST),dow=ist.getUTCDay(),h=ist.getUTCHours()+ist.getUTCMinutes()/60;
+  if(dow===6||dow===0)return {k:'hold',dow};if(dow===5)return {k:'fri',dow};return {k:'coach',dow};}
+function chipInfo(now){const m=mode(now),st=S.stats&&S.stats[m.dow];
+  if(m.k==='hold')return {t:DN[m.dow]+' · HOLD ONLY',c:'a'};if(m.k==='fri')return {t:'FRI · WEEKEND ENTRY',c:'b'};
+  const g=st?st.g:{g:'…',c:''};const sz=g.g==='C−'||g.g==='C'?' · SMALL SIZE':'';return {t:DN[m.dow]+' · GRADE '+g.g+sz,c:g.c||'b'};}
+function chip(){const ph=$('ph89');if(!ph)return;let c=$('v136Chip');if(!c){c=D.createElement('span');c.id='v136Chip';c.setAttribute('role','status');}if(c.previousElementSibling!==ph)ph.after(c);
+  const i=chipInfo(Date.now());if(c.textContent!==i.t)c.textContent=i.t;const cl='v136 '+i.c;if(c.className!==cl)c.className=cl;c.title='Day mode · Decision page has the day plan';}
+/* ---------- live readings ---------- */
+function L(){return (W.v121&&W.v121.last)||null;}
+function adxNow(){try{const A=W.v134sig&&W.v134sig.__test.adxArr();if(!A||A.length<4)return null;const a=A[A.length-1].v,b=A[Math.max(0,A.length-4)].v;return {a,rising:a>b};}catch(e){return null;}}
+function eventsTill(from,to){let LST=[];try{LST=typeof EV_FIXED!=='undefined'?EV_FIXED:[];}catch(e){}const out=[];const edt=ms=>{try{return W.v121.__fn.isEDT(ms);}catch(e){return false;}};
+  for(const [d,tm,code,title,imp] of LST){if(!(imp>=3))continue;const [h,m]=tm.split(':').map(Number),b=Date.parse(d+'T00:00:00Z'),t=b+(h*60+m)*MIN+(edt(b+12*HR)?4:5)*HR;if(t>=from&&t<=to)out.push({t,code,title});}return out;}
+const cd=ms=>{if(!(ms>0))return '—';const h=Math.floor(ms/HR),m=Math.floor(ms%HR/MIN);return h?h+' h '+m+' m':m+' m';};
+const pm=v=>v==null||!fin(v)?'—':(v>0?'+':'')+v.toFixed(1);
+/* ---------- render ---------- */
+function strip(m){const night=[,'Normal N2N','Normal N2N','Normal N2N','N2N = Sun exp','Weekend entry · Mon exp','Hold only'];night[0]='Hold · CME '+cmeTxt();
+  return '<div class="v6d-strip" role="list">'+[1,2,3,4,5,6,0].map(d=>{const st=S.stats&&S.stats[d];const g=st&&d>=1&&d<=5?' · '+st.g.g:'';
+    return `<div role="listitem" class="${d===m.dow?'on':''}"><b>${DN[d]}${esc(g)}</b><span>${esc(night[d])}</span></div>`;}).join('')+'</div>';}
+function cmeOpen(now){const ist=new Date(now+IST);let t=Date.UTC(ist.getUTCFullYear(),ist.getUTCMonth(),ist.getUTCDate());while(new Date(t).getUTCDay()!==0||t+23*HR<now-6*HR)t+=DAY;
+  let edt=false;try{edt=W.v121.__fn.isEDT(t+12*HR);}catch(e){}return t+(edt?22:23)*HR;}
+function cmeTxt(){return hm(cmeOpen(Date.now()));}
+function coachCards(m){if(!S.stats)return `<div class="v6c"><span class="s">${S.err?'Archive not readable: '+esc(S.err):'Reading one year of N2N IV from the archive…'}</span></div>`;
+  return '<div class="g5">'+[1,2,3,4,5].map(d=>{const c=S.stats[d];if(!c||!c.n)return `<div class="v6c gc"><div class="hd"><b>${DN[d]}</b></div><span class="s">no nights recorded</span></div>`;
+    const rk=d===5?'fri':(S.rules[d]||{}).rule||'none',rule=RULES[rk].n,ex=d===5?'15':(S.rules[d]||{}).exit||c.bestX,s=c['s'+ex]||c.s07;
+    const jr=d!==5&&rk!=='none'?judgeRule(S.rows.filter(r=>r.dow===d),rk,'x'+ex):null,hu=c.hurts&&c.hurts.key!==rk?RULES[c.hurts.key].n:null;
+    return `<div class="v6c gc ${d===m.dow?'on':''}"><div class="hd"><b>${DN[d]}</b><span class="s">N2N = ${EXP[d]} exp</span><span class="gr ${c.g.c==='g'?'ok':c.g.c==='r'?'bad':c.g.c==='a'?'amb':''}">${c.g.g}</span></div>
+      <span class="ln">IV to ${ex}:00: <b class="mono">${pm(s.med)} pts</b> · fell ${s.fell.toFixed(0)}%</span>
+      <span class="ln"><b class="ok">Day rule:</b> ${esc(rule)}${jr?` (fell ${jr.a.fell.toFixed(0)}% vs ${jr.b.fell.toFixed(0)}% without)`:''}</span>
+      <span class="ln"><b class="bad">Hurts:</b> ${esc(hu||(d===5?'late entry · waiting for IV off its high':'—'))}</span>
+      <span class="s">Exit ${ex}:00 · bad nights ${s.bad} of ${s.n}</span></div>`;}).join('')+'</div>';}
+function coachTonight(m){const d=m.dow,c=S.stats&&S.stats[d],r=S.rules[d]||DEF[d],R=L();const iv=R&&R.iv;const rule=RULES[r.rule||'none'];
+  let ok=null;if(R&&iv!=null){const e60=(()=>{try{const s=typeof candles!=='undefined'?candles[R.F.n2n]:null;if(!s)return null;const t=Math.floor((Date.now()-HR)/1000);let v=null;for(const x of s){if(x[0]<=t)v=x[4];else break;}return v>0?(v<5?v*100:v):null;}catch(e){return null;}})();
+    ok=rule.f({e:iv,e60:e60!=null?e60:iv,off:R.offPct||0,spike:R.spike});}
+  const g=c?c.g:{g:'…',c:''};const sz=g.g==='C−'?'SMALL SIZE or SKIP':g.g==='C'?'SMALL SIZE':'NORMAL SIZE';
+  const head=r.rule==='none'?`${DL[d]}: no extra rule · ${sz}`:ok==null?`${DL[d]}: needs ${rule.n} · ${sz}`:ok?`${DL[d]}: ${rule.n} ✓ · ${sz}`:`${DL[d]}: ${rule.n} ✕ · skip or very small`;
+  const jr=c&&r.rule&&r.rule!=='none'?judgeRule(S.rows.filter(x=>x.dow===d),r.rule,'x'+(r.exit||'07')):null;
+  const tips=[];tips.push(['ok',`Day rule: ${rule.n}`+(jr?` (fell ${jr.a.fell.toFixed(0)}% of ${jr.a.n} nights vs ${jr.b.fell.toFixed(0)}% without)`:'')]);
+  tips.push(['ok',`Exit ${r.exit||'07'}:00`+(c?` · IV median ${pm((c['s'+(r.exit||'07')]||{}).med)} pts`:'')]);
+  tips.push(['ok','Every-night rules stay on: news gate · Speed < 1.5× · ADX not rising · 2× leg stop']);
+  if(c&&c.hurts&&c.hurts.key!==r.rule)tips.push(['bad',`Avoid: ${RULES[c.hurts.key].n} (fell ${c.hurts.a.fell.toFixed(0)}% vs ${c.hurts.b.fell.toFixed(0)}%)`]);
+  if(g.g==='C−'||g.g==='C')tips.push(['bad',"Don't add lots tonight — weak night in the 1-year test"]);
+  return `<div class="v6c t ${g.c||'b'}"><span class="l">TONIGHT · ${DN[d]} PLAYBOOK · N2N ${EXP[d].toUpperCase()} 17:30</span><b style="font-size:20px">${esc(head)}</b>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;font-size:13px">${tips.map(([k,t])=>`<span class="${k==='bad'?'bad':''}">${k==='bad'?'✕':'✓'} ${esc(t)}</span>`).join('')}</div>
+    <span class="s">IV only (BTC moves are not in the grade). Live verdict on the board below still decides the entry.</span></div>`;}
+function friCard(){const R=L(),now=Date.now();if(!R||!R.F)return '<div class="v6c"><span class="s">Waiting for the live board…</span></div>';const F=R.F;
+  const w0=F.open+60*MIN,w1=F.open+120*MIN,ev=eventsTill(now,F.D0+(3*24+17.5)*HR),adx=adxNow(),iv=R.iv,sp=R.speed,dF=iv!=null&&iv<25?0.10:0.12;
+  const v=R.verdict?R.verdict.v:'—',vc=R.verdict&&R.verdict.cls==='g'?'ok':R.verdict&&R.verdict.cls==='r'?'bad':'amb';
+  const win=now<w0?'opens in '+cd(w0-now):now<w1?'closes in '+cd(w1-now):'window passed';
+  const T=(n,l,val,s,c)=>`<div class="v6c t ${c}"><span class="l">${n} · ${l}</span><b class="val">${esc(val)}</b><span class="s">${esc(s)}</span></div>`;
+  let p='';const st=S.stats&&S.stats[5];
+  if(st&&st.path){const P=st.path,ys=P.filter(fin),lo=Math.min(-8,...ys),hi=Math.max(2,...ys),X=i=>40+i*(760/21),Y=v=>20+(hi-v)/(hi-lo)*140;
+    const pts=P.map((v,i)=>v==null?null:X(i).toFixed(0)+','+Y(v).toFixed(0)).filter(Boolean).join(' ');
+    let live='';try{const s=candles[F.n2n];if(s&&now>F.open+90*MIN){const base=(()=>{const t=Math.floor((F.open+90*MIN)/1000);let v=null;for(const x of s){if(x[0]<=t)v=x[4];else break;}return v;})();
+      if(base>0){const lp=[];for(let i=0;i<22;i++){const t=F.open+90*MIN+(i-1)*HR;if(t>now)break;const ts=Math.floor(t/1000);let v=null;for(const x of s){if(x[0]<=ts)v=x[4];else break;}if(v>0)lp.push(X(i).toFixed(0)+','+Y((v-base)*(v<5?100:1)).toFixed(0));}
+        if(lp.length)live=`<polyline points="${lp.join(' ')}" fill="none" stroke="#2F7CC0" stroke-width="3"></polyline>`;}}}catch(e){}
+    p=`<svg viewBox="0 0 840 190" width="100%" height="190" role="img" aria-label="Usual Friday N2N IV path from 30 min before entry to Saturday afternoon"><line x1="40" x2="820" y1="${Y(0).toFixed(0)}" y2="${Y(0).toFixed(0)}" stroke="currentColor" opacity=".15"></line><polyline points="${pts}" fill="none" stroke="#9aa7b3" stroke-width="2" stroke-dasharray="6 5"></polyline>${live}
+      <text x="40" y="184">entry −1 h</text><text x="${X(1)}" y="${Y(0)-6}">entry</text><text x="${X(11.5)}" y="184">≈ Sat 07:00</text><text x="${X(19.5)}" y="184">≈ Sat 15:00</text><text x="740" y="${Y(P[11]||0)+16}">${pm(P[11])} pts</text></svg>`;}
+  return `<div class="v6c v6ban t b"><div style="display:flex;flex-direction:column;gap:2px"><span class="l">WEEKEND ENTRY · N2N ${esc(F.n2n)} 17:30 · HOLD TO SAT 07:00 / 15:00</span><span class="v ${vc}">${esc(v)}</span>
+      <span class="s">Sell window 60–120 min after the NY open: <b>${hm(w0)} – ${hm(w1)} IST</b> · later entries lose most of the weekend fall</span></div><span class="cd">${esc(win)}</span></div>
+    <h3>FRIDAY EXTRA CONFIRMATION · RISK, NOT TIME</h3>
+    <div class="g4">${T(1,'NEWS TO MONDAY',ev.length?ev[0].code+' '+hm(ev[0].t):'CLEAR',ev.length?'High-impact release before Mon 17:30':'No high-impact release before Mon 17:30',ev.length?'r':'g')}
+      ${T(2,'SPEED VS IV',sp!=null?sp.toFixed(2)+'×':'—','Below 1.5× = BTC calm',sp==null?'':sp<1.5?'g':'r')}
+      ${T(3,'ADX 1 H',adx?adx.a.toFixed(0)+(adx.rising?' · rising':' · falling'):'—','Not rising over 3 h · ≤ 40',adx?(!adx.rising&&adx.a<=40?'g':'r'):'')}
+      ${T(4,'ENTRY IV LEVEL',iv!=null?iv.toFixed(1):'—','Under 25: small fall, bounces seen → 0.10Δ',iv==null?'':iv<25?'a':'g')}
+      ${T(5,'SELL WINDOW',now<w0?'not yet':now<w1?'open':'passed',hm(w0)+' – '+hm(w1)+' · tested best',now<w0?'a':now<w1?'g':'r')}
+      ${T(6,'SIZE & DELTA','Friday lots · '+dF.toFixed(2)+'Δ','More lots → lower delta, not a later entry','g')}
+      ${T(7,'LEG STOP','2× each leg','Only shield vs a 10-Oct-2025 weekend','r')}
+      ${T(8,'EXIT PLAN','Sat 15:00','07:00 if IV is back above your entry IV','b')}</div>
+    <div class="g2"><div class="v6c"><span class="l">WEEKEND IV PATH · N2N (median of ${st?st.n:'…'} Fridays; blue = tonight)</span>${p||'<span class="s">Needs the archive…</span>'}</div>
+      <div class="v6c"><span class="l">WHAT THE TEST SAYS (1 year, your data)</span>
+      <span>Friday N2N IV fell on <b>${st&&st.s07?st.s07.fell.toFixed(0):'…'}%</b> of nights to Sat 07:00 (median <b>${st&&st.s07?pm(st.s07.med):'…'}</b> pts).</span>
+      <span>Entry 30 min → −6.3 · 90 min → −5.2 · 150 min → −4.2 · 210 min → −3.2 (test of 16 Oct).</span>
+      <span>Waiting for IV off its high or falling: smaller falls on Friday.</span><span class="bad">Tail: 10 Oct 2025, +27 pts by Sat 07:00 — no warning in the IV.</span>
+      <span class="s">BTC-priced test: only 4 Fridays · low confidence</span></div></div>`;}
+function holdCard(m){const R=L(),now=Date.now();const legs=R&&R.legs?R.legs.filter(l=>l.x!=null):[];const lg=legs.length?legs.map(l=>(l.type||'').slice(0,1).toUpperCase()+' '+l.x.toFixed(2)+'×').join(' · '):'no open strangle';
+  const mx=legs.length?Math.max(...legs.map(l=>l.x)):null;const ivd=R&&R.ivEntry!=null&&R.iv!=null?R.iv-R.ivEntry:null;
+  const ist=new Date(now+IST),sat=m.dow===6,t15=Date.UTC(ist.getUTCFullYear(),ist.getUTCMonth(),ist.getUTCDate())-IST+15*HR,t07=t15-8*HR;
+  const plan=!legs.length?'Watch only':mx>=2?'EXIT · leg 2×':ivd!=null&&ivd>0&&now<t15?'EXIT · IV above entry':sat&&now<t15?'HOLD · plan exit 15:00':'BOOK';
+  const T=(n,l,val,s,c)=>`<div class="v6c t ${c}"><span class="l">${n} · ${l}</span><b class="val">${esc(val)}</b><span class="s">${esc(s)}</span></div>`;
+  const cme=cmeOpen(now),tok=Date.UTC(new Date(cme).getUTCFullYear(),new Date(cme).getUTCMonth(),new Date(cme).getUTCDate())+DAY,exp=tok+12*HR;
+  return `<div class="v6c v6ban t a"><div style="display:flex;flex-direction:column;gap:2px"><span class="l">WEEKEND · NO NEW ENTRY SAT / SUN</span><span class="v ${plan.startsWith('EXIT')?'bad':'ok'}">${esc(plan)}</span>
+      <span class="s">Exit 07:00 if IV is back above entry or a leg is near 2×; otherwise 15:00 Saturday.</span></div>${sat&&now<t15?`<span class="cd">15:00 in ${cd(t15-now)}</span>`:''}</div>
+    <div class="g4">${T(1,'LEGS VS 2× STOP',lg,'Exit both at 2× on either leg',mx==null?'':mx>=1.6?'r':mx>=1.2?'a':'g')}
+      ${T(2,'IV VS ENTRY',ivd!=null?pm(ivd)+' pts':'—','Above entry → exit 07:00',ivd==null?'':ivd>0?'r':'g')}
+      ${T(3,'LIVE VERDICT',R&&R.verdict?R.verdict.v:'—','from the Leading board','b')}
+      ${T(4,'SUNDAY NIGHT','NO TRADE','Sunday-opened 2-day strangles lost in every period (Deribit study)','r')}</div>
+    <div class="v6c"><span class="l">RISK CLOCK</span><div class="g4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div><span class="s">CME futures open</span><br><b class="mono">${DL[new Date(cme+IST).getUTCDay()]} ${hm(cme)}</b><br><span class="s">gap risk · in ${cd(cme-now)}</span></div>
+      <div><span class="s">Tokyo open</span><br><b class="mono">Mon ${hm(tok)}</b><br><span class="s">Asia moves · in ${cd(tok-now)}</span></div>
+      <div><span class="s">Monday expiry</span><br><b class="mono">Mon ${hm(exp)}</b><br><span class="s">settlement · in ${cd(exp-now)}</span></div></div></div>`;}
+function logCard(){const P=S.prop,rows=S.log.slice(0,8);
+  return `<div class="v6c"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="l">SELF-IMPROVEMENT · re-tested every Saturday from 07:05 on all recorded nights</span>
+    <span style="margin-left:auto;display:flex;gap:8px">${P?`<button type="button" class="pri" data-v136="apply">Apply ${P.items.length} proposed</button><button type="button" data-v136="ignore">Ignore</button>`:''}<button type="button" data-v136="run">Re-test now</button></span></div>
+    ${P?`<div class="amb" style="font-size:13px">${P.items.map(p=>`${DL[p.dw]}: ${p.what==='rule'?esc(RULES[p.from||'none'].n)+' → <b>'+esc(RULES[p.to].n)+'</b>':'exit '+p.from+':00 → <b>'+p.to+':00</b>'} <span class="s">(${esc(p.why)})</span>`).join('<br>')}</div>`:''}
+    ${rows.length?`<table><thead><tr><th>When</th><th>Day</th><th>What</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${dk(r.at)} ${hm(r.at)}</td><td>${r.dw?DL[r.dw]:'—'}</td><td>${esc(r.txt)}</td><td>${esc(r.st)}</td></tr>`).join('')}</tbody></table>`:'<span class="s">First re-test runs on Saturday 07:05 (or press Re-test now).</span>'}
+    <span class="s">A change is proposed only if it holds in both halves of the data, has ≥ 15 nights with it and ≥ 8 without, and is one condition. Nothing changes without Apply. Friday's rules stay as tested.</span></div>`;}
+function myDays(){let P=null;try{P=W.v133&&W.v133.state?W.v133.state():null;}catch(e){}const rows=P&&P.rows?P.rows.filter(r=>!r.open):[];
+  if(!rows.length)return {html:`<span class="s">${P&&P.err==='nokey'?'Connect your Delta key (read-only) in Settings.':'Open the P&L page once to load your Delta fills.'}</span>`,n:0};
+  const by={};for(const r of rows){const b=Math.floor((r.first+IST-17.5*HR)/DAY),dw=new Date(b*DAY).getUTCDay();const k=dw===6||dw===0?'wk':dw;(by[k]=by[k]||[]).push(r);}
+  const line=(lab,R)=>{if(!R||!R.length)return `<tr><td>${lab}</td><td class="mono">0</td><td>—</td><td>—</td></tr>`;const n=R.length,w=R.filter(r=>r.pnl>0).length,net=R.reduce((a,r)=>a+r.pnl,0);
+    return `<tr><td>${lab}</td><td class="mono">${n}</td><td class="mono">${(w/n*100).toFixed(0)}%</td><td class="mono ${net>=0?'ok':'bad'}">${net>=0?'+':'−'}$${Math.abs(net).toFixed(2)}</td></tr>`;};
+  return {html:`<table><thead><tr><th>Night</th><th>Trades</th><th>Won</th><th>Net</th></tr></thead><tbody>${[1,2,3,4,5].map(d=>line(DL[d],by[d])).join('')}${line('Sat / Sun',by.wk)}</tbody></table>`,n:rows.length,by};}
+function paint(){chip();const dp=$('pgDecision');if(!dp)return;let el=$('v136Day');
+  if(!el){el=D.createElement('section');el.id='v136Day';el.setAttribute('aria-label','Day plan');el.addEventListener('click',e=>{const b=e.target.closest('[data-v136]');if(!b)return;const a=b.dataset.v136;
+      if(a==='apply')apply();else if(a==='ignore')ignore();else if(a==='run'){LSs('v136_week','');load(true);}});}
+  const fw=$('freshWarning');if(fw&&fw.parentElement===dp){if(fw.nextElementSibling!==el)fw.after(el);}else if(dp.firstElementChild!==el)dp.insertBefore(el,dp.firstChild);
+  if(!dp.classList.contains('on')&&S.html)return;
+  const m=mode(Date.now()),my=myDays();
+  const main=m.k==='fri'?friCard():m.k==='hold'?holdCard(m):coachTonight(m);
+  const h=`${strip(m)}${main}
+    <h3>DAY COACH · ONE YEAR OF YOUR N2N IV, GRADED BY WEEKNIGHT ${S.stats?'· '+S.rows.length+' nights':''}</h3>${coachCards(m)}
+    <div class="g2">${logCard()}<div class="v6c"><span class="l">YOUR TRADES BY ENTRY NIGHT (live Delta fills)</span>${my.html}<span class="s">If a day's real result disagrees with its grade for 4 weeks, check the day rule.</span></div></div>`;
+  if(h!==S.html){S.html=h;el.innerHTML=h;}}
+/* ---------- P&L page: by entry night ---------- */
+function pnlByDay(){const pg=$('pgPnl');if(!pg||!pg.classList.contains('on'))return;const p=$('v133Pnl');if(!p)return;let el=$('v136ByDay');
+  if(!el){el=D.createElement('section');el.id='v136ByDay';el.className='v133p';}if(el.previousElementSibling!==p)p.after(el);
+  const my=myDays();const h=`<div class="v6c" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px"><span style="font-size:11px;letter-spacing:.08em;color:var(--muted)">BY ENTRY NIGHT · WEEKDAY vs WEEKEND (closed trades)</span>${my.html}</div>`;
+  if(el.dataset.h!==h){el.dataset.h=h;el.innerHTML=h;}}
+function tick(){try{paint();}catch(e){console.warn('v136',e);}try{pnlByDay();}catch(e){}}
+setTimeout(()=>load(false),5000);setTimeout(tick,1500);setInterval(()=>{if(!D.hidden)tick();},15000);setInterval(()=>{if(!D.hidden)load(false);},HR);
+D.addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)setTimeout(tick,120);},true);
+W.v136={load,paint:()=>{S.html='';tick();},state:()=>S,mode,chipInfo,apply,ignore,dayRule:dw=>Object.assign({},DEF[dw]||{},S.rules[dw]||{}),ruleName:k=>(RULES[k]||RULES.none).n,ruleOK:(dw,x)=>{const r=(S.rules[dw]||DEF[dw]||{}).rule||'none';if(dw===5||r==='none'||r==='fri')return null;try{return !!RULES[r].f(x);}catch(e){return null;}},__test:{compute,judgeRule,grade,loadRows,weekly}};})();
 </script>
+<style id="v137Css">
+#paneG>.v137-lane{position:relative;flex:0 0 auto;height:120px;box-sizing:border-box;margin:0 4px;border:1px solid var(--v6-frame,var(--line2,var(--line)));border-radius:var(--v6-r,10px);overflow:hidden;background:var(--chart-bg,var(--panel))}
+#paneG>.v137-lane .v7c{position:absolute;inset:0}
+#paneG>.v137-lane .v7l{position:absolute;left:8px;top:6px;z-index:3;display:flex;gap:8px;align-items:center;font:600 11.5px/1.2 var(--font);color:var(--text);pointer-events:none;
+  background:color-mix(in srgb,var(--chart-bg,var(--panel)) 80%,transparent);border:1px solid var(--line);border-radius:7px;padding:3px 8px;max-width:calc(100% - 110px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#paneG>.v137-lane .v7l b{letter-spacing:.06em}#paneG>.v137-lane .v7l .m{color:var(--muted);font-weight:500}
+#paneG>.v137-lane .v7l .g{color:#188E58}#paneG>.v137-lane .v7l .r{color:#C23B3B}#paneG>.v137-lane .v7l .a{color:#A86F00}
+@media (max-width:760px){#paneG>.v137-lane{height:84px;margin:3px 3px 0}}
+#v137Liq{display:none;margin-left:10px;font:700 11.5px/1 var(--font);border-radius:999px;padding:5px 10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+body.v137-liq #v137Liq{display:inline-flex}
+#v137Liq.hot{background:#C23B3B;border-color:#C23B3B;color:#fff}#v137Liq.warm{background:#A86F00;border-color:#A86F00;color:#fff}
+#v137Lab{max-width:1380px;margin:0 auto 16px}
+#v137Lab .v6c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-family:var(--font);color:var(--text)}
+#v137Lab table{width:100%;border-collapse:collapse;font-size:12.5px}#v137Lab td,#v137Lab th{padding:5px 6px;text-align:left;border-bottom:1px solid var(--line)}#v137Lab th{color:var(--muted);font-weight:600}
+#v137Lab .l{font-size:11px;letter-spacing:.08em;color:var(--muted)}#v137Lab .s{font-size:12px;color:var(--muted)}
+</style>
+<script data-module="v137">
+/* v137 (16 Oct 2026, preview, not deployed). New indicators in the ƒx menu, as lanes under the BTC chart (same bars, move
+   with the BTC chart):
+   - Term spread (tested on 1 year: Current IV above N2N at entry → N2N IV fell on 85% of nights vs 75%): bars = Current − N2N
+     IV, line = Next − N2N; legend adds the Next→N2N forward vol.
+   - 25Δ skew: risk reversal of the master expiry (put − call IV, from the desk's chain reader v104), puts rich = red.
+   - Funding + OI: Delta BTCUSD perp funding (annualised) as bars, open interest as a line.
+   - Liquidations: OKX BTC swaps (USD + USDT margined), last 15 min, longs / shorts — a badge on the BTC chart header.
+   Recorder: every 5 min a snapshot (term, skew, funding, OI, liquidations) goes to IndexedDB suraj_ind_v1, so the desk can
+   test them on Abhishek's own nights. Decision page "Indicator lab" shows the split once ≥ 20 nights are recorded.
+   Charm / vanna: info only (Delta open interest is too thin for dealer positioning). */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);
+const MIN=6e4,HR=36e5,DAY=864e5,ISTS=19800,IST=ISTS*1000;const fin=Number.isFinite;const API='https://api.india.delta.exchange';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cv=n=>{try{return cssVar(n);}catch(e){return '';}},hx=(h,a)=>{try{return hexA(h,a);}catch(e){return h;}};
+const S={fund:[],oi:[],liq:new Map(),seen:new Set(),rows:[],lanes:{},db:null,lastRec:0,liqErr:'',fundErr:''};
+/* ---------- recorder (IndexedDB, separate from the archive) ---------- */
+function db(){if(S.db)return Promise.resolve(S.db);return new Promise((res,rej)=>{let r;try{r=indexedDB.open('suraj_ind_v1',1);}catch(e){return rej(e);}
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('rows'))r.result.createObjectStore('rows');};r.onsuccess=()=>{S.db=r.result;res(S.db);};r.onerror=()=>rej(r.error);});}
+async function loadRec(){try{const d=await db();S.rows=await new Promise((res,rej)=>{const t=d.transaction('rows','readonly'),q=t.objectStore('rows').getAll();q.onsuccess=()=>res((q.result||[]).sort((a,b)=>a.t-b.t));q.onerror=()=>rej(q.error);});}catch(e){S.rows=[];}}
+async function record(){const now=Date.now(),t=Math.floor(now/(5*MIN))*5*MIN;if(t===S.lastRec)return;const snap=snapshot(now);if(!snap)return;S.lastRec=t;snap.t=t;
+  try{const d=await db();await new Promise((res,rej)=>{const tx=d.transaction('rows','readwrite');tx.objectStore('rows').put(snap,t);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});
+    const i=S.rows.findIndex(r=>r.t===t);if(i>=0)S.rows[i]=snap;else S.rows.push(snap);}catch(e){}}
+/* ---------- IV term from the desk's live IV candles ---------- */
+function ivAt(e,ms,tol){let a=null;try{a=typeof candles!=='undefined'?candles[e]:null;}catch(x){}if(!a||!a.length)return null;const ts=Math.floor(ms/1000);
+  let lo=0,hi=a.length-1;if(a[0][0]>ts)return null;while(lo<hi){const m=(lo+hi+1)>>1;if(a[m][0]<=ts)lo=m;else hi=m-1;}if(ts-a[lo][0]>(tol||12*60))return null;const v=a[lo][4];return v>0?(v<5?v*100:v):null;}
+function settleOf(e){return Date.parse(e+'T12:00:00Z');}
+function term(ms){if(!W.v121||!W.v121.frame)return null;const F=W.v121.frame(ms),c=ivAt(F.cur,ms),n=ivAt(F.nxt,ms),z=ivAt(F.n2n,ms);if(z==null)return null;
+  let fwd=null;if(n!=null){const T1=(settleOf(F.nxt)-ms)/(365*DAY),T2=(settleOf(F.n2n)-ms)/(365*DAY),w=(z*z*T2-n*n*T1)/(T2-T1);if(T2>T1&&T1>0&&w>0)fwd=Math.sqrt(w);}
+  return {cur:c,nxt:n,n2n:z,dc:c!=null?c-z:null,dn:n!=null?n-z:null,fwd};}
+/* ---------- skew: the desk's 5-min samples (48 h) + our long record ---------- */
+function skewRows(){let a=[];try{const v=JSON.parse(localStorage.getItem('v104_skew')||'[]');if(Array.isArray(v))a=v.map(r=>({t:r[0],e:r[1],rr:r[2],fly:r[3],atm:r[4]})).filter(r=>fin(r.rr));}catch(e){}
+  const have=new Set(a.map(r=>r.t));for(const r of S.rows)if(fin(r.rr)&&!have.has(r.t))a.push({t:r.t,e:r.se,rr:r.rr,fly:r.fly,atm:r.satm});return a.sort((x,y)=>x.t-y.t);}
+/* ---------- funding + OI (Delta perp, hourly) ---------- */
+async function getJ(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function loadFund(){const now=Math.floor(Date.now()/1000),st=now-30*86400;
+  try{const j=await getJ(`${API}/v2/history/candles?symbol=FUNDING%3ABTCUSD&resolution=1h&start=${st}&end=${now}`);S.fund=((j&&j.result)||[]).map(c=>[c.time*1000,+c.close]).filter(p=>fin(p[1])).sort((a,b)=>a[0]-b[0]);S.fundErr='';}catch(e){S.fundErr=String(e.message||e);}
+  try{const j=await getJ(`${API}/v2/history/candles?symbol=OI%3ABTCUSD&resolution=1h&start=${st}&end=${now}`);S.oi=((j&&j.result)||[]).map(c=>[c.time*1000,+c.close]).filter(p=>fin(p[1])).sort((a,b)=>a[0]-b[0]);}catch(e){}
+  paintAll();}
+const ann=f=>f*3*365;   // Delta funding candles are % per 8 h → % a year
+/* ---------- liquidations (OKX public, BTC swaps) ---------- */
+async function loadLiq(){const B=15*MIN;let okAny=false;
+  for(const [uly,usd] of [['BTC-USD',(sz)=>sz*100],['BTC-USDT',(sz,px)=>sz*0.01*px]]){
+    try{const j=await getJ(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&uly=${uly}&state=filled`);okAny=true;
+      for(const blk of (j&&j.data)||[])for(const d of blk.details||[]){const ts=+d.ts,sz=+d.sz,px=+d.bkPx;if(!fin(ts)||!fin(sz)||!fin(px))continue;const key=uly+'|'+ts+'|'+sz+'|'+px;if(S.seen.has(key))continue;S.seen.add(key);
+        const k=Math.floor(ts/B)*B;let o=S.liq.get(k);if(!o){o={L:0,S:0};S.liq.set(k,o);}const v=usd(sz,px),lng=(d.posSide||'')==='long'||((d.posSide||'net')==='net'&&d.side==='sell');if(lng)o.L+=v;else o.S+=v;}}catch(e){S.liqErr=String(e.message||e);}}
+  if(okAny)S.liqErr='';const cut=Date.now()-3*DAY;for(const k of [...S.liq.keys()])if(k<cut)S.liq.delete(k);if(S.seen.size>20000)S.seen=new Set([...S.seen].slice(-5000));badge();}
+function liqLast(ms){const B=15*MIN,k=Math.floor(ms/B)*B,a=S.liq.get(k)||{L:0,S:0},b=S.liq.get(k-B)||{L:0,S:0};return {L:a.L+b.L*Math.max(0,1-(ms-k)/B),S:a.S+b.S*Math.max(0,1-(ms-k)/B)};}
+const usdT=v=>v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0);
+function badge(){const on=!!(W.v132ind&&W.v132ind.state&&W.v132ind.state().liq);D.body.classList.toggle('v137-liq',on);if(!on)return;
+  const head=D.querySelector('#paneG>.pane-head');if(!head)return;let b=$('v137Liq');if(!b){b=D.createElement('span');b.id='v137Liq';b.setAttribute('role','status');}if(b.parentElement!==head)head.appendChild(b);
+  const x=liqLast(Date.now()),tot=x.L+x.S;const t=S.liqErr&&!S.liq.size?'LIQ —':`LIQ 15m · longs $${usdT(x.L)} · shorts $${usdT(x.S)}`;
+  if(b.textContent!==t)b.textContent=t;b.className=tot>=25e6?'hot':tot>=5e6?'warm':'';b.title='Liquidations on OKX BTC swaps (USD + USDT margined), last ~15 min. ≥ $5M amber, ≥ $25M red. Coincident: shows a cascade while it happens.';}
+/* ---------- snapshot for the recorder ---------- */
+function at(arr,ms,maxAge){let lo=0,hi=arr.length-1;if(!arr.length||arr[0][0]>ms)return null;while(lo<hi){const m=(lo+hi+1)>>1;if(arr[m][0]<=ms)lo=m;else hi=m-1;}return ms-arr[lo][0]<=maxAge?arr[lo][1]:null;}
+function snapshot(now){const T=term(now),sk=skewRows(),s=sk.length&&now-sk[sk.length-1].t<15*MIN?sk[sk.length-1]:null,x=liqLast(now);
+  const o={tc:T?T.dc:null,tn:T?T.dn:null,fwd:T?T.fwd:null,n2n:T?T.n2n:null,rr:s?s.rr:null,fly:s?s.fly:null,se:s?s.e:null,satm:s?s.atm:null,fund:at(S.fund,now,2*HR),oi:at(S.oi,now,2*HR),liqL:x.L,liqS:x.S};
+  return Object.values(o).some(v=>v!=null&&v!==0)?o:null;}
+/* ---------- lanes ---------- */
+const LANES={term:{id:'v137Term',name:'TERM SPREAD'},skew:{id:'v137Skew',name:'25Δ SKEW'},fund:{id:'v137Fund',name:'FUNDING + OI'}};
+function lane(k){const L=S.lanes[k];if(L&&L.box&&L.box.isConnected)return L;const pane=$('paneG'),src=W.paChart&&W.paChart(),LW=W.LightweightCharts;if(!pane||!src||!LW)return null;
+  let box=$(LANES[k].id);if(!box){box=D.createElement('div');box.id=LANES[k].id;box.className='v137-lane v127-off';box.innerHTML='<div class="v7c"></div><div class="v7l"></div>';}
+  const anchor=[...pane.children].filter(e=>['cvLane','v105EdgeBox','v105RangeBox','paAdxBox'].includes(e.id)).pop()||null;const order=['term','skew','fund'];let after=anchor;for(const kk of order){if(kk===k)break;const e=$(LANES[kk].id);if(e&&e.parentElement===pane)after=e;}
+  if(box.parentElement!==pane){if(after&&after.parentElement===pane)after.after(box);else pane.appendChild(box);}
+  const ch=LW.createChart(box.querySelector('.v7c'),{autoSize:true,...chartThemeOptions(),rightPriceScale:{borderVisible:false,scaleMargins:{top:0.08,bottom:0.08},minimumWidth:78},
+    timeScale:{visible:false,rightOffset:12,barSpacing:6,minBarSpacing:0.5},handleScroll:false,handleScale:false,crosshair:{...chartThemeOptions().crosshair,horzLine:{visible:false,labelVisible:false}}});
+  try{ch.applyOptions({watermark:{visible:false}});}catch(e){}
+  const o={box,ch,leg:box.querySelector('.v7l'),sync:false};
+  if(k==='term'){o.a=ch.addHistogramSeries({priceLineVisible:false,lastValueVisible:true,base:0,priceFormat:{type:'custom',formatter:v=>(v>0?'+':'')+v.toFixed(1),minMove:0.1}});
+    o.b=ch.addLineSeries({color:'#2F7CC0',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});o.a.createPriceLine({price:0,color:hx(cv('--muted')||'#8FA3B5',0.6),lineWidth:1,lineStyle:2,axisLabelVisible:false,title:''});}
+  if(k==='skew'){o.a=ch.addBaselineSeries({baseValue:{type:'price',price:0},topLineColor:'#C23B3B',topFillColor1:'rgba(194,59,59,.28)',topFillColor2:'rgba(194,59,59,.04)',bottomLineColor:'#188E58',bottomFillColor1:'rgba(24,142,88,.04)',bottomFillColor2:'rgba(24,142,88,.28)',lineWidth:2,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'custom',formatter:v=>(v>0?'+':'')+v.toFixed(1),minMove:0.1}});}
+  if(k==='fund'){o.a=ch.addHistogramSeries({priceLineVisible:false,lastValueVisible:true,base:0,priceFormat:{type:'custom',formatter:v=>v.toFixed(0)+'%',minMove:1}});
+    o.b=ch.addLineSeries({priceScaleId:'oi',color:'#8E6CD8',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});ch.priceScale('oi').applyOptions({visible:false,scaleMargins:{top:0.25,bottom:0.1}});}
+  src.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(!r||!o.box.clientWidth)return;try{o.ch.timeScale().setVisibleLogicalRange(r);}catch(e){}});
+  new MutationObserver(()=>setTimeout(()=>{try{ch.applyOptions(chartThemeOptions());ch.applyOptions({watermark:{visible:false}});}catch(e){}paint(k);},120)).observe(D.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  S.lanes[k]=o;try{W.paRefit&&W.paRefit();}catch(e){}return o;}
+function bars(){const R=W.paRes&&W.paRes();if(!R||!R.bars||R.bars.length<3)return null;const b=R.bars,tf=(b[b.length-1].time-b[b.length-2].time)*1000;return {b,tf};}
+const endMs=(bar,tf)=>Math.min(Date.now(),(bar.time-ISTS)*1000+tf);
+function paint(k){const on=W.v132ind&&W.v132ind.state&&W.v132ind.state()[k];const L=lane(k);if(!L)return;if(!on){L.box.classList.add('v127-off');return;}L.box.classList.remove('v127-off');
+  const B=bars();if(!B)return;const up=cv('--c-up')||'#26A69A',dn=cv('--c-dn')||'#EF5350',mu=cv('--muted')||'#8FA3B5';const n=B.b.length;let leg='';
+  if(k==='term'){const A=[],N=[];let last=null;for(let i=0;i<n;i++){const bar=B.b[i],x=term(endMs(bar,B.tf));
+      if(!x||x.dc==null){A.push({time:bar.time});}else{A.push({time:bar.time,value:x.dc,color:hx(x.dc>0?up:dn,i===n-1?0.6:0.85)});last=x;}
+      N.push(x&&x.dn!=null?{time:bar.time,value:x.dn}:{time:bar.time});}
+    L.a.setData(A);L.b.setData(N);const x=term(Date.now())||last;
+    leg=`<b>TERM</b>${x&&x.dc!=null?`<span class="${x.dc>0?'g':'r'}">Cur − N2N ${x.dc>0?'+':''}${x.dc.toFixed(1)}</span>`:'<span class="m">Cur − N2N —</span>'}${x&&x.dn!=null?`<span>Next − N2N ${x.dn>0?'+':''}${x.dn.toFixed(1)}</span>`:''}${x&&x.fwd!=null?`<span class="m">fwd ${x.fwd.toFixed(1)}</span>`:''}<span class="m">${x&&x.dc>0?'Current above N2N · IV fell 85% (tested)':'Current below N2N · IV fell 75%'}</span>`;}
+  if(k==='skew'){const R=skewRows();const A=[];let j=0,last=null;for(let i=0;i<n;i++){const bar=B.b[i],ms=endMs(bar,B.tf);while(j<R.length&&R[j].t<=ms)j++;const r=j?R[j-1]:null;
+      if(r&&ms-r.t<=20*MIN){A.push({time:bar.time,value:r.rr});last=r;}else A.push({time:bar.time});}
+    L.a.setData(A);const r=R.length?R[R.length-1]:null;
+    leg=`<b>25Δ SKEW</b>${r?`<span class="${r.rr>0?'r':'g'}">RR ${r.rr>0?'+':''}${r.rr.toFixed(1)} · ${r.rr>0?'puts rich':'calls rich'}</span>${r.fly!=null?`<span class="m">fly ${r.fly.toFixed(1)}</span>`:''}<span class="m">${esc(r.e||'')} · ${R.length} samples</span>`:'<span class="m">waiting for the chain reader (5-min samples)</span>'}`;}
+  if(k==='fund'){const A=[],O=[];for(let i=0;i<n;i++){const bar=B.b[i],ms=endMs(bar,B.tf),f=at(S.fund,ms,2*HR),o=at(S.oi,ms,2*HR);
+      A.push(f==null?{time:bar.time}:{time:bar.time,value:ann(f),color:hx(f>=0?'#A86F00':'#2F7CC0',i===n-1?0.6:0.85)});O.push(o==null?{time:bar.time}:{time:bar.time,value:o});}
+    L.a.setData(A);L.b.setData(O);const f=S.fund.length?S.fund[S.fund.length-1][1]:null,o=S.oi.length?S.oi[S.oi.length-1][1]:null,o24=at(S.oi,Date.now()-24*HR,3*HR);
+    const vals=S.fund.map(p=>p[1]).sort((a,b)=>a-b),pct=f!=null&&vals.length>24?vals.filter(v=>v<=f).length/vals.length*100:null;
+    leg=`<b>FUNDING + OI</b>${f!=null?`<span class="${pct!=null&&pct>=80?'r':pct!=null&&pct<=20?'g':''}">${ann(f).toFixed(1)}% a year${pct!=null?' · '+pct.toFixed(0)+'th pct 30 d':''}</span>`:`<span class="m">${S.fundErr?'unavailable':'loading…'}</span>`}${o!=null&&o24?`<span>OI ${((o/o24-1)*100).toFixed(1)}% 24 h</span>`:''}<span class="m">crowding gauge · size down when top 20% + OI rising</span>`;}
+  try{const pw=W.paChart().priceScale('right').width();if(pw)L.ch.applyOptions({rightPriceScale:{minimumWidth:Math.max(78,pw)}});const r=W.paChart().timeScale().getVisibleLogicalRange();if(r)L.ch.timeScale().setVisibleLogicalRange(r);}catch(e){}
+  if(L.leg.innerHTML!==leg)L.leg.innerHTML=leg;}
+function paintAll(){for(const k of Object.keys(LANES))try{paint(k);}catch(e){console.warn('v137 '+k,e);}badge();}
+/* ---------- Decision page: Indicator lab ---------- */
+function lab(){const dp=$('pgDecision');if(!dp)return;let el=$('v137Lab');if(!el){el=D.createElement('section');el.id='v137Lab';}
+  const ref=$('v136Day');if(ref&&ref.parentElement===dp){if(ref.nextElementSibling!==el)ref.after(el);}else if(el.parentElement!==dp)dp.appendChild(el);
+  if(!dp.classList.contains('on')&&el.dataset.h)return;
+  const v6=W.v136&&W.v136.state&&W.v136.state(),nights=v6&&v6.rows?v6.rows:[];const rec=S.rows;
+  const atEntry=r=>{const F=W.v121.frame(Date.parse(r.d+'T00:00:00Z')-IST+20*HR),t=F.open+90*MIN;let best=null;for(const x of rec){const d=Math.abs(x.t-t);if(d<=20*MIN&&(!best||d<best.d))best={d,x};}return best?best.x:null;};
+  const joined=nights.map(r=>({r,x:atEntry(r)})).filter(o=>o.x);
+  const split=(name,f,ok)=>{const A=joined.filter(o=>f(o.x)===true),B=joined.filter(o=>f(o.x)===false);const fell=P=>P.length?P.filter(o=>o.r.x07<0).length/P.length*100:null;
+    const n=A.length+B.length;if(n<20)return `<tr><td>${name}</td><td colspan="3" class="s">collecting · ${n} of 20 nights recorded</td><td>${ok}</td></tr>`;
+    return `<tr><td>${name}</td><td>${A.length} · fell ${fell(A).toFixed(0)}%</td><td>${B.length} · fell ${fell(B).toFixed(0)}%</td><td>${(fell(A)-fell(B)).toFixed(0)} pts</td><td>${ok}</td></tr>`;};
+  const med=a=>{const x=a.filter(fin).sort((p,q)=>p-q);return x.length?x[x.length>>1]:null;},mf=med(rec.map(r=>r.fund)),mr=med(rec.map(r=>r.rr));
+  const h=`<div class="v6c"><span class="l">INDICATOR LAB · new indicators tested on your own nights (IV change of N2N to 07:00; recorded every 5 min since ${rec.length?new Date(rec[0].t+IST).toISOString().slice(0,10):'today'})</span>
+    <table><thead><tr><th>Condition at entry</th><th>With</th><th>Without</th><th>Edge</th><th>Status</th></tr></thead><tbody>
+    ${split('Current IV above N2N (term)',x=>x.tc==null?null:x.tc>0,'tested on 1 year: 85% vs 75%')}
+    ${split('Puts richer than usual (RR above median)',x=>x.rr==null||mr==null?null:x.rr>mr,'research: puts rich = put-leg danger')}
+    ${split('Funding above its median',x=>x.fund==null||mf==null?null:x.fund>mf,'research: crowding = crash risk, not timing')}
+    ${split('Liquidations ≥ $5M in the last 15 min',x=>x.liqL==null?null:(x.liqL+x.liqS)>=5e6,'coincident alarm')}</tbody></table>
+    <span class="s">${rec.length} snapshots recorded. A split is shown once 20 nights have a snapshot at entry (about 4 weeks). Charm / vanna: info only — Delta option open interest is too thin for dealer positioning to mean anything; dealer gamma stays an optional overlay.</span></div>`;
+  if(el.dataset.h!==h){el.dataset.h=h;el.innerHTML=h;}}
+/* ---------- loop ---------- */
+async function start(){await loadRec();loadFund();loadLiq();paintAll();lab();}
+setTimeout(start,3500);
+setInterval(()=>{if(D.hidden)return;paintAll();record();lab();},30000);
+setInterval(()=>{if(!D.hidden)loadLiq();},60000);
+setInterval(()=>{if(!D.hidden)loadFund();},10*MIN);
+D.addEventListener('click',e=>{if(e.target.closest('#v132Ind,[data-page]'))setTimeout(()=>{paintAll();lab();},200);},true);
+W.v137={paintAll,lab,state:()=>S,term,snapshot,record,__test:{loadFund,loadLiq,liqLast}};})();
+</script>
+<style id="v138Css">
+/* v138 · ONE chart panel: BTC on top, every ticked indicator a section of the same panel (CoinGlass style) */
+body.v138 #volRow{display:none!important}
+body.v138 #paneG>#ivlLine{display:none!important}
+body.v138 #paneG>.chart-box{margin:0!important}
+body.v138 #paneG{position:relative;border:1px solid var(--line2,var(--line))!important;border-radius:12px!important;overflow:hidden;background:var(--chart-bg,var(--panel))!important}
+body.v138 #paneG>#cvLane,body.v138 #paneG>#v105EdgeBox,body.v138 #paneG>#v105RangeBox,body.v138 #paneG>#paAdxBox,body.v138 #paneG>.v137-lane,body.v138 #paneG>.v138-lane{
+  position:relative;margin:0!important;border:0!important;border-radius:0!important;box-shadow:inset 0 1px 0 var(--line2,var(--line))!important;background:var(--chart-bg,var(--panel))!important;box-sizing:border-box}
+body.v138 #paneG>[data-st]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;z-index:6;background:transparent;pointer-events:none}
+body.v138 #paneG>[data-st="g"]::before{background:#22A06B}body.v138 #paneG>[data-st="a"]::before{background:#E3AE45}body.v138 #paneG>[data-st="r"]::before{background:#E05252}
+body.v138 #paneG .v128z,body.v138 #paneG>.chart-box .v128z{display:none!important}
+body.v138 #paneG .v138-grip{position:absolute;left:50%;top:-4px;transform:translateX(-50%);width:44px;height:8px;z-index:8;cursor:row-resize;display:flex;align-items:center;justify-content:center}
+body.v138 #paneG .v138-grip::after{content:"";width:28px;height:3px;border-radius:2px;background:var(--muted);opacity:.35}
+body.v138 #paneG .v138-grip:hover::after{opacity:.9}
+#paneG>.v138-lane{flex:0 0 auto;height:110px;overflow:hidden}
+#paneG>.v138-lane .v8c{position:absolute;inset:0}
+#paneG>.v138-lane .v8l,#paneG>.v137-lane .v7l{position:absolute;left:10px;top:5px;z-index:5;display:flex;gap:8px;align-items:center;font:600 11.5px/1.2 var(--font);color:var(--text);pointer-events:none;
+  background:color-mix(in srgb,var(--chart-bg,var(--panel)) 82%,transparent);border:1px solid var(--line);border-radius:7px;padding:3px 8px;max-width:calc(100% - 120px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#paneG>.v138-lane .v8l b{letter-spacing:.06em}#paneG>.v138-lane .v8l .m{color:var(--muted);font-weight:500}
+#paneG>.v138-lane .v8l .g{color:#22A06B}#paneG>.v138-lane .v8l .r{color:#E05252}#paneG>.v138-lane .v8l .a{color:#C98F1A}
+#paneG>#v138Ready{height:30px!important;max-height:30px!important}
+#paneG>#v138Ready .v8l{top:2px;padding:1px 7px;font-size:10.5px}
+.v138-zone{position:absolute;left:0;right:78px;z-index:1;pointer-events:none;border-top:1px dashed transparent;border-bottom:1px dashed transparent}
+.v138-zone>span{position:absolute;right:6px;top:2px;font:600 10px/1 var(--font);opacity:.85}
+#v138Read{position:absolute;right:90px;top:44px;z-index:9;display:none;min-width:170px;padding:8px 10px;border-radius:10px;border:1px solid var(--line2,var(--line));
+  background:color-mix(in srgb,var(--panel) 92%,transparent);box-shadow:0 8px 24px rgba(0,0,0,.25);font:500 12px/1.45 var(--font);color:var(--text);pointer-events:none;backdrop-filter:blur(6px)}
+#v138Read .t{font:600 11px var(--mono,monospace);color:var(--muted);margin-bottom:4px}
+#v138Read .r{display:flex;justify-content:space-between;gap:14px}#v138Read .r i{font-style:normal;color:var(--muted)}#v138Read .r b{font-family:var(--mono,monospace);font-weight:600}
+
+.v138-vb{position:absolute;top:24px;bottom:0;z-index:1;pointer-events:none;display:none}
+.v138-vb.wait{background:repeating-linear-gradient(135deg,rgba(142,108,216,.10) 0 6px,transparent 6px 12px);border-left:1px solid rgba(142,108,216,.6)}
+.v138-vb>span{position:absolute;left:4px;bottom:4px;font:600 10px/1 var(--font);color:#8E6CD8;white-space:nowrap}
+#v138Ev{position:absolute;inset:0;z-index:4;pointer-events:none}
+#v138Ev .e{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed rgba(227,174,69,.55)}
+#v138Ev .e>span{position:absolute;bottom:4px;left:3px;font:700 10px/1 var(--font);color:#C98F1A;background:color-mix(in srgb,var(--chart-bg,var(--panel)) 85%,transparent);padding:2px 4px;border-radius:4px;white-space:nowrap}
+#v138Band{position:absolute;z-index:2;pointer-events:none;background:linear-gradient(90deg,rgba(76,155,232,.0),rgba(76,155,232,.10));border-top:1px dashed rgba(76,155,232,.6);border-bottom:1px dashed rgba(76,155,232,.6)}
+#v138Band>span{position:absolute;right:4px;top:3px;font:600 10px/1 var(--font);color:#4C9BE8}
+.v138-presets{display:flex;gap:6px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line)}
+.v138-presets button{font:600 12px var(--font);padding:5px 10px;border-radius:999px;border:1px solid var(--line2,var(--line));background:var(--panel);color:var(--text);cursor:pointer}
+.v138-presets button:hover{border-color:#2F7CC0;color:#2F7CC0}
+.v138-presets span{font:600 11px var(--font);letter-spacing:.06em;color:var(--muted);align-self:center;margin-right:2px}
+@media (max-width:760px){#paneG>.v138-lane{height:88px}#v138Read{right:8px;top:40px}}
+@media (max-width:760px){body.v138.v138-pfit #pgDesk::after{display:none!important}}
+/* v138.1: label row above the plot, per-section zoom roller, roomier phone sections */
+#paneG>.v138-lane:not(#v138Ready) .v8c,#paneG>.v137-lane .v7c{top:24px!important}
+#paneG>.v138-lane .v8l,#paneG>.v137-lane .v7l{top:3px!important}
+.v138-roll{position:absolute;left:8px;top:30px;z-index:7;display:flex;flex-direction:column;gap:3px;opacity:.55;transition:opacity .15s}
+.v138-roll:hover,.v138-lane:hover .v138-roll,.v137-lane:hover .v138-roll{opacity:1}
+.v138-roll button{width:24px;height:22px;padding:0;border-radius:6px;border:1px solid var(--line2,var(--line));background:color-mix(in srgb,var(--panel) 92%,transparent);color:var(--text);font:700 13px/1 var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.v138-roll button:hover{border-color:#2F7CC0;color:#2F7CC0}
+@media (max-width:760px){
+  body.v138 #paneG>.v138-lane:not(#v138Ready),body.v138 #paneG>.v137-lane{height:136px!important;max-height:none!important}
+  body.v138 #paneG>.v138-ax{height:166px!important}
+  .v138-roll{opacity:1;left:6px;top:28px;flex-direction:row}.v138-roll button{width:30px;height:28px}}
+
+</style>
+<script data-module="v138">
+/* v138 (16 Oct 2026, preview, not deployed). ONE chart panel, CoinGlass style.
+   BTC is the primary chart; every indicator ticked in ƒx Indicators is a SECTION of the same panel under it: thin divider,
+   a drag grip to resize (remembered), double-click a section to make it 2.5× taller, one label top-left, no per-section
+   buttons, one time axis at the bottom (the last section shows it), one crosshair across all sections.
+   - IV / RV / VoV / DVOL are now sections built on the BTC chart's own bars (same bar = same time), so they can never
+     drift from the BTC chart. The old separate vol cards are hidden in this mode.
+   - Decoration: a coloured left edge per section = its rule right now (green pass · amber caution · red fail);
+     shaded "good zones" (IV sell zone 1.5–6 % below the NY high, Term above 0, Funding top 20 %); one hover readout box
+     with every section's value at the hovered bar; high-impact events as one dashed line through the whole panel;
+     one-click layouts (Entry · Hold · Weekend · Clean) at the top of the Indicators menu.
+   - New: Entry readiness strip (one dot per 15 min of the NY window: green = IV rule + Speed < 1.5× + ADX ok, amber = IV
+     rule but a filter fails); strike lines (your open strangle, else tonight's suggested 0.15Δ / put tilt) and the ±1σ
+     expected-move band to the N2N expiry on the BTC chart; Leg multiple section while a trade is open (call ×, put ×,
+     2× stop line); the usual Friday IV path (dashed) inside the IV section on Friday nights.
+   Switch off: localStorage v138_panel = '0' (reload) brings back the old cards. */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);
+if((()=>{try{return localStorage.getItem('v138_panel')==='0';}catch(e){return false;}})())return;
+W.__v138=true;D.body.classList.add('v138');
+const MIN=6e4,HR=36e5,DAY=864e5,ISTS=19800,IST=ISTS*1000;const fin=Number.isFinite;
+const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const cv=n=>{try{return cssVar(n);}catch(e){return '';}},hx=(h,a)=>{try{return hexA(h,a);}catch(e){return h;}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ON=k=>{try{return !!(W.v132ind&&W.v132ind.state()[k]);}catch(e){return false;}};
+const S={lanes:{},Hs:LSg('v138_h',{}),max:LSg('v138_max',{}),vals:{},bars:null,legs:LSg('v138_legs',null)};
+/* ---------- heights (used by v133.fit) ---------- */
+W.__v138H=(id,lh)=>{let h=Math.max(S.Hs[id]||lh,120);if(S.max[id])h=Math.round(h*2.5);h=Math.max(96,Math.min(560,h));return id===S.axisId?h+28:h;};   // v138.1: ≥ 120 px (label row + plot), +28 px on the section that carries the time axis
+W.__v138X=lanes=>{let x=0;for(const l of lanes){const h=W.__v138H(l.id,100);x+=Math.max(0,h-100);}const r=$('v138Ready');if(r&&getComputedStyle(r).display!=='none')x+=30;return x;};
+/* ---------- the BTC bars ---------- */
+function bars(){const R=W.paRes&&W.paRes();if(!R||!R.bars||R.bars.length<3)return null;const b=R.bars,tf=(b[b.length-1].time-b[b.length-2].time)*1000;return {b,tf,n:b.length};}
+const t0ms=bar=>(bar.time-ISTS)*1000;
+/* ---------- section factory ---------- */
+const SEC={ready:{id:'v138Ready',kind:'ready'},iv:{id:'v138Iv'},rv:{id:'v138Rv'},vov:{id:'v138Vov'},dv:{id:'v138Dv'},legs:{id:'v138Legs'}};
+const ORDER=['v138Ready','cvLane','v138Iv','v138Rv','v138Vov','v138Dv','v105EdgeBox','v105RangeBox','paAdxBox','v137Term','v137Skew','v137Fund','v138Legs'];
+function place(box){const pane=$('paneG');if(!pane)return;const my=ORDER.indexOf(box.id);let after=pane.querySelector(':scope>.chart-box')||null;
+  for(const id of ORDER.slice(0,my)){const e=$(id);if(e&&e.parentElement===pane)after=e;}
+  if(box.parentElement!==pane||box.previousElementSibling!==after){if(after)after.after(box);else pane.appendChild(box);}}
+function lane(k){const L=S.lanes[k];if(L&&L.box.isConnected)return L;const pane=$('paneG'),src=W.paChart&&W.paChart(),LW=W.LightweightCharts;if(!pane||!src||!LW)return null;
+  let box=$(SEC[k].id);if(!box){box=D.createElement('div');box.id=SEC[k].id;box.className='v138-lane v127-off';box.innerHTML='<div class="v8c"></div><div class="v8l"></div>';}
+  place(box);
+  const th=chartThemeOptions();
+  const ch=LW.createChart(box.querySelector('.v8c'),{autoSize:true,...th,rightPriceScale:{borderVisible:false,scaleMargins:{top:k==='ready'?0.1:0.08,bottom:k==='ready'?0:0.08},minimumWidth:78,visible:k!=='ready'},
+    timeScale:{visible:false,rightOffset:12,barSpacing:6,minBarSpacing:0.5,borderVisible:false},handleScroll:false,handleScale:false,crosshair:{...th.crosshair,horzLine:{visible:false,labelVisible:false}}});
+  try{ch.applyOptions({watermark:{visible:false}});}catch(e){}
+  const o={k,box,ch,leg:box.querySelector('.v8l'),zones:[]};
+  const pf=(d,u)=>({type:'custom',formatter:v=>v.toFixed(d)+(u||''),minMove:Math.pow(10,-d)});
+  if(k==='ready'){o.a=ch.addHistogramSeries({priceLineVisible:false,lastValueVisible:false,base:0});}
+  if(k==='iv'){o.a=ch.addCandlestickSeries({priceLineVisible:false,lastValueVisible:true,priceFormat:pf(2,'%'),borderVisible:false});o.p=ch.addLineSeries({color:'#9aa7b3',lineWidth:2,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null});}
+  if(k==='rv'){o.a=ch.addAreaSeries({lineColor:'#E07A5F',topColor:'rgba(224,122,95,.28)',bottomColor:'rgba(224,122,95,.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:true,priceFormat:pf(1,'%')});o.b=ch.addLineSeries({color:'#9aa7b3',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});}
+  if(k==='vov'){o.a=ch.addHistogramSeries({priceLineVisible:false,lastValueVisible:true,base:0,priceFormat:pf(1)});}
+  if(k==='dv'){o.a=ch.addCandlestickSeries({priceLineVisible:false,lastValueVisible:true,priceFormat:pf(2),borderVisible:false});}
+  if(k==='legs'){o.a=ch.addLineSeries({color:'#E05252',lineWidth:2,priceLineVisible:false,lastValueVisible:true,priceFormat:pf(2,'×')});o.b=ch.addLineSeries({color:'#22A06B',lineWidth:2,priceLineVisible:false,lastValueVisible:true,priceFormat:pf(2,'×')});
+    o.a.createPriceLine({price:2,color:'#E05252',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'2× stop'});o.a.createPriceLine({price:1,color:hx(cv('--muted')||'#8FA3B5',.6),lineWidth:1,lineStyle:3,axisLabelVisible:false,title:''});}
+  src.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(!r||!o.box.clientWidth)return;try{o.ch.timeScale().setVisibleLogicalRange(r);}catch(e){}zones(o);});
+  new MutationObserver(()=>setTimeout(()=>{try{ch.applyOptions(chartThemeOptions());ch.applyOptions({watermark:{visible:false}});}catch(e){}paintAll();},150)).observe(D.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  S.lanes[k]=o;grips();try{W.paRefit&&W.paRefit();}catch(e){}return o;}
+/* ---------- zones (shaded good bands) ---------- */
+function zones(o){if(!o||!o.zoneDef){if(o)for(const z of o.zones)z.remove(),o.zones=[];return;}const ser=o.a;const want=o.zoneDef;
+  while(o.zones.length<want.length){const z=D.createElement('div');z.className='v138-zone';z.innerHTML='<span></span>';o.box.appendChild(z);o.zones.push(z);}
+  while(o.zones.length>want.length)o.zones.pop().remove();
+  requestAnimationFrame(()=>{want.forEach((w,i)=>{const z=o.zones[i];let y1=ser.priceToCoordinate(w.hi),y2=ser.priceToCoordinate(w.lo);const H=o.box.clientHeight;
+    if(y1==null&&y2==null){z.style.display='none';return;}y1=y1==null?0:Math.max(0,y1);y2=y2==null?H:Math.min(H,y2);if(y2-y1<2){z.style.display='none';return;}
+    z.style.display='block';z.style.top=y1+'px';z.style.height=(y2-y1)+'px';z.style.background=hx(w.c,.12);z.style.borderTopColor=hx(w.c,.55);z.style.borderBottomColor=hx(w.c,.55);
+    const sp=z.firstChild;if(sp.textContent!==w.t)sp.textContent=w.t;sp.style.color=w.c;});});}
+/* ---------- data per section ---------- */
+function ivCandles(e){let a=null;try{a=typeof candles!=='undefined'?candles[e]:null;}catch(x){}return a&&a.length?a:null;}
+const pct=v=>v>0?(v<5?v*100:v):null;
+function lower(a,ts){let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m][0]<ts)lo=m+1;else hi=m;}return lo;}
+function ivBars(B,e){const a=ivCandles(e);const out=new Array(B.n).fill(null);if(!a)return out;
+  for(let i=0;i<B.n;i++){const s=Math.floor(t0ms(B.b[i])/1000),en=s+B.tf/1000;let j=lower(a,s);if(j>=a.length||a[j][0]>=en)continue;let o=pct(a[j][1]),h=-1e9,l=1e9,c=null;
+    for(;j<a.length&&a[j][0]<en;j++){const x=a[j];const hh=pct(x[2]),ll=pct(x[3]),cc=pct(x[4]);if(hh!=null&&hh>h)h=hh;if(ll!=null&&ll<l)l=ll;if(cc!=null)c=cc;}
+    if(o==null)o=c;if(c!=null)out[i]={o,h:Math.max(h,o,c),l:Math.min(l,o,c),c};}return out;}
+function rvBars(B){const out=new Array(B.n).fill(null),slow=new Array(B.n).fill(null);let M=null;try{M=W.rvIndexBars&&W.rvIndexBars();}catch(e){}if(!M||!M.bars||!M.bars.size)return {out,slow};
+  const arr=[...M.bars.values()].filter(b=>b&&b.h>0&&b.l>0).sort((p,q)=>p.t-q.t),ts=arr.map(b=>b.t),cum=new Float64Array(arr.length+1);
+  for(let i=0;i<arr.length;i++){const x=Math.log(arr[i].h/arr[i].l);cum[i+1]=cum[i]+x*x/(4*Math.LN2);}
+  const rv=(a,b)=>{let i=0,j=0,lo=0,hi=ts.length;while(lo<hi){const m=(lo+hi)>>1;if(ts[m]<a)lo=m+1;else hi=m;}i=lo;lo=i;hi=ts.length;while(lo<hi){const m=(lo+hi)>>1;if(ts[m]<b)lo=m+1;else hi=m;}j=lo;
+    const n=j-i,need=(b-a)/MIN;if(n<need*0.6)return null;return Math.sqrt((cum[j]-cum[i])/n*525600)*100;};
+  for(let i=0;i<B.n;i++){const e=Math.min(Date.now(),t0ms(B.b[i])+B.tf);out[i]=rv(e-HR,e);slow[i]=rv(e-6*HR,e);}return {out,slow};}
+function vovBars(B,e){const out=new Array(B.n).fill(null);const a=ivCandles(e);if(!a)return out;const g=[];let k=null,last=null;
+  for(const x of a){const kk=Math.floor(x[0]/300)*300;if(k!==kk){if(k!=null&&last!=null)g.push([k*1000,last]);k=kk;}last=pct(x[4]);}if(k!=null&&last!=null)g.push([k*1000,last]);
+  const d=[];for(let i=1;i<g.length;i++)d.push([g[i][0],g[i][1]-g[i-1][1]]);const cum=[0];for(const x of d)cum.push(cum[cum.length-1]+x[1]*x[1]);const ts=d.map(x=>x[0]);
+  for(let i=0;i<B.n;i++){const en=Math.min(Date.now(),t0ms(B.b[i])+B.tf),st=en-3*HR;let lo=0,hi=ts.length;while(lo<hi){const m=(lo+hi)>>1;if(ts[m]<st)lo=m+1;else hi=m;}const i0=lo;lo=i0;hi=ts.length;while(lo<hi){const m=(lo+hi)>>1;if(ts[m]<=en)lo=m+1;else hi=m;}
+    const n=lo-i0;if(n>=24)out[i]=Math.sqrt((cum[lo]-cum[i0])/n*288);}return out;}
+function dvBars(B){const out=new Array(B.n).fill(null);const st=W.dvolStore;if(!st||!st.m||!st.m.size)return out;
+  const arr=[...st.m.entries()].map(([t,r])=>[+t,Array.isArray(r)?r:[t,r.o,r.h,r.l,r.c]]).sort((p,q)=>p[0]-q[0]);const ts=arr.map(x=>x[0]);
+  for(let i=0;i<B.n;i++){const s=t0ms(B.b[i]),en=s+B.tf;let lo=0,hi=ts.length;while(lo<hi){const m=(lo+hi)>>1;if(ts[m]<s)lo=m+1;else hi=m;}let o=null,h=-1e9,l=1e9,c=null;
+    for(let j=lo;j<ts.length&&ts[j]<en;j++){const r=arr[j][1];const oo=+r[1],hh=+r[2],ll=+r[3],cc=+r[4];if(o==null&&fin(oo))o=oo;if(fin(hh)&&hh>h)h=hh;if(fin(ll)&&ll<l)l=ll;if(fin(cc))c=cc;}
+    if(c!=null){if(o==null)o=c;out[i]={o,h:Math.max(h,o,c),l:Math.min(l,o,c),c};}}return out;}
+/* ---------- paint ---------- */
+function expIv(){try{return W.v100&&W.v100.expNow?W.v100.expNow():null;}catch(e){return null;}}
+function candleData(B,A,up,dn){return A.map((x,i)=>{const t=B.b[i].time;if(!x)return {time:t};const u=x.c>=x.o,col=hx(u?up:dn,i===B.n-1?0.6:1);return {time:t,open:x.o,high:x.h,low:x.l,close:x.c,color:col,wickColor:col,borderColor:col};});}
+function setLeg(o,h){if(o.leg.innerHTML!==h)o.leg.innerHTML=h;}
+function st(o,s){if(o.box.dataset.st!==s)o.box.dataset.st=s;}
+function paint(k){const on=k==='ready'?ON('ready'):k==='legs'?ON('legs')&&!!(L121()&&L121().pos):ON(k);const o=lane(k);if(!o)return;
+  if(!on){o.box.classList.add('v127-off');return;}o.box.classList.remove('v127-off');const B=bars();if(!B)return;S.bars=B;
+  const up=cv('--c-up')||'#26A69A',dn=cv('--c-dn')||'#EF5350',R=L121();let vals=new Array(B.n).fill(null);
+  if(k==='ready'){const G=(W.v134sig&&W.v134sig.state().grid)||[];const col={g:'#22A06B',a:'#E3AE45',h:hx('#4C9BE8',.75),x:'#E05252',n:hx(cv('--muted')||'#8FA3B5',.35)};let j=0;
+    const data=B.b.map((bar,i)=>{const e=t0ms(bar)+B.tf;while(j<G.length&&G[j][0]<=e)j++;const g=j?G[j-1]:null;if(!g||e-g[0]>15*MIN){vals[i]=null;return {time:bar.time};}vals[i]=g[1];return {time:bar.time,value:1,color:col[g[1]]};});
+    o.a.setData(data);const v=R&&R.verdict?R.verdict.v:'';const live=/^SELL/.test(v)?'g':/^LATE/.test(v)?'a':'';st(o,live);
+    // the day's own tested rule and its backtest
+    let day='';try{const F=R&&R.F,dw=F?F.dow:null,V=W.v136,st6=V&&V.state(),c=st6&&st6.stats&&dw!=null?st6.stats[dw]:null,DL=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      if(dw===6||dw===0)day=`<span class="r">${DL[dw]} · no entry</span>`;
+      else if(dw!=null&&V){const dr=V.dayRule(dw),ex=dw===5?'15':dr.exit||'07',sx=c&&c['s'+ex];
+        let ok=null;if(dw>=1&&dw<=4&&R&&R.iv!=null){const e=expIv();const a=ivCandles(R.F.n2n);let e60=null;if(a){const j2=lower(a,Math.floor((Date.now()-HR)/1000));if(j2<a.length)e60=pct(a[j2][4]);}ok=V.ruleOK(dw,{e:R.iv,e60:e60!=null?e60:R.iv,off:R.offPct||0,spike:R.spike});}
+        const rn=dw===5?'sell 60–120 min after NY open':V.ruleName(dr.rule||'none');
+        day=`<span>${DL[dw]}${c?' · grade '+esc(c.g.g):''}</span><span class="${ok===true?'g':ok===false?'r':'m'}">rule: ${esc(rn)}${ok===true?' ✓':ok===false?' ✕':''}</span><span class="m">exit ${ex}:00${sx?` · IV fell ${sx.fell.toFixed(0)}% of ${sx.n} nights`:''}</span>`;}}catch(x){}
+    setLeg(o,`<b>ENTRY · HOLD · EXIT</b><span class="${live==='g'?'g':live==='a'?'a':'m'}">${esc(v||'—')}</span>${day}`);}
+  if(k==='iv'){const e=expIv()||(R&&R.F&&R.F.n2n);const A=ivBars(B,e);o.a.setData(candleData(B,A,up,dn));vals=A.map(x=>x?x.c:null);
+    // Friday: the usual weekend path (median of the archive's Fridays) from the entry point
+    let path=[];try{const F=R&&R.F,st6=W.v136&&W.v136.state(),P=st6&&st6.stats&&st6.stats[5]&&st6.stats[5].path;if(F&&F.dow===5&&P){const t90=F.open+90*MIN,base=(()=>{const a=ivCandles(e);if(!a)return null;const j=lower(a,Math.floor(t90/1000));return j<a.length?pct(a[j][4]):null;})();
+      if(base!=null)path=B.b.map(bar=>{const t=t0ms(bar)+B.tf,h=(t-t90)/HR+1,i0=Math.floor(h);if(h<1||i0>=P.length-1||P[i0]==null||P[i0+1]==null)return {time:bar.time};return {time:bar.time,value:base+P[i0]+(P[i0+1]-P[i0])*(h-i0)};});}}catch(x){}
+    o.p.setData(path.length?path:B.b.map(b=>({time:b.time})));
+    const hi=R&&R.nyHigh,cur=R&&R.iv,off=R&&R.offPct;o.zoneDef=hi&&R.inNY?[{lo:hi*(1-0.06),hi:hi*(1-0.015),c:'#22A06B',t:''}]:null;
+    st(o,off==null?'':off>=1.5&&off<=6?'g':off<1.5?'a':'a');
+    let chips='';try{chips=ivRules(o,B,R,e);}catch(x){console.warn('v138 iv rules',x);}
+    setLeg(o,`<b>ATM IV</b><span>${esc(e||'')}</span>${cur!=null?`<span>${cur.toFixed(2)}%</span>`:''}${off!=null&&R.inNY?`<span class="${off>=1.5&&off<=6?'g':'a'}">${off.toFixed(1)}% below NY high</span>`:''}${chips}${path.length?'<span class="m">dashed = usual Friday path</span>':''}`);}
+  if(k==='rv'){const {out,slow}=rvBars(B);o.a.setData(out.map((v,i)=>v==null?{time:B.b[i].time}:{time:B.b[i].time,value:v}));o.b.setData(slow.map((v,i)=>v==null?{time:B.b[i].time}:{time:B.b[i].time,value:v}));vals=out;
+    const r6=R&&R.rv6,r6h=R&&R.rv6h1;st(o,r6!=null&&r6h!=null?(r6<r6h?'g':'r'):'');
+    const last=out.filter(fin).pop();setLeg(o,`<b>RV</b>${last!=null?`<span>1 h ${last.toFixed(1)}%</span>`:''}${r6!=null?`<span class="${r6h!=null&&r6<r6h?'g':'r'}">6 h ${r6.toFixed(1)}% ${r6h!=null?(r6<r6h?'falling':'rising'):''}</span>`:''}<span class="m">dashed = 6 h</span>`);}
+  if(k==='vov'){const e=expIv()||(R&&R.F&&R.F.n2n);const A=vovBars(B,e);o.a.setData(A.map((v,i)=>{if(v==null)return {time:B.b[i].time};const p=i?A[i-1]:null,u=p==null||v>=p;return {time:B.b[i].time,value:v,color:hx(u?dn:up,i===B.n-1?0.6:0.8)};}));vals=A;
+    const n=A.filter(fin),l=n[n.length-1],p=n[n.length-4];st(o,l!=null&&p!=null?(l<p?'g':'a'):'');setLeg(o,`<b>VoV</b>${l!=null?`<span>${l.toFixed(1)} pts/day</span><span class="${p!=null&&l<p?'g':'a'}">${p!=null?(l<p?'turned down':'rising'):''}</span>`:'<span class="m">needs 2 h of IV</span>'}<span class="m">watch only on N2N</span>`);}
+  if(k==='dv'){const A=dvBars(B);o.a.setData(candleData(B,A,up,dn));vals=A.map(x=>x?x.c:null);const l=A.filter(Boolean).pop();
+    let vd='';try{const v=W.dvolVerdict&&W.dvolVerdict(0);vd=v&&v.t?v.t:'';}catch(e){}st(o,'');setLeg(o,`<b>DVOL</b>${l?`<span>${l.c.toFixed(2)}</span>`:'<span class="m">loading</span>'}${vd?`<span class="m">${esc(vd)}</span>`:''}`);}
+  if(k==='legs'){const L=S.legs;const A=[],P=[];const pts=L&&L.pts||[];let j=0;
+    for(let i=0;i<B.n;i++){const e=t0ms(B.b[i])+B.tf;while(j<pts.length&&pts[j][0]<=e)j++;const x=j?pts[j-1]:null;if(x&&e-x[0]<=20*MIN){A.push({time:B.b[i].time,value:x[1]});P.push({time:B.b[i].time,value:x[2]});vals[i]=Math.max(x[1],x[2]);}else{A.push({time:B.b[i].time});P.push({time:B.b[i].time});}}
+    o.a.setData(A);o.b.setData(P);const lg=(R&&R.legs||[]).filter(l=>l.x!=null);const mx=lg.length?Math.max(...lg.map(l=>l.x)):null;st(o,mx==null?'':mx>=1.6?'r':mx>=1.2?'a':'g');
+    setLeg(o,`<b>LEG ×</b>${lg.map(l=>`<span class="${l.x>=1.6?'r':l.x>=1.2?'a':'g'}">${esc((l.type||'').slice(0,1).toUpperCase())} ${l.x.toFixed(2)}×</span>`).join('')}<span class="m">red line = 2× stop (both legs out)</span>`);}
+  S.vals[k]=vals;
+  try{const pw=W.paChart().priceScale('right').width();if(pw)o.ch.applyOptions({rightPriceScale:{minimumWidth:Math.max(78,pw)}});const r=W.paChart().timeScale().getVisibleLogicalRange();if(r)o.ch.timeScale().setVisibleLogicalRange(r);}catch(e){}
+  zones(o);}
+const L121=()=>{try{return W.v121&&W.v121.last;}catch(e){return null;}};
+/* ---------- states on the desk's own sections + zones on v137 lanes ---------- */
+function deskStates(){const R=L121();const set=(id,s)=>{const e=$(id);if(e&&e.dataset.st!==s)e.dataset.st=s;};
+  set('cvLane',R&&R.speed!=null?(R.speed<1.5?'g':'r'):'');
+  try{const A=W.v134sig&&W.v134sig.__test.adxArr();if(A&&A.length>4){const a=A[A.length-1].v,b=A[A.length-4].v;set('paAdxBox',a<=40&&a<=b?'g':'r');}}catch(e){}
+  set('v105EdgeBox',R&&R.edge!=null?(R.edge>3?'r':R.edge>=0?'g':'a'):'');
+  set('v105RangeBox',R&&R.range!=null?(R.range<1?'r':R.range>2?'a':'g'):'');
+  try{const x=W.v137&&W.v137.term(Date.now());set('v137Term',x&&x.dc!=null?(x.dc>0?'g':'a'):'');}catch(e){}
+  try{const sk=JSON.parse(localStorage.getItem('v104_skew')||'[]'),l=sk[sk.length-1];set('v137Skew',l?(l[2]>4?'r':l[2]>2?'a':'g'):'');}catch(e){}
+  try{const F=W.v137.state().fund;if(F.length>24){const f=F[F.length-1][1],v=F.map(p=>p[1]).sort((a,b)=>a-b),p=v.filter(x=>x<=f).length/v.length;set('v137Fund',p>=0.8?'r':p>=0.6?'a':'g');}}catch(e){}}
+/* ---------- grips: drag to resize, double-click to enlarge ---------- */
+function grips(){const pane=$('paneG');if(!pane)return;for(const sec of pane.children){if(!sec.id||sec.id==='v138Ready'||!ORDER.includes(sec.id)||sec.dataset.v138g)continue;sec.dataset.v138g='1';
+    const g=D.createElement('div');g.className='v138-grip';g.title='Drag to resize · double-click the section to enlarge';sec.appendChild(g);
+    g.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();const y0=ev.clientY,h0=sec.getBoundingClientRect().height;g.setPointerCapture(ev.pointerId);
+      const mv=e=>{const h=Math.max(56,Math.min(520,Math.round(h0-(e.clientY-y0))));S.Hs[sec.id]=S.max[sec.id]?Math.round(h/2.5):h;sec.style.setProperty('height',h+'px','important');sec.style.setProperty('max-height',h+'px','important');};
+      const upf=()=>{g.removeEventListener('pointermove',mv);g.removeEventListener('pointerup',upf);LSs('v138_h',S.Hs);try{W.v133&&W.v133.fit&&W.v133.fit();W.paRefit&&W.paRefit();}catch(e){}};
+      g.addEventListener('pointermove',mv);g.addEventListener('pointerup',upf);});
+    sec.addEventListener('dblclick',ev=>{if(ev.target.closest('.v138-grip'))return;S.max[sec.id]=!S.max[sec.id];LSs('v138_max',S.max);try{W.v133&&W.v133.fit&&W.v133.fit();W.paRefit&&W.paRefit();}catch(e){}});}}
+/* ---------- one time axis: the last visible section shows it ---------- */
+function axis(){const pane=$('paneG'),src=W.paChart&&W.paChart();if(!pane||!src)return;const vis=[...pane.children].filter(e=>ORDER.includes(e.id)&&getComputedStyle(e).display!=='none'&&e.id!=='v138Ready');
+  const last=vis[vis.length-1];const mine=last&&(S.lanes[Object.keys(SEC).find(k=>SEC[k].id===last.id)]||(W.v137&&W.v137.state().lanes[{v137Term:'term',v137Skew:'skew',v137Fund:'fund'}[last.id]]));
+  const axId=mine?last.id:null;if(S.axisId!==axId){const old=S.axisId&&$(S.axisId);if(old)old.classList.remove('v138-ax');S.axisId=axId;if(last&&mine)last.classList.add('v138-ax');try{W.v133&&W.v133.fit&&W.v133.fit();}catch(e){}}
+  const showSrc=!mine;try{if(src.timeScale().options().visible!==showSrc)src.timeScale().applyOptions({visible:showSrc});}catch(e){}
+  const all=[...Object.values(S.lanes),...Object.values((W.v137&&W.v137.state().lanes)||{})];for(const o of all){const want=o===mine;try{if(o.ch.timeScale().options().visible!==want)o.ch.timeScale().applyOptions({visible:want,borderVisible:false,timeVisible:true,secondsVisible:false});}catch(e){}}}
+/* ---------- hover readout + crosshair across sections ---------- */
+function readout(){const pane=$('paneG'),src=W.paChart&&W.paChart();if(!pane||!src||readout.on)return;readout.on=1;let box=$('v138Read');if(!box){box=D.createElement('div');box.id='v138Read';box.setAttribute('aria-hidden','true');pane.appendChild(box);}
+  src.subscribeCrosshairMove(p=>{const B=S.bars;if(!p||p.time==null||!B||!p.point){box.style.display='none';for(const o of Object.values(S.lanes))try{o.ch.clearCrosshairPosition();}catch(e){}return;}
+    let i=-1;for(let j=B.n-1;j>=0;j--)if(B.b[j].time===p.time){i=j;break;}if(i<0){box.style.display='none';return;}
+    const bar=B.b[i],rows=[['BTC',bar.close!=null?bar.close.toLocaleString('en-US',{maximumFractionDigits:0}):'—']];
+    const names={ready:'Entry/Hold/Exit',iv:'ATM IV',rv:'RV 1 h',vov:'VoV',dv:'DVOL',legs:'Leg ×'};
+    for(const k of ['ready','iv','rv','vov','dv','legs']){const o=S.lanes[k];if(!o||o.box.classList.contains('v127-off'))continue;const v=(S.vals[k]||[])[i];
+      rows.push([names[k],v==null?'—':k==='ready'?({g:'ENTRY ✓',a:'IV only',n:'wait',h:'HOLD',x:'EXIT'}[v]||'—'):k==='iv'||k==='rv'?v.toFixed(2)+'%':k==='legs'?v.toFixed(2)+'×':v.toFixed(2)]);
+      try{if(v!=null&&k!=='ready')o.ch.setCrosshairPosition(v,p.time,o.a);else o.ch.clearCrosshairPosition();}catch(e){}}
+    try{for(const [k,nm] of [['term','Term Cur−N2N'],['skew','25Δ RR'],['fund','Funding']]){const o=W.v137.state().lanes[k];if(!o||o.box.classList.contains('v127-off'))continue;const t=(bar.time-ISTS)*1000+((S.bars.tf)||0);
+        if(k==='term'){const x=W.v137.term(Math.min(Date.now(),t));rows.push([nm,x&&x.dc!=null?(x.dc>0?'+':'')+x.dc.toFixed(2):'—']);}
+        if(k==='fund'){const F=W.v137.state().fund;let v=null;for(const q of F){if(q[0]<=t)v=q[1];else break;}rows.push([nm,v!=null?(v*3*365).toFixed(1)+'%/yr':'—']);}
+        if(k==='skew'){let v=null;try{const sk=JSON.parse(localStorage.getItem('v104_skew')||'[]');for(const r of sk){if(r[0]<=t)v=r[2];else break;}}catch(e){}rows.push([nm,v!=null?(v>0?'+':'')+v.toFixed(1):'—']);}}}catch(e){}
+    const tt=new Date((bar.time)*1000).toISOString().slice(5,16).replace('T',' ');
+    box.innerHTML=`<div class="t">${tt} IST</div>`+rows.map(r=>`<div class="r"><i>${esc(r[0])}</i><b>${esc(r[1])}</b></div>`).join('');box.style.display='block';});}
+/* ---------- events through the whole panel ---------- */
+function events(){const pane=$('paneG'),src=W.paChart&&W.paChart(),cb=pane&&pane.querySelector(':scope>.chart-box');if(!pane||!src||!cb)return;let ov=$('v138Ev');if(!ov){ov=D.createElement('div');ov.id='v138Ev';pane.appendChild(ov);}
+  let LST=[];try{LST=typeof EV_FIXED!=='undefined'?EV_FIXED:[];}catch(e){}const B=S.bars;if(!B){ov.innerHTML='';return;}const a=t0ms(B.b[0]),z=t0ms(B.b[B.n-1])+B.tf;const ts=src.timeScale();const off=cb.offsetLeft;
+  let h='';for(const [d,tm,code,title,imp] of LST){if(!(imp>=2))continue;const [hh,mm]=tm.split(':').map(Number),b=Date.parse(d+'T00:00:00Z');let edt=false;try{edt=W.v121.__fn.isEDT(b+12*HR);}catch(e){}const t=b+(hh*60+mm)*MIN+(edt?4:5)*HR;
+    if(t<a||t>z)continue;let i=-1;for(let j=0;j<B.n;j++){if(t0ms(B.b[j])<=t)i=j;else break;}if(i<0)continue;const x=ts.timeToCoordinate(B.b[i].time);if(x==null)continue;
+    h+=`<div class="e" style="left:${Math.round(off+x)}px"><span>${esc(code)}${imp>=3?' ●':''}</span></div>`;}
+  if(ov.dataset.h!==h){ov.dataset.h=h;ov.innerHTML=h;}}
+/* ---------- strikes + expected-move band on the BTC chart ---------- */
+const PL={lines:[]};
+function ppf(p){const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924],b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857],c=[-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878],d=[0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742];
+  const pl=0.02425;let q,r;if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p<=1-pl){q=p-0.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+function strikes(){const ser=W.__gexSeries,src=W.paChart&&W.paChart(),pane=$('paneG'),cb=pane&&pane.querySelector(':scope>.chart-box');for(const l of PL.lines)try{ser&&ser.removePriceLine(l);}catch(e){}PL.lines=[];
+  let band=$('v138Band');if(!ON('strk')||!ser||!src||!cb){if(band)band.style.display='none';return;}
+  const R=L121(),B=S.bars;if(!R||!R.F||!B)return;const S0=B.b[B.n-1].close,iv=R.iv,T=(Date.parse(R.F.n2n+'T12:00:00Z')-Date.now())/(365*DAY);if(!(S0>0)||!(iv>0)||!(T>0))return;
+  const sd=iv/100*Math.sqrt(T);let Kc,Kp,lab='suggested';
+  try{const c=W.v18&&W.v18.lab&&W.v18.lab().cur;if(c&&c.Kc&&c.Kp){Kc=+c.Kc;Kp=+c.Kp;lab='your';}}catch(e){}
+  if(!Kc){const dC=R.delta||0.15,dP=R.dPut||dC;Kc=Math.round(S0*Math.exp(ppf(1-dC)*sd+0.5*sd*sd)/200)*200;Kp=Math.round(S0*Math.exp(-ppf(1-dP)*sd+0.5*sd*sd)/200)*200;lab='suggested '+dC.toFixed(2)+(dP<dC?'/'+dP.toFixed(2):'')+'Δ';}
+  const add=(p,c,t,st)=>{try{PL.lines.push(ser.createPriceLine({price:p,color:c,lineWidth:1,lineStyle:st,axisLabelVisible:true,title:t}));}catch(e){}};
+  add(Kc,'#E05252','Call '+lab,0);add(Kp,'#22A06B','Put '+lab,0);
+  const up=S0*Math.exp(sd),dn=S0*Math.exp(-sd);
+  if(!band){band=D.createElement('div');band.id='v138Band';band.innerHTML='<span></span>';cb.appendChild(band);}
+  requestAnimationFrame(()=>{const y1=ser.priceToCoordinate(up),y2=ser.priceToCoordinate(dn),x=src.timeScale().timeToCoordinate(B.b[B.n-1].time);if(y1==null||y2==null||x==null){band.style.display='none';return;}
+    const w=cb.clientWidth-78;band.style.display='block';band.style.left=Math.round(x)+'px';band.style.width=Math.max(10,w-x)+'px';band.style.top=Math.round(Math.max(0,y1))+'px';band.style.height=Math.round(Math.min(cb.clientHeight,y2)-Math.max(0,y1))+'px';
+    band.firstChild.textContent=`±1σ to ${R.F.n2n.slice(5)} 17:30 · ±${(sd*100).toFixed(1)}%`;});}
+/* ---------- leg multiple recorder (only while a trade is open) ---------- */
+function legRec(){const R=L121();const lg=R&&R.legs?R.legs.filter(l=>l.x!=null):[];if(!R||!R.pos||!lg.length)return;const id=(R.pos.id||'')+'|'+(R.pos.openedAt||'');
+  if(!S.legs||S.legs.id!==id)S.legs={id,pts:[]};const c=lg.find(l=>/c/i.test(l.type||'')),p=lg.find(l=>/p/i.test(l.type||''));const t=Math.floor(Date.now()/MIN)*MIN;
+  const last=S.legs.pts[S.legs.pts.length-1];if(last&&last[0]===t)return;S.legs.pts.push([t,c?c.x:null,p?p.x:null]);if(S.legs.pts.length>2000)S.legs.pts.shift();LSs('v138_legs',S.legs);}
+/* ---------- presets in the Indicators menu ---------- */
+const PRE={Entry:{ready:1,spd:1,iv:1,adx:1,term:1,strk:1},Hold:{legs:1,iv:1,rv:1,liq:1,strk:1,ready:0},Weekend:{iv:1,fund:1,term:1,strk:1,liq:1},Clean:{}};
+const KEEP=['sig','pat','cdl','gex','ton'];
+function presets(){const m=$('v132Ind');if(!m||m.querySelector('.v138-presets'))return;const row=D.createElement('div');row.className='v138-presets';row.innerHTML='<span>LAYOUT</span>'+Object.keys(PRE).map(k=>`<button type="button" data-p="${k}">${k}</button>`).join('');
+  const ls=m.querySelector('.ls');if(ls)ls.before(row);else m.prepend(row);
+  row.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(!b)return;e.stopPropagation();const on=W.v132ind.state();for(const k of Object.keys(on))if(!KEEP.includes(k))on[k]=false;Object.assign(on,Object.fromEntries(Object.entries(PRE[b.dataset.p]).map(([k,v])=>[k,!!v])));
+    LSs('v133_ind',on);try{W.v132ind.apply(true);}catch(x){}setTimeout(()=>{paintAll();try{W.v137&&W.v137.paintAll();}catch(x){}try{const p=m.querySelector('input');if(p)p.dispatchEvent(new Event('input'));}catch(x){}},120);});}
+
+/* ---------- v138.1: per-section zoom (roller + wheel/drag like the BTC chart, time stays shared) ---------- */
+const near=(a,b)=>a&&b&&Math.abs(a.from-b.from)<0.01&&Math.abs(a.to-b.to)<0.01;
+function wrapScale(o){const prov=orig=>{const r=orig();if(!r||!r.priceRange||!(o.zoom&&o.zoom!==1)&&!o.shift)return r;const lo=r.priceRange.minValue,hi=r.priceRange.maxValue,c=(lo+hi)/2+(o.shift||0)*(hi-lo),h=Math.max(1e-6,(hi-lo)/2/(o.zoom||1));return {priceRange:{minValue:c-h,maxValue:c+h},margins:r.margins};};
+  for(const s of [o.a,o.b])if(s)try{s.applyOptions({autoscaleInfoProvider:prov});}catch(e){}}
+function arm(o){if(!o||!o.ch||o.armed||!o.box||o.box.id==='v138Ready')return;const src=W.paChart&&W.paChart();if(!src)return;o.armed=1;o.zoom=1;o.shift=0;
+  try{o.ch.applyOptions({handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true},mouseWheel:true,pinch:true},kineticScroll:{mouse:false,touch:true}});}catch(e){}
+  wrapScale(o);
+  const mark=()=>{o.user=true;clearTimeout(o.ut);o.ut=setTimeout(()=>{o.user=false;},700);};for(const ev of ['pointerdown','wheel','touchstart','touchmove'])o.box.addEventListener(ev,mark,{passive:true});o.box.addEventListener('pointermove',e=>{if(e.buttons)mark();},{passive:true});
+  o.ch.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(!r||!o.user)return;const ts=src.timeScale();if(near(ts.getVisibleLogicalRange(),r))return;try{ts.setVisibleLogicalRange(r);}catch(e){}});
+  const roll=D.createElement('div');roll.className='v138-roll';roll.innerHTML='<button type="button" data-z="in" aria-label="Zoom in this section">+</button><button type="button" data-z="out" aria-label="Zoom out this section">−</button><button type="button" data-z="fit" aria-label="Fit this section">⟲</button>';
+  roll.addEventListener('click',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.stopPropagation();const z=b.dataset.z;o.zoom=z==='fit'?1:Math.max(0.25,Math.min(8,(o.zoom||1)*(z==='in'?1.4:1/1.4)));if(z==='fit'){o.shift=0;try{o.ch.priceScale('right').applyOptions({autoScale:true});}catch(x){}}wrapScale(o);try{o.ch.timeScale().applyOptions({});o.a&&o.a.applyOptions({});}catch(x){}zones(o);});
+  roll.addEventListener('dblclick',e=>e.stopPropagation());o.box.appendChild(roll);}
+function armAll(){for(const o of Object.values(S.lanes))arm(o);try{for(const o of Object.values((W.v137&&W.v137.state().lanes)||{}))arm(o);}catch(e){}}
+
+/* ---------- v138.2: the tested IV rules drawn in the IV section (were only on the old IV chart) ---------- */
+function barAt(B,t){let lo=0,hi=B.n-1;if(t<t0ms(B.b[0]))return null;while(lo<hi){const m=(lo+hi+1)>>1;if(t0ms(B.b[m])<=t)lo=m;else hi=m-1;}return t>t0ms(B.b[lo])+B.tf*1.5&&lo===B.n-1?null:B.b[lo].time;}
+function vband(o,key,B,a,z,cls,label){o.vb=o.vb||{};o.vbArgs=o.vbArgs||{};o.vbArgs[key]=[a,z,cls,label];let el=o.vb[key];if(!el){el=D.createElement('div');el.className='v138-vb '+cls;el.innerHTML='<span></span>';o.box.appendChild(el);o.vb[key]=el;}
+  const ta=barAt(B,a),tz=barAt(B,z)||B.b[B.n-1].time;if(ta==null){el.style.display='none';return;}const ts=o.ch.timeScale();const x1=ts.timeToCoordinate(ta),x2=ts.timeToCoordinate(tz);
+  if(x1==null||x2==null||x2<=x1){el.style.display='none';return;}el.style.display='block';el.style.left=Math.round(x1)+'px';el.style.width=Math.round(x2-x1)+'px';el.firstChild.textContent=label;}
+function ivRules(o,B,R0,e){for(const l of (o.lines||[]))try{o.a.removePriceLine(l);}catch(x){}o.lines=[];const M=[];
+  // the NY-open readings for the expiry shown here (same formulas as the Leading board, which reads N2N)
+  let R=R0;try{const fn=W.v121.__fn,F=R0&&R0.F,a=ivCandles(e);if(fn&&F&&a&&e!==F.n2n){const sr=a.map(c=>[c[0]*1000,pct(c[4])]).filter(p=>p[1]!=null),now=Date.now();
+      const pre=fn.med(fn.within(sr,F.open-75*MIN,F.open-15*MIN)),ny=fn.within(sr,F.open,now+MIN),hi=ny.length?Math.max(...ny):null;
+      R=Object.assign({},R0,{pre,nyHigh:hi,spike:pre!=null&&hi!=null?hi-pre:null,q:fn.q15(sr,F.open-HR,now)});}}catch(x){R=R0;}
+  const same=!!(R&&R.F);const F=R&&R.F;
+  if(same&&F){const add=(p,c,t,s)=>{if(p==null||!fin(p))return;try{o.lines.push(o.a.createPriceLine({price:p,color:c,lineWidth:1,lineStyle:s,axisLabelVisible:true,title:t}));}catch(x){}};
+    const hi=R.nyHigh;add(R.pre,'#8B9BAB','pre-NY',2);
+    if(hi!=null){add(hi,'#8E6CD8','NY high'+(R.spike!=null?' · spike '+(R.spike>=0?'+':'')+R.spike.toFixed(1):''),0);add(hi*(1-0.015),'#C98F1A','−1.5% top',2);add(hi*0.94,'#E05252','late −6%',2);}
+    // NY open + first hour (no entry), as markers and a hatched band
+    const tOpen=barAt(B,F.open);if(tOpen!=null)M.push({time:tOpen,position:'aboveBar',shape:'square',color:'#8E6CD8',text:'NY',size:0.6});
+    vband(o,'wait',B,F.open,Math.min(Date.now(),F.open+60*MIN),'wait','NY open · wait 60 min');
+    // red 15-min IV candles after the NY high: 1, 2 = the turn; 3+ = the fall is old
+    const q=(R.q||[]).filter(x=>x.k>=F.open&&fin(x.c)&&fin(x.o));if(q.length){let hiI=0;for(let i=1;i<q.length;i++)if(q[i].c>q[hiI].c)hiI=i;let n=0;
+      for(let i=hiI+1;i<q.length;i++){if(q[i].c<q[i].o){n++;if(n>4)break;const tt=barAt(B,q[i].k+15*MIN-1);if(tt!=null)M.push({time:tt,position:'belowBar',shape:'circle',color:n<=2?'#E05252':'#8B9BAB',text:String(n),size:1});}}}}
+  else if(o.vb&&o.vb.wait)o.vb.wait.style.display='none';
+  // tested entry / exit marks (same as on the BTC chart)
+  try{for(const s of (W.v134sig&&W.v134sig.state().sig)||[]){const tt=barAt(B,s.t);if(tt==null)continue;M.push(s.k==='sell'?{time:tt,position:'aboveBar',shape:'arrowDown',color:'#22A06B',text:'SELL ✓'}:s.k==='exit'?{time:tt,position:'belowBar',shape:'arrowUp',color:'#E05252',text:s.txt.split(' · ')[0]}:{time:tt,position:'aboveBar',shape:'circle',color:'#E3AE45',text:'ADX ✕'});}}catch(x){}
+  M.sort((a,b)=>a.time-b.time);try{o.a.setMarkers(M);}catch(x){}
+  // chips: verdict, speed, book time
+  const ch=[];if(R0&&R0.verdict){const v=R0.verdict.v;R=R;ch.push(`<span class="${R.verdict.cls==='g'?'g':R.verdict.cls==='r'?'r':'a'}">${esc(v)}</span>`);}
+  if(R&&R.speed!=null)ch.push(`<span class="${R.speed<1.5?'g':'r'}">Speed ${R.speed.toFixed(2)}×${R.c&&R.c.speed?' · back ≤1.5 ✓':''}</span>`);
+  if(R0&&R0.F&&e!==R0.F.n2n)ch.push('<span class="m">verdict reads N2N</span>');
+  return ch.join('');}
+/* ---------- v138.3 phone: the chart block reaches the tab bar (no empty band, no page scroll) ---------- */
+function phoneFit(){const cp=$('chartp'),tb=$('tabbar'),pg=$('pgDesk');if(!cp||!pg)return;if(innerWidth>760||D.body.classList.contains('gfs')||!pg.classList.contains('on')){if(!D.body.classList.contains('v138-pfit'))return;if(innerWidth<=760)for(const p of ['height','min-height','max-height'])cp.style.removeProperty(p);pg.style.removeProperty('padding-bottom');pg.style.removeProperty('min-height');D.body.style.removeProperty('padding-bottom');D.body.classList.remove('v138-pfit');return;}
+  const top=cp.getBoundingClientRect().top+scrollY,bar=tb&&getComputedStyle(tb).display!=='none'?tb.getBoundingClientRect().top+scrollY:innerHeight,h=Math.max(420,Math.round(bar-top-6));
+  if(cp.style.getPropertyValue('height')!==h+'px'){for(const p of ['height','min-height','max-height'])cp.style.setProperty(p,h+'px','important');try{W.paRefit&&W.paRefit();}catch(e){}}
+  if(pg.style.getPropertyValue('padding-bottom')!=='0px')pg.style.setProperty('padding-bottom','0px','important');if(pg.style.getPropertyValue('min-height')!=='0px')pg.style.setProperty('min-height','0px','important');D.body.classList.add('v138-pfit');
+  requestAnimationFrame(()=>{const over=D.documentElement.scrollHeight-innerHeight;if(over>2){const bp=parseFloat(getComputedStyle(D.body).paddingBottom)||0;D.body.style.setProperty('padding-bottom',Math.max(0,bp-over)+'px','important');}});}
+addEventListener('resize',()=>{clearTimeout(phoneFit.t);phoneFit.t=setTimeout(phoneFit,150);});
+/* ---------- loop ---------- */
+function paintAll(){try{phoneFit();}catch(e){}for(const k of Object.keys(SEC))try{paint(k);}catch(e){console.warn('v138 '+k,e);}try{deskStates();}catch(e){}try{grips();}catch(e){}try{axis();}catch(e){}try{events();}catch(e){}try{strikes();}catch(e){}try{armAll();}catch(e){}readout();
+  requestAnimationFrame(()=>{const p=$('paneG');if(p&&p.scrollHeight>p.clientHeight+1)try{W.paRefit&&W.paRefit();}catch(e){}});}
+function hook(){const src=W.paChart&&W.paChart();if(!src||hook.done)return;hook.done=1;let raf=0;src.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;try{events();}catch(e){}try{strikes();}catch(e){}for(const o of Object.values(S.lanes)){zones(o);if(o.vbArgs&&S.bars)for(const k in o.vbArgs)try{vband(o,k,S.bars,...o.vbArgs[k]);}catch(e){}}});});}
+setTimeout(()=>{paintAll();hook();},4200);setInterval(()=>{if(D.hidden)return;hook();paintAll();legRec();},20000);
+D.addEventListener('click',e=>{if(e.target.closest('#v132Ind,#v132IndBtn,[data-page],#gTf,#v100Master'))setTimeout(()=>{presets();paintAll();},250);},true);
+W.v138={paintAll,state:()=>S,__test:{ivBars,rvBars,vovBars,dvBars,ppf}};})();
+</script>
+
+
+
 
 </body>
 </html>
