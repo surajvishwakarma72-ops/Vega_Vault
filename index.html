@@ -1,11 +1,23 @@
 <!doctype html>
 <!--
-  v120 (16 Oct 2026, preview, not deployed): Asia / London / New York boxes on the ADX chart too (with the box-break chips;
-    no speed strip on the short ADX strip). BTC chart opens straight on the saved range (1D…) at the live edge — no zoom
-    snap a few seconds after opening; older candles only fill in on the left. Session boxes, NY check and chips appear as
-    soon as a chart's data arrives or a tab is switched (watcher, script[data-module=v120]) instead of waiting 4.5–7.5 s.
+  v121 (16 Oct 2026, preview, not deployed): tested N2N playbook (backtests in chat, 16 Oct). New layer style#v121Css +
+    script[data-module=v121] (window.v121): Leading signals board rebuilt (#v121Lead after a hidden #v104Lead): banner verdict,
+    6 pips, 07:00 countdown, 8 tiles — Day & news · NY spike · IV turn (1.5–6 % off NY high, 1st–2nd red) · Term → size
+    (Current vs N2N) · Confirm 2/3 (VoV turned down, Speed back ≤1.5×, Tonight above clock) · Too quiet? (Edge > +3, Range < 1×)
+    · Late entry (RV) · Exit watch (leg 2×, Impulse top level, new IV high after 02:30, book 07:00); untested inputs listed as
+    info only. NY check line (v115 trapHtml) replaced in the NY window / in a trade / on Saturday. Header pill tag: SAT · NO TRADE,
+    release → sell after +2 h (FOMC/minutes +1 h), LONDON · WATCH ONLY. In-place edits: Edge pane line "+3 too quiet" (red) and
+    tags, Edge mini chart band red above +3; Range pane lines "2× wait" / "1× too quiet" and tags; N2N chart term chip
+    "Cur above/below N2N x% · FULL/HALF"; v118 IV SELL ✓ marker uses 1.5–6 % off the NY high (was ≥1 pt) and shows the %.
+-->
+<!--
   v119 (16 Oct 2026, preview, not deployed): Asia (05:30–12:30), London (12:30–18:30) and New York (18:30–02:30, grows as
     it runs) boxes on all six charts; session background colours removed from the IV / RV / VoV / DVOL charts (white).
+  v126 (16 Oct 2026, preview, not deployed): Tonight's plan (day/news, window, size, delta per leg, IV range, leg tilt, approx strikes), Rule check re-tested on all archive nights every morning with Apply/Ignore tunes, My Delta trades (script[data-module=v126]).
+  v125 (16 Oct 2026, preview, not deployed): v115 Top/Base box-break boxes and Box ↓ / EXIT ↑ chips removed from the IV chart too.
+  v124 (16 Oct 2026, preview, not deployed): RV chart shows RV only, Range keeps only its London box, Tonight recoloured to the test (above clock = green sell OK from 21:00) without boxes/dots/speed strip (script[data-module=v124]).
+  v123 (16 Oct 2026, preview, not deployed): clean charts — sessions only on BTC/Range (IV keeps lines), Speed strip only under IV, VoV/RV/DVOL as direction-coloured lines, Edge/Range plain lines (script[data-module=v123]).
+  v122 (16 Oct 2026, preview, not deployed): opens in light theme; tested rules drawn on every chart (script[data-module=v122]).
   v118 (16 Oct 2026, preview, not deployed): session boxes on all six charts + NY check (script[data-module=v118]).
     London box (12:30–18:30 IST), London high carried into NY, NY open + "wait 60 min", running NY high, "London high swept";
     IV: coloured 1-hour line, 3-day median line, "−x pt off NY high", SELL ✓ k/3 (peak passed after 60 min and ≥1 pt off the
@@ -4661,6 +4673,14 @@ D.addEventListener('DOMContentLoaded',arrange);try{matchMedia('(min-width:1360px
     draw(target,pc){target.useBitmapCoordinateSpace(sc=>{try{this._draw(sc,pc);}catch(e){}});}
     _draw(sc,pc){const d=this.d,o=this.o;if(!d||!d.visibleRange||!d.bars)return;
       const ctx=sc.context,hr=sc.horizontalPixelRatio,vr=sc.verticalPixelRatio,bs=d.barSpacing;
+      if(o.v123Line){   // v123: line mode (VoV / RV / DVOL: green while falling, red while rising · Edge / Range: one plain line)
+        const from=Math.max(0,d.visibleRange.from-4),to=Math.min(d.bars.length,d.visibleRange.to+1),P=[];
+        for(let i=from;i<to;i++){const v=d.bars[i].originalData;if(!v||v.close==null)continue;const y=pc(v.close);if(y==null)continue;P.push([d.bars[i].x*hr,y*vr,v.close]);}
+        if(P.length<2)return;const L=document.documentElement.dataset.theme==='light',G=L?'#188E58':'#35BB7D',Rd=L?'#D23B40':'#EF5A5E',N=L?'#2F7CC0':'#6FA0D8',F=L?'#8394A3':'#8B9FB1';
+        ctx.lineWidth=Math.max(1.5,Math.round(2*hr));ctx.lineJoin='round';ctx.lineCap='round';let col=null;
+        for(let k=1;k<P.length;k++){let c=N;if(o.v123Line==='dir'){const j=Math.max(0,k-3),dv=P[k][2]-P[j][2],e=Math.abs(P[k][2])*0.002;c=dv<-e?G:dv>e?Rd:F;}
+          if(c!==col){if(col){ctx.stroke();}ctx.strokeStyle=c;col=c;ctx.beginPath();ctx.moveTo(P[k-1][0],P[k-1][1]);}ctx.lineTo(P[k][0],P[k][1]);}
+        ctx.stroke();return;}
       let w=Math.max(1,Math.floor(Math.min(bs*0.78,bs-1)*hr));if(w>2&&w%2===0)w--;
       const lite=(window.innerWidth<=760)||(d.visibleRange.to-d.visibleRange.from)>240;   // v105.13: phones and dense views draw the light 3D form
       const ww=Math.max(1,Math.floor(hr)),deep=!lite&&w>=4*hr*0.75,sh=Math.max(1,Math.round(hr));
@@ -4756,7 +4776,7 @@ const LEGACY_STORE_KEYS=['btc_atm_iv_delta_india_v29','btc_atm_iv_delta_india_v2
 const IDB_NAME='btc_atm_iv_persistent_v30';
 const IDB_STORE='state';
 const IDB_KEY='dashboard';
-const THEME_KEY='btc_atm_iv_theme';
+const THEME_KEY='btc_atm_iv_theme_v122';   // v122: new key so the desk opens light once; your switch is remembered here
 const RETENTION_DAYS=45;   // v26: was 21; the archive keeps everything beyond this
 const MAX_SAMPLES_PER_EXPIRY=16000;
 const EXPIRY_UTC_HOUR=12;           // Delta India BTC options settle 17:30 IST = 12:00 UTC
@@ -5764,7 +5784,7 @@ async function refresh(){
 /* ---------------- Theme ---------------- */
 function initTheme(){
   let t=null;try{t=localStorage.getItem(THEME_KEY);}catch(e){}
-  if(!t)t='dark';   // v80: the desk is dark unless you switch it
+  if(t!=='dark')t='light';   // v122: light unless you switch it to dark
   applyTheme(t);
   $('themeBtn').onclick=()=>{const n=document.documentElement.dataset.theme==='light'?'dark':'light';applyTheme(n);try{localStorage.setItem(THEME_KEY,n);}catch(e){}};
 }
@@ -6202,7 +6222,8 @@ function renderPaneMeta(i){
   if(a)parts.push(`<span>Live <b>${IV(a.atm)}</b></span>`);
   // term-structure step: this chart's live ATM IV against the chart before it (Next vs Current, Next-to-next vs Next)
   const prevI=i===0?-1:PANE_ORDER[PANE_ORDER.indexOf(i)-1],o=prevI>=0?panes[prevI].expiry:null,oa=o&&o!==e?rec.lastAtm.get(o):null;
-  if(a&&oa&&Date.now()-oa.at<90000){const d=a.atm-oa.atm,nm=String(chartPrefs.p[prevI]||'').startsWith('rel:')?(REL_LABEL[Number(String(chartPrefs.p[prevI]).slice(4))]||o.slice(5)):o.slice(5);
+  const v121c=window.v121&&window.v121.termChip?window.v121.termChip(e):null;if(v121c)parts.push(v121c);
+  else if(a&&oa&&Date.now()-oa.at<90000){const d=a.atm-oa.atm,nm=String(chartPrefs.p[prevI]||'').startsWith('rel:')?(REL_LABEL[Number(String(chartPrefs.p[prevI]).slice(4))]||o.slice(5)):o.slice(5);
     parts.push(`<span title="Live ATM IV of this chart minus ${o}. Positive = this expiry is priced richer (normal upward term structure).">vs ${nm} <b class="${d>0?'pos':d<0?'neg':''}">${VPTS(d)}</b></span>`);}
   if(typeof window.rvMetaParts==='function')try{parts.push(...window.rvMetaParts(i));}catch(e){}
   if(typeof window.coolMetaParts==='function')try{parts.push(...window.coolMetaParts(i));}catch(e){}
@@ -8686,14 +8707,6 @@ function deskUpdate(){
     const u=cssVar('--c-up')||'#26A69A',d=cssVar('--c-dn')||'#EF5350';
     G.candles.applyOptions({upColor:u,downColor:d,borderUpColor:u,borderDownColor:d,wickUpColor:u,wickDownColor:d,priceLineColor:cssVar('--muted')});
   }
-  /* v120: one range fit for the first paint and the 1D…1Y buttons. Width comes from the timeframe (not the smallest gap
-     between the bars loaded so far), and for 1D–3D the candles sit at the live edge with the final zoom even before the
-     full history is in, so older candles only fill in on the left — no zoom snap and no empty right side on opening. */
-  window.v120Fit=function(ch,n,days){try{if(!ch||!(n>=2))return false;days=+days||+(localStorage.getItem('v82_range')||1)||1;
-    const g=(typeof TF_SEC==='object'&&TF_SEC[chartPrefs&&chartPrefs.tf])||300;let w=Math.max(4,days*86400/g);
-    let pad=Math.max(2,Math.min(Math.min(days,3)*3600/g,w*0.08));
-    if(days>3&&w>n-1+pad){w=n-1+pad;pad=Math.max(2,Math.min(pad,w*0.08));w=n-1+pad;}
-    ch.timeScale().setVisibleLogicalRange({from:n-1+pad-w,to:n-1+pad});return true;}catch(e){return false;}};
   function paintGex(scroll){
     if(!G.chart)return;
     G.chart.applyOptions(chartThemeOptions());G.chart.applyOptions({watermark:{visible:true,text:'BTC · GAMMA'}});
@@ -8725,7 +8738,7 @@ function deskUpdate(){
     if(scroll)G.chart.timeScale().scrollToRealTime();
     /* v110: set the saved range (1D…) in the same paint as the first candles, and again at once on a timeframe change.
        Before, the chart opened zoomed in and snapped to 1D 2.5–5 s later — the "jump" on opening. */
-    if(!replayOn&&data.length>=20&&(tfChanged||!G.r110)){G.r110=1;if(window.v120Fit(G.chart,data.length))window.__v82done=1;if(window.v82Range)try{window.v82Range(true);}catch(e){}}
+    if(!replayOn&&data.length>=20&&(tfChanged||!G.r110)&&window.v82Range){G.r110=1;try{window.v82Range(true);}catch(e){}}
     evDirty();schedProfile();
   }
   function shownLast(){try{const d=G.candles.data();return d.length?d[d.length-1]:G.last;}catch(e){return G.last;}}
@@ -14559,7 +14572,6 @@ Signs follow Settings → Dealer positioning.`;
       /* v105.24: set by bar count, not by clock time. With fewer bars loaded than the range asks for (history still
          arriving, phone), the time-based range left the candles in the left third and empty space on the right. */
       const d=s&&s.data?s.data():null,n=d?d.length:0;
-      if(n>=2&&window.v120Fit&&window.v120Fit(ch,n,days))return;
       if(n>=2){let g=Infinity;for(let i=Math.max(1,n-60);i<n;i++){const x=d[i].time-d[i-1].time;if(x>0&&x<g)g=x;}if(!isFinite(g))g=300;
         let w=days*86400/g;const pad=Math.max(2,Math.min(Math.min(days,3)*3600/g,w*0.08));if(w>n-1+pad)w=n-1+pad;
         ch.timeScale().setVisibleLogicalRange({from:n-1+pad-w,to:n-1+pad});return;}
@@ -15924,7 +15936,7 @@ document.addEventListener('keydown',ev=>{if(ev.key!=='Delete'&&ev.key!=='Backspa
 window.chartDraw2={db:()=>DB,inst:id=>I[id]};
 
 /* ---------- 6. reset to default ---------- */
-const PREF_KEYS=['btc_atm_iv_theme','btc_iv_pane_view_v1','gfs_split_v1','btc_atm_iv_chart_prefs_v1','btc_dflow_prefs_v1','btc_impulse_prefs_v1','btc_rv_overlay_prefs_v1',
+const PREF_KEYS=['btc_atm_iv_theme_v122','btc_atm_iv_theme','btc_iv_pane_view_v1','gfs_split_v1','btc_atm_iv_chart_prefs_v1','btc_dflow_prefs_v1','btc_impulse_prefs_v1','btc_rv_overlay_prefs_v1',
   'btc_vol_desk_prefs_v1','btc_vol_events_pref_v1','edge_rank_prefs_v1','ivprob_pref_v1','pa_layer_prefs_v2','pa_layer_prefs_v3','dv_prefs_v1','sr_prefs_v1','xs_prefs_v1','gxs_v1',
   'v80_page','v80_pane','v80_gpanes','v80_gpane','v80_em','v80_sr_open','v80_clock24_view','v80_events_filter'];
 const rb=$('resetBtn');
@@ -17642,7 +17654,7 @@ function bands(start){const out=[];const N0=nyOf(start+6*HR);if(!N0)return out;
   return out;}
 function renderRail(now,R,ctx){const el=$('v89Rail');if(!el)return;const P=plan();
   const head=`<div class="h89">⏱ Tonight<span class="s">17:30 → 17:30 IST · ${R&&R.isBid?'bid':'mark'} IV vs the clock path · ${SLOT_NAME[ctx.slot]} ${ctx.e?ctx.e.slice(5):''}</span><span class="r">`+
-    (R&&R.real!=null?`<span class="k89 ${R.real<=-0.5?'ok':R.real>=0.8?'bad':''}">real ${sg(R.real)}</span>`:'')+(P?`<span class="k89">flat by ${hm(P.lifeEnd)}</span>`:'')+`</span></div>`;
+    (R&&R.real!=null?`<span class="k89 ${R.real>0?'ok':''}" title="IV vs the clock path: above (+) = rich, sell OK from 21:00 · below (−) = cheap, wait">vs clock ${sg(R.real)}</span>`:'')+(P?`<span class="k89">flat by ${hm(P.lifeEnd)}</span>`:'')+`</span></div>`;
   if(!R){el.innerHTML=head+(()=>{try{return W.v115&&W.v115.trapHtml?W.v115.trapHtml():'';}catch(e){return '';}})()+`<div class="f89" style="border:0">Waiting for tonight's IV of the plan expiry (recorded from the 17:30 listing).</div>`;return;}
   const phone=innerWidth<=760,Wd=Math.max(300,Math.round((el.clientWidth||1000)-20)),H=phone?108:122,top=phone?30:34,bot=H-14,x=t=>(t-R.start)/(R.end-R.start)*Wd;
   const all=[...R.pts.map(p=>p[1]),...R.clock.map(p=>p[1]).filter(v=>v!=null),...R.av.map(p=>p[1])];let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<2){const m=(hi+lo)/2;lo=m-1;hi=m+1;}const pad=(hi-lo)*0.12;lo-=pad;hi+=pad;
@@ -17657,7 +17669,7 @@ function renderRail(now,R,ctx){const el=$('v89Rail');if(!el)return;const P=plan(
   s+=`<path d="${path(R.clock)}" fill="none" stroke="var(--rv)" stroke-width="1.6" stroke-dasharray="6 4"/>`;
   /* v112: the IV line is red where it sits above the clock path (IV richer than time alone explains) and green where it
      sits below (IV falling faster than the clock); split exactly where the two lines cross. No clock value → neutral. */
-  const CK=R.clock.filter(p=>p[1]!=null),UP='var(--neg)',DN='var(--pos)',NU=R.isBid?'var(--pos)':'var(--iv)';
+  const CK=R.clock.filter(p=>p[1]!=null),UP='var(--pos)',DN='var(--muted)',NU='var(--iv)';   // v124: above clock = green (tested: sell), below = grey (wait)
   const ckAt=t=>{if(CK.length<2||t<CK[0][0]||t>CK[CK.length-1][0])return null;let i=1;while(i<CK.length-1&&CK[i][0]<t)i++;const a=CK[i-1],b=CK[i];return b[0]===a[0]?a[1]:a[1]+(b[1]-a[1])*(t-a[0])/(b[0]-a[0]);};
   {const P=R.pts.filter(p=>p[1]!=null);let cur=null,d='';const flush=()=>{if(d&&cur)s+=`<path d="${d}" fill="none" stroke="${cur}" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round"/>`;d='';};
    const col=(v,c)=>c==null?NU:v>c?UP:v<c?DN:null,pt=(t,v)=>x(t).toFixed(1)+' '+y(v).toFixed(1);
@@ -17670,13 +17682,15 @@ function renderRail(now,R,ctx){const el=$('v89Rail');if(!el)return;const P=plan(
    flush();}
   const dotC=R.cNow==null?NU:R.vNow>R.cNow?UP:R.vNow<R.cNow?DN:NU;
   const xn=x(Math.min(now,R.end)),yn=y(R.vNow);s+=`<line x1="${xn}" x2="${xn}" y1="12" y2="${bot}" stroke="var(--text)" stroke-width="1.2"/><circle cx="${xn}" cy="${yn}" r="3.5" fill="${dotC}"/>`;
-  const lbl=phone?`${f1(R.vNow)} · clk ${f1(R.cNow)} · ${sg(R.real)}`:`now ${f1(R.vNow)} · clock ${f1(R.cNow)} · real ${sg(R.real)}`,lw=phone?128:182,lx=xn>Wd-lw-8?xn-lw-6:xn+6;s+=`<rect x="${lx}" y="${Math.min(bot-16,Math.max(top,yn-8))}" width="${lw}" height="15" rx="2" fill="var(--panel2)" stroke="var(--line2)"/><text x="${lx+5}" y="${Math.min(bot-16,Math.max(top,yn-8))+11}" font-size="10" fill="var(--text)" font-family="var(--mono)">${lbl}</text>`;
+  const gp=(R.vNow!=null&&R.cNow!=null)?R.vNow-R.cNow:null;let inPos=false;try{inPos=!!(W.v18&&W.v18.lab&&W.v18.lab().cur);}catch(e){}
+  const vd=inPos?['hold · book 07:00','hold']:now<R.start+3.5*HR?['read from 21:00','from 21:00']:gp==null?['—','—']:gp>0?['above clock ✓ sell OK','✓ sell OK']:['below clock · wait','wait'];   // v124: tested 21:00+ rule, no exit signal
+  const lbl=phone?`${sg(gp)} · ${vd[1]}`:`now ${f1(R.vNow)} · clock ${f1(R.cNow)} · ${sg(gp)} · ${vd[0]}`,lw=Math.round(lbl.length*6.1+12),lx=xn>Wd-lw-8?xn-lw-6:xn+6;s+=`<rect x="${lx}" y="${Math.min(bot-16,Math.max(top,yn-8))}" width="${lw}" height="15" rx="2" fill="var(--panel2)" stroke="var(--line2)"/><text x="${lx+5}" y="${Math.min(bot-16,Math.max(top,yn-8))+11}" font-size="10" fill="var(--text)" font-family="var(--mono)">${lbl}</text>`;
   {const XT=(()=>{try{return W.v115&&W.v115.railExtras?W.v115.railExtras(R,x,y,Wd,H,now,ctx.pane):null;}catch(e){return null;}})();
    if(XT&&XT.svg){s+=XT.svg;if(XT.h>0)s=s.replace(`viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}"`,`viewBox="0 0 ${Wd} ${H+XT.h}" width="${Wd}" height="${H+XT.h}"`);}}
   s+='</svg>';
   const lift=ctx.lift;
   const TRAP=(()=>{try{return W.v115&&W.v115.trapHtml?W.v115.trapHtml():'';}catch(e){return '';}})();
-  el.innerHTML=head+TRAP+s+`<div class="lg89"><span><i class="lk89 v112u"></i><i class="lk89 v112d"></i>${R.isBid?'bid':'mark'} IV tonight · red above the clock path, green below</span><span><i class="lk89 d"></i>clock path — what IV does if nothing is repriced</span>${R.av.length?`<span><i class="lk89 f"></i>avg last ${R.days} weekdays</span>`:''}${lift!=null?`<span>clock lift ${ctx.liftFrom?hm(ctx.liftFrom):'05:30'} → ${ctx.exitAt?hm(ctx.exitAt):'17:00'} <b>${sg(lift)}</b></span>`:''}${R.note?`<span class="am">${esc(R.note)}</span>`:''}<span class="dst">${LEAD()==='NEW YORK'?'NY times follow US daylight saving (+1 h IST from 1 Nov)':'timing follows the session leader: '+LNAME[LEAD()]}</span></div>`;}
+  el.innerHTML=head+TRAP+s+`<div class="lg89"><span><i class="lk89 v112u"></i><i class="lk89 v112d"></i>${R.isBid?'bid':'mark'} IV tonight · green above the clock path = rich, sell OK (from 21:00) · grey below = cheap, wait</span><span><i class="lk89 d"></i>clock path — what IV does if nothing is repriced</span>${R.av.length?`<span><i class="lk89 f"></i>avg last ${R.days} weekdays</span>`:''}${lift!=null?`<span>clock lift ${ctx.liftFrom?hm(ctx.liftFrom):'05:30'} → ${ctx.exitAt?hm(ctx.exitAt):'17:00'} <b>${sg(lift)}</b></span>`:''}${R.note?`<span class="am">${esc(R.note)}</span>`:''}<span class="dst">${LEAD()==='NEW YORK'?'NY times follow US daylight saving (+1 h IST from 1 Nov)':'timing follows the session leader: '+LNAME[LEAD()]}</span></div>`;}
 
 /* ---------------- mini vol charts ---------------- */
 function spark(vals,cls){if(!vals||vals.length<3)return '<svg></svg>';const Wd=240,H=70,lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;
@@ -19073,15 +19087,15 @@ function candles(R,at,live,eps){const n=R.n,tf=R.tf*1000,now=Date.now(),out=[],c
 
 /* ---------------- panes ---------------- */
 const PANES={
-  edge:{id:'v105EdgeBox',name:'Edge',eps:0.12,fmt:v=>sg(v),lines:[[3,'pos','+3 sell'],[0,'neg','0']],
+  edge:{id:'v105EdgeBox',name:'Edge',eps:0.12,fmt:v=>sg(v),lines:[[3,'neg','+3 too quiet'],[0,'mu','0']],
     range:r=>({minValue:Math.min(-4,r.minValue-0.5),maxValue:Math.max(6,r.maxValue+0.5)}),
-    tag:v=>v>=3?['ok','sell zone']:v>=0?['wn','thin']:['bad',"don't sell"],
+    tag:v=>v>3?['bad','too quiet · skip']:v>0?['wn','thin']:['ok','ok to sell'],   // v121: tested, Edge > +3 = 85% stopped
     legend(v,up,isNow){let bid=null;try{const L=W.v101&&W.v101.live?W.v101.live():null;if(L&&L.isBid&&fin(L.edge))bid=L.edge;}catch(e){}
       return `<span><b>EDGE</b> <span class="${up?'up':'dn'}">${sg(v)} pts ${up?'▲':'▼'}</span></span>`+tagH(this.tag(v))+
         `<span class="dim">${SLOT_NAME[slot()]} mark IV − expected realised to the ${exitTxt()} exit${isNow&&bid!=null?` · card (bid) ${sg(bid)}`:''}</span>`;}},
-  rng:{id:'v105RangeBox',name:'Range',eps:0.015,fmt:v=>v.toFixed(2)+'×',lines:[[1.5,'neg','1.5× flag'],[1,'mu','1× EM']],
+  rng:{id:'v105RangeBox',name:'Range',eps:0.015,fmt:v=>v.toFixed(2)+'×',lines:[[2,'warn','2× wait'],[1,'neg','1× too quiet']],
     range:r=>({minValue:0,maxValue:Math.max(1.8,r.maxValue+0.1)}),
-    tag:v=>v>1.5?['bad','gate flag']:v>1?['wn','above 1× EM']:['ok','inside EM'],
+    tag:v=>v>2?['wn','running · wait']:v>=1?['ok','good 1–2×']:['bad','too quiet · skip'],   // v121: tested, Range < 1 lost in every test
     legend(v,up){return `<span><b>RANGE 24 h</b> <span class="${up?'dn':'up'}">${v.toFixed(2)}× EM ${up?'▲':'▼'}</span></span>`+tagH(this.tag(v))+
       `<span class="dim">largest BTC move from 24 h ago ÷ the day move DVOL priced</span>`;}}};
 function tagH(t){return `<span class="tg ${t[0]}">${t[1]}</span>`;}
@@ -19192,8 +19206,8 @@ function mini(){const now=Date.now(),t0=Math.floor((now-DAY)/(15*MIN))*15*MIN,ba
   const ok=bars.filter(Boolean);if(ok.length<8)return '<div class="v101-mu">Edge history builds from recorded IV of the master expiry; needs a few hours.</div>';
   const vmin=Math.min(-1,...ok.map(b=>b.lo))-0.5,vmax=Math.max(4,...ok.map(b=>b.hi))+0.5,l=6,r=356,t=8,b=112,y=v=>t+(vmax-v)/(vmax-vmin)*(b-t),w=(r-l)/bars.length;
   let g=`<svg class="v105-mini" viewBox="0 0 400 136" role="img" aria-label="Edge over the last 24 hours, 15-minute candles">`;
-  g+=`<rect x="${l}" y="${t}" width="${r-l}" height="${Math.max(0,y(3)-t).toFixed(1)}" fill="var(--pos)" opacity=".06"/>`;
-  for(const [v,cc,lab] of [[3,'pos','+3 sell'],[0,'neg','0']]){const yy=y(v).toFixed(1);g+=`<line x1="${l}" x2="${r}" y1="${yy}" y2="${yy}" stroke="var(--${cc})" stroke-dasharray="4 3" opacity=".8"/><text x="${r+4}" y="${(+yy+3.5).toFixed(1)}" font-size="10" font-family="var(--mono)" fill="var(--${cc})">${lab}</text>`;}
+  g+=`<rect x="${l}" y="${t}" width="${r-l}" height="${Math.max(0,y(3)-t).toFixed(1)}" fill="var(--neg)" opacity=".07"/>`;
+  for(const [v,cc,lab] of [[3,'neg','+3 too quiet'],[0,'muted','0']]){const yy=y(v).toFixed(1);g+=`<line x1="${l}" x2="${r}" y1="${yy}" y2="${yy}" stroke="var(--${cc})" stroke-dasharray="4 3" opacity=".8"/><text x="${r+4}" y="${(+yy+3.5).toFixed(1)}" font-size="10" font-family="var(--mono)" fill="var(--${cc})">${lab}</text>`;}
   bars.forEach((q,i)=>{if(!q)return;const x=l+i*w+w/2,up=q.c>=q.o,cc=up?'var(--c-up,#26A69A)':'var(--c-dn,#EF5350)',y1=y(Math.max(q.o,q.c)),y2=y(Math.min(q.o,q.c));
     g+=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y(q.hi).toFixed(1)}" y2="${y(q.lo).toFixed(1)}" stroke="${cc}"/><rect x="${(x-w*0.36).toFixed(1)}" y="${y1.toFixed(1)}" width="${(w*0.72).toFixed(1)}" height="${Math.max(1,y2-y1).toFixed(1)}" fill="${cc}"><title>${sg(q.c)} pts</title></rect>`;});
   const last=ok[ok.length-1];g+=`<text x="${l}" y="130" font-size="10" fill="var(--faint)">24 h ago</text><text x="${r}" y="130" font-size="10" text-anchor="end" fill="var(--faint)">now ${sg(last.c)} · mark IV, same model as the card</text></svg>`;
@@ -20184,7 +20198,7 @@ body.gfs #v110PnlHd{display:none}
   body #pgDesk #charts .pane.on>.chart-box>.chart{height:100%!important}
   .v115s{display:none}.v115l{font-size:8.5px}
 }
-.lk89.v112u{border-color:var(--neg);width:9px;margin-right:0}.lk89.v112d{border-color:var(--pos);width:9px}
+.lk89.v112u{border-color:var(--pos);width:9px;margin-right:0}.lk89.v112d{border-color:var(--muted);width:9px}
 /* v112: room under the last card for the fixed tab bar, so the bottom of every page (trade notes, Settings) scrolls clear of it */
 .page.on::after{content:"";display:block;height:0}
 @media (max-width:760px){.page.on::after{height:calc(var(--tab-h,56px) + env(safe-area-inset-bottom,0px) + 36px)}}
@@ -20351,7 +20365,6 @@ function targets(){const out=[];let P=null;try{P=typeof panes!=='undefined'?pane
   try{const E=W.v105&&W.v105.charts?W.v105.charts():null,mp=masterPane();
     if(E&&E.edge&&E.edge.chart)out.push({k:'edge',pi:mp,chart:E.edge.chart,ser:E.edge.ser,el:D.getElementById(E.edge.id+'C')});
     if(E&&E.rng&&E.rng.chart)out.push({k:'rng',pi:mp,chart:E.rng.chart,ser:E.rng.ser,el:D.getElementById(E.rng.id+'C')});}catch(e){}
-  try{const ac=W.paAdxChart&&W.paAdxChart(),as=W.paAdxSeries&&W.paAdxSeries();if(ac&&as)out.push({k:'adx',pi:masterPane(),chart:ac,ser:as,el:D.getElementById('paAdx')});}catch(e){}   // v120: ADX gets the session boxes too
   return out.filter(t=>t.el&&t.ser);}
 const ST=new Map();   // per chart object: {t, hist, ov, res, key}
 function closed(ser){let d=null;try{d=ser.__reg&&Array.isArray(ser.__reg.full)&&ser.__reg.full.length?ser.__reg.full:ser.data();}catch(e){}if(!d||d.length<20)return null;const c=d.filter(x=>x&&fin(x.close)&&fin(x.open));return c.length>20?c.slice(0,-1):null;}
@@ -20361,15 +20374,15 @@ function stripFor(S,t,c){const ch=t.chart;
   if(!S.hist){try{S.hist=ch.addHistogramSeries({priceScaleId:'v115spd',priceLineVisible:false,lastValueVisible:false,base:0,priceFormat:{type:'price',precision:2,minMove:0.01}});
       S.hist.applyOptions({autoscaleInfoProvider:()=>({priceRange:{minValue:0,maxValue:1.6}})});
       ch.priceScale('v115spd').applyOptions({scaleMargins:{top:0.87,bottom:0.005},visible:false});
-      S.hist.createPriceLine({price:1,color:'rgba(227,174,69,.85)',lineWidth:1,lineStyle:2,axisLabelVisible:false,title:''});}catch(e){S.hist=null;return;}}
+      S.hist.createPriceLine({price:1,color:'rgba(227,174,69,.85)',lineWidth:1,lineStyle:2,axisLabelVisible:false,title:''});S.hist.createPriceLine({price:1.5,color:'rgba(239,83,80,.7)',lineWidth:1,lineStyle:2,axisLabelVisible:false,title:''});}catch(e){S.hist=null;return;}}
   try{const m=ch.priceScale('right').options().scaleMargins;if(!m||m.bottom<0.17)ch.priceScale('right').applyOptions({scaleMargins:{top:m?m.top:0.12,bottom:0.18}});}catch(e){}
   const key=c.length+'|'+c[c.length-1].time+'|'+Math.floor(Date.now()/60000);if(S.hkey===key)return;S.hkey=key;
-  const from=Math.max(0,c.length-600),arr=[];for(let i=from;i<c.length;i++){const v=speedAt(c[i].time,t.pi);arr.push(v==null?{time:c[i].time}:{time:c[i].time,value:Math.min(1.6,v),color:v>1?'rgba(239,83,80,.62)':'rgba(38,166,154,.62)'});}
+  const from=Math.max(0,c.length-600),arr=[];for(let i=from;i<c.length;i++){const v=speedAt(c[i].time,t.pi);arr.push(v==null?{time:c[i].time}:{time:c[i].time,value:Math.min(1.6,v),color:v>1.5?'rgba(239,83,80,.62)':v>=1?'rgba(38,166,154,.62)':'rgba(140,150,160,.45)'});}
   try{S.hist.setData(arr);}catch(e){}}
 function analyse(){const T=targets(),byK={};
   for(const t of T){let S=ST.get(t.chart);if(!S){S={};ST.set(t.chart,S);}S.t=t;const c=closed(t.ser);S.c=c;if(!c){S.res=null;continue;}
     const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(S.key!==key){S.key=key;S.res=boxes(c);}
-    if(t.k!=='rv'&&t.k!=='adx')stripFor(S,t,c);byK[t.k]=S;}
+    if(t.k==='iv')stripFor(S,t,c);byK[t.k]=S;}   // v123: Speed strip only under IV
   // IV breaks → signals
   const iv=byK.iv,out={sell:null,exit:null,events:[]};
   if(iv&&iv.res){const c=iv.c,u=iv.res.u;
@@ -20389,25 +20402,25 @@ let SIG={events:[]};
 function chip(x,y,rgb,t1,t2,dark,below,big){return `<div class="v115c" style="left:${Math.max(3,x-14)}px;top:${below?y+9:y-27}px;border-color:rgba(${rgb},${big?1:.75})"><b style="color:rgb(${rgb});font-size:${big?9.5:8.5}px">${t1}</b>${t2?`<span>${t2}</span>`:''}</div>`;}
 function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(!bx||!bx.clientWidth)return;
   let ov=S.ov;if(!ov||!ov.isConnected){ov=D.createElement('div');ov.className='v115ov';bx.appendChild(ov);S.ov=ov;}
-  if(!S.res||!S.c){ov.innerHTML='';return;}
+  if(!S.res||!S.c||t.k!=='iv'){ov.innerHTML='';return;}   // v124: break boxes only on IV (Range keeps its London session box from v118)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,c=S.c;
   const X=i=>{const v=ts.timeToCoordinate(c[i].time);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
   let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
   const main=t.k==='iv',W0=t.el.clientWidth+ox;let h='';
-  const L=S.res.list.filter(b=>t.k!=='rng'||b.kind==='base').slice(main?-6:-4);
+  const L=[];   // v125: Top / Base box-break boxes removed everywhere (untested); the IV entry is the 1st–2nd red 15-m candle
   for(const b of L){
     const x0=X(b.i0),x1=X(b.i1);if(x0==null&&x1==null)continue;const a=x0==null?ox:x0-half,z=x1==null?W0:x1+half;if(z<ox||a>W0)continue;
     const y0=Y(b.top),y1=Y(b.bot);if(y0==null||y1==null)continue;const rgb=b.kind==='top'?RED:GRN,faint=!main&&t.k!=='rng';
     h+=`<div class="v115b${faint?' f':''}" style="left:${a}px;top:${y0-2}px;width:${Math.max(4,z-a)}px;height:${Math.max(4,y1-y0+4)}px;border-color:rgba(${rgb},${faint?.5:.8});background:rgba(${rgb},${faint?.07:.11})"></div>`;
     if(main||t.k==='rng')h+=`<div class="v115l" style="left:${a+2}px;top:${(b.kind==='top'?y0-14:y1+4)}px;color:rgb(${rgb})">${t.k==='rng'?'Quiet base':b.kind==='top'?'Top box':'Base box'}</div>`;}
-  if(main)for(const ev of SIG.events){const i=nearIdx(c,ev.sec),x=X(i),y=Y(c[i].close);if(x==null||y==null||x<ox||x>W0)continue;
+  if(false)for(const ev of SIG.events){   // v125: Box ↓ / EXIT ↑ chips offconst i=nearIdx(c,ev.sec),x=X(i),y=Y(c[i].close);if(x==null||y==null||x<ox||x>W0)continue;
     if(ev.type==='sell'){const sp=ev.sp!=null?ev.sp.toFixed(2)+'×':'—';
       if(ev.st==='checking')h+=chip(x,y,GREY,'Breakdown?',sp,0,true,true);else if(ev.st!=='fake'&&ev.sp==null)h+=chip(x,y,GREY,'Box ↓','speed n/a · '+ev.agree+'/4',0,true,false);else if(ev.ok)h+=chip(x,y,GRN,'Box ↓ ✓',sp+' · '+ev.agree+'/4',0,true,false);else h+=chip(x,y,'227,174,69',ev.st==='fake'?'✗ fake break':'✗ speed '+sp,'',0,true,true);}
     else if(ev.type==='exit'&&ev.st!=='fake')h+=chip(x,y,RED,'EXIT ↑',ev.sp!=null?ev.sp.toFixed(2)+'×':'',0,false,true);}
   if(t.k==='edge'&&SIG.sell&&SIG.sell.room!=null){const i=nearIdx(c,SIG.sell.sec);if(i>=0){const x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,GREY,'room '+(SIG.sell.room>=0?'+':'')+SIG.sell.room.toFixed(1),'',0,true,false);}}
   if((t.k==='dv'||t.k==='vov')&&SIG.sell&&SIG.sell.st!=='fake'){const S2=S;if(fell(S2.c,SIG.sell.sec,S2.res.u)){const i=nearIdx(c,SIG.sell.sec),x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,GRN,'↓ agrees','',0,true,false);}}
   if(t.k==='rng'&&SIG.wake){const i=nearIdx(c,SIG.wake.sec),x=X(i),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=W0)h+=chip(x,y,RED,'Waking ↑','exit warning',0,false,true);}
-  if(t.k!=='rv'&&t.k!=='adx')h+=`<div class="v115s" style="top:${oy+t.el.clientHeight*0.80}px">SPEED VS IV · 1×</div>`;
+  if(t.k==='iv')h+=`<div class="v115s" style="top:${oy+t.el.clientHeight*0.80}px">SPEED VS IV · 1× · 1.5×</div>`;
   if(ov.__h!==h){ov.__h=h;ov.innerHTML=h;}}
 /* v117: boxes walk with the chart. A scroll or zoom moves the time axis at once, but the price axis re-scales a frame or
    two later (autoscale), and phones hold chart paints while a finger is down — so the overlay is redrawn for ~0.6 s after
@@ -20528,13 +20541,14 @@ function ivSignal(c,ses){const today=ses[ses.length-1];if(!today)return null;con
   // sell scan through today's NY bars (first bar that satisfies; kept)
   if(today.ny){let nh=-Infinity;for(const b of today.ny.bars){nh=Math.max(nh,b.high);const k=idxAt(c,b.time),mins=(b.time-today.L1)/60;
       const off=nh-b.close,ls=lineState(c,k);
-      if(mins>=60&&off>=1&&ls===-1&&!out.sell){out.sell={t:b.time,off,swept:!!(today.sweep&&today.sweep<=b.time)};}}
-    const mins=(last.time-today.L1)/60;out.mins=mins;out.off=today.ny.nh-last.close;out.peak=mins>=60&&out.off>=1;}
+      const op=nh>0?off/nh*100:0;if(mins>=60&&op>=1.5&&op<=6&&ls===-1&&!out.sell){out.sell={t:b.time,off,swept:!!(today.sweep&&today.sweep<=b.time)};}}
+    const mins=(last.time-today.L1)/60;out.mins=mins;out.off=today.ny.nh-last.close;out.peak=mins>=60&&today.ny.nh>0&&out.off/today.ny.nh*100>=1.5;}
   return out;}
 /* ---------- drawing ---------- */
 const OV=new WeakMap();
 function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentElement;if(!bx||!bx.clientWidth)return;
   let ov=OV.get(S);if(!ov||!ov.isConnected){ov=D.createElement('div');ov.className='v118ov';bx.appendChild(ov);OV.set(S,ov);}
+  if(t.k!=='iv'&&t.k!=='rng'){if(ov.__h!==''){ov.__h='';ov.innerHTML='';}return;}   // v123: sessions only on IV (lines) and Range (boxes)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,H=t.el.clientHeight,Wd=t.el.clientWidth;
   const X=tm=>{const v=ts.timeToCoordinate(tm);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
   const c=S.c,ses=ST[t.k]&&ST[t.k].ses||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
@@ -20545,19 +20559,19 @@ function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentEleme
     const l=clampX(a-half),r=clampX(z+half);let o=`<div class="v118B ${cls}${main?'':' f'}" style="left:${l}px;top:${y0}px;width:${Math.max(2,r-l)}px;height:${Math.max(3,y1-y0)}px"></div>`;
     if(lab&&a>=ox)o+=`<div class="v118t ${cls}" style="left:${a+3}px;top:${y1+3}px">${lab}</div>`;return o;};
   for(const s of ses){
-    if(s.asia)h+=box(s.A0,s.L0,s.asia.h,s.asia.l,'as',main?'Asia':'');
-    if(s.lon)h+=box(s.L0,s.L1,s.lh,s.ll,'lon',main?'London · high '+s.lh.toFixed(1):'');
-    if(s.ny){const lastT=s.ny.bars[s.ny.bars.length-1].time;h+=box(s.L1,lastT+1,s.ny.nh,s.ny.nl,'nyb',main&&t.k!=='rng'?'':(main?'NY':''));}
+    if(s.asia&&!main)h+=box(s.A0,s.L0,s.asia.h,s.asia.l,'as','');
+    if(s.lon&&!main)h+=box(s.L0,s.L1,s.lh,s.ll,'lon','');
+    if(s.ny&&!main){const lastT=s.ny.bars[s.ny.bars.length-1].time;h+=box(s.L1,lastT+1,s.ny.nh,s.ny.nl,'nyb',main&&t.k!=='rng'?'':(main?'NY':''));}
     if(!s.ny)continue;
     const n0=xAt(s.ny.first),nl=xAt(s.ny.bars[s.ny.bars.length-1].time),w1=xAt(s.L1+3600);
     if(n0!=null&&n0>=ox-2&&n0<=ox+Wd){const xs=n0-half;h+=`<div class="v118ny" style="left:${xs}px;top:${oy}px;height:${H-4}px"></div>`;
       const xe=w1!=null?Math.min(w1-half,ox+Wd):xs+30;h+=`<div class="v118w" style="left:${xs}px;top:${oy}px;width:${Math.max(0,xe-xs)}px;height:${H-4}px"></div>`;
       if(main)h+=`<div class="v118t ny" style="left:${xs+3}px;top:${oy+H*0.6}px">NY open<br><i>wait 60 min</i></div>`;}
     // London high carried into NY
-    const yl=s.lon?Y(s.lh):null;if(yl!=null&&n0!=null&&nl!=null){const l=clampX(n0-half),r=clampX(nl+half);if(r>l)h+=`<div class="v118lh" style="left:${l}px;top:${yl}px;width:${r-l}px"></div>`;}
+    const yl=s.lon?Y(s.lh):null;if(yl!=null&&n0!=null&&nl!=null){const l=clampX(n0-half),r=clampX(nl+half);if(r>l){h+=`<div class="v118lh" style="left:${l}px;top:${yl}px;width:${r-l}px"></div>`;if(main)h+=`<div class="v118t lon" style="left:${l+3}px;top:${yl+2}px">London high ${s.lh.toFixed(1)}</div>`;}}
     // running NY high
     if(t.k!=='rng'){const yh=Y(s.ny.nh),xh=xAt(s.ny.nhAt);if(yh!=null&&xh!=null&&nl!=null){const l=clampX(xh),r=clampX(nl+half);if(r>l){h+=`<div class="v118nh" style="left:${l}px;top:${yh}px;width:${r-l}px"></div>`;if(main)h+=`<div class="v118t nh" style="left:${l}px;top:${yh-12}px">NY high ${s.ny.nh.toFixed(1)}</div>`;}}}
-    if(s.sweep&&t.k!=='adx'){const i=idxAt(c,s.sweep),x=X(c[i].time),y=Y(c[i].high);if(x!=null&&y!=null&&x>=ox&&x<=ox+Wd){
+    if(s.sweep){const i=idxAt(c,s.sweep),x=X(c[i].time),y=Y(c[i].high);if(x!=null&&y!=null&&x>=ox&&x<=ox+Wd){
       if(t.k==='rng')h+=`<div class="v118c r" style="left:${Math.max(ox+2,x-60)}px;top:${y-26}px">London high broken</div>`;
       else h+=`<div class="v118c o${main?'':' f'}" style="left:${Math.max(ox+2,x-(main?118:92))}px;top:${y-6}px">London high swept${main?' ✓':''}</div>`;}}
     if(t.k==='rng'&&s.broke&&!s.sweep){const b=s.ny.bars[s.ny.bars.length-1],x=X(b.time),y=Y(b.close);if(x!=null&&y!=null)h+=`<div class="v118c r" style="left:${Math.max(ox+2,x-150)}px;top:${y-28}px"><b>Waking ↑</b> exit warning</div>`;}
@@ -20566,7 +20580,7 @@ function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentEleme
   const sig=ST.iv&&ST.iv.sig;
   if(main&&sig){const s=sig.day;if(sig.sell){const i=idxAt(c,sig.sell.t),x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null&&x>=ox&&x<=ox+Wd){
         const k=2+(sig.sell.swept?1:0);h+=`<div class="v118c g" style="left:${Math.min(ox+Wd-96,x+6)}px;top:${y-8}px"><b>SELL ✓</b> <span>${k}/3</span></div>`;
-        const yh=Y(s.ny.nh);if(yh!=null)h+=`<div class="v118pk" style="left:${x-3}px;top:${yh}px;height:${Math.max(0,y-yh)}px"></div><div class="v118t pk" style="left:${x+4}px;top:${(yh+y)/2-6}px">−${sig.sell.off.toFixed(1)} pt off NY high</div>`;}}}
+        const yh=Y(s.ny.nh);if(yh!=null)h+=`<div class="v118pk" style="left:${x-3}px;top:${yh}px;height:${Math.max(0,y-yh)}px"></div><div class="v118t pk" style="left:${x+4}px;top:${(yh+y)/2-6}px">−${sig.sell.off.toFixed(1)} pt (${(sig.sell.off/s.ny.nh*100).toFixed(1)}%) off NY high</div>`;}}}
   if(!main&&sig&&sig.sell&&['rv','vov','dv'].includes(t.k)){const i=idxAt(c,sig.sell.t);if(i>=2){const u=unit(c,i)||0;if(u>0&&c[i].close-c[i-2].close<=-u){const x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null)h+=`<div class="v118c g f" style="left:${Math.min(ox+Wd-70,x+4)}px;top:${y+8}px">↓ agrees</div>`;}}}
   if(t.k==='edge'&&sig&&sig.sell){const i=idxAt(c,sig.sell.t);if(i>=0){const x=X(c[i].time),y=Y(c[i].close);if(x!=null&&y!=null)h+=`<div class="v118c n f" style="left:${Math.min(ox+Wd-70,x+4)}px;top:${y+8}px">room ${c[i].close>=0?'+':''}${c[i].close.toFixed(1)}</div>`;}}
   h+=`<div class="v118s" style="left:${ox+4}px;top:${oy+H-14}px"></div>`;
@@ -20577,7 +20591,7 @@ function ivLines(S){const ch=S.t.chart,c=S.c;if(!c||c.length<10)return;let L=LN[
   if(!L||L.chart!==ch){try{L={chart:ch,ma:ch.addLineSeries({lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null}),key:'',med:null,medLine:null};LN[S.t.pi]=L;}catch(e){return;}}
   const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(L.key===key)return;L.key=key;
   const from=Math.max(3,c.length-700),pts=[];for(let i=from;i<c.length;i++){const s=lineState(c,i);pts.push({time:c[i].time,value:ma4(c,i),color:s<0?'#1a9e8f':s>0?'#E5484D':'rgba(139,159,177,.9)'});}
-  try{L.ma.setData(pts);}catch(e){}
+  try{L.ma.setData([]);}catch(e){}   // v123: coloured 1-hour line removed (older, untested rule); the 1st–2nd red candles decide
   const med=median3d(c);if(med!=null){try{if(!L.medLine)L.medLine=S.t.ser.createPriceLine({price:med,color:'rgba(227,174,69,.9)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'3-day median'});else L.medLine.applyOptions({price:med});}catch(e){}}}
 /* ---------- loop ---------- */
 function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=sessions(X.c);ST[k].S=X;
@@ -20612,25 +20626,6 @@ hook();
 W.v118={sessions,ivSignal,others,state:()=>ST,tick};
 })();
 </script>
-<script data-module="v120">
-/* v120 · show the boxes and checks as soon as data lands. v115 / v118 run every 3 s (first at 4–4.5 s), so a chart could
-   sit without its boxes for up to 7 s after opening, after an expiry switch or after tapping Edge / Range / ADX. This watcher
-   reads a cheap signature (bars loaded, last bar, chart width) every 0.5 s for the first 2 min, then every 1.5 s, and runs
-   both at once when it changes. */
-(function(){'use strict';const W=window,D=document,t0=Date.now();let last='',busy=false;
-function sig(){const a=[];const add=(ser,el)=>{let n=0,t=0;try{const f=ser&&ser.__reg&&ser.__reg.full;if(f&&f.length){n=f.length;t=f[n-1].time;}}catch(e){}a.push(n+':'+t+':'+(el&&el.clientWidth||0));};
-  try{const P=typeof panes!=='undefined'?panes:null;if(P)for(const p of P){if(!p)continue;const b=D.getElementById('pane'+p.i);if(!b||!b.classList.contains('on'))continue;
-    add(p.series,D.getElementById('chart'+p.i));add(p.rvSub,D.getElementById('rvChart'+p.i));add(p.vovSeries,D.getElementById('vovChart'+p.i));const d=W.__dvCharts&&W.__dvCharts[p.i];add(d&&d.series,D.getElementById('dvChart'+p.i));}}catch(e){}
-  try{const E=W.v105&&W.v105.charts&&W.v105.charts();if(E){add(E.edge.ser,D.getElementById(E.edge.id+'C'));add(E.rng.ser,D.getElementById(E.rng.id+'C'));}}catch(e){}
-  try{add(W.paAdxSeries&&W.paAdxSeries(),D.getElementById('paAdx'));}catch(e){}
-  return a.join('|');}
-function run(){if(D.hidden||busy)return;const s=sig();if(s===last)return;last=s;busy=true;
-  try{W.v115&&W.v115.tick&&W.v115.tick();}catch(e){}
-  setTimeout(()=>{try{W.v118&&W.v118.tick&&W.v118.tick();}catch(e){}busy=false;},30);}
-const fast=setInterval(()=>{run();if(Date.now()-t0>120000){clearInterval(fast);setInterval(run,1500);}},500);
-D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#gTabs,[data-gp],.pane-tabs,#v100Master'))setTimeout(run,120);},true);
-})();
-</script>
 <style id="v118Css">
 .v118ov{position:absolute;inset:0;pointer-events:none;z-index:7;font-family:var(--font)}
 .v118B{position:absolute;border:1.2px solid;border-radius:5px;box-sizing:border-box}
@@ -20661,5 +20656,682 @@ D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#gTabs,[da
 .v118ip small{color:var(--muted);font-size:11px;width:100%}
 .v118more summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:4px}
 </style>
+<style id="v121Css">
+/* v121 · tested playbook: Leading signals board + NY check line (presentation) */
+#v104Lead{display:none!important}
+.l4-mini{display:none!important}
+#v121Lead{max-width:1380px;margin:14px auto 2px;box-sizing:border-box;font-family:var(--font-text,var(--font));color:var(--text,#e6edf3)}
+#v121Lead .b1{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;border:1px solid var(--line,#23313f);border-radius:14px;padding:12px 16px;background:var(--panel,#121b25)}
+#v121Lead .b1 .ey{display:block;font-size:11px;letter-spacing:.12em;color:var(--muted,#8fa3b5)}
+#v121Lead .b1 .vd{display:block;font-size:22px;font-weight:600;line-height:1.25}
+#v121Lead .b1 .vd.g{color:var(--pos,#35BB7D)}#v121Lead .b1 .vd.a{color:var(--warn,#E3AE45)}#v121Lead .b1 .vd.r{color:var(--neg,#EF5A5E)}#v121Lead .b1 .vd.n{color:var(--muted,#8fa3b5)}
+#v121Lead .pips{display:flex;gap:5px}#v121Lead .pips i{width:22px;height:7px;border-radius:4px;background:var(--line,#2b3a49)}
+#v121Lead .pips i.g{background:var(--pos,#35BB7D)}#v121Lead .pips i.a{background:var(--warn,#E3AE45)}#v121Lead .pips i.r{background:var(--neg,#EF5A5E)}
+#v121Lead .cd{margin-left:auto;font-family:var(--mono,monospace);font-size:13px;border:1px solid var(--line,#2b3a49);border-radius:999px;padding:5px 12px;color:var(--text,#c9d4de)}
+#v121Lead .gr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+#v121Lead .tl{display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--panel,#121b25);border:1px solid var(--line,#23313f);border-top:3px solid var(--line,#5d6f80);border-radius:12px;padding:12px 14px}
+#v121Lead .tl.g{border-top-color:var(--pos,#35BB7D)}#v121Lead .tl.a{border-top-color:var(--warn,#E3AE45)}#v121Lead .tl.r{border-top-color:var(--neg,#EF5A5E)}
+#v121Lead .tl .h{display:flex;justify-content:space-between;gap:6px;font-size:11px;letter-spacing:.08em;color:var(--muted,#8fa3b5)}
+#v121Lead .tl .h b{font-weight:600;letter-spacing:.04em}#v121Lead .tl.g .h b{color:var(--pos,#35BB7D)}#v121Lead .tl.a .h b{color:var(--warn,#E3AE45)}#v121Lead .tl.r .h b{color:var(--neg,#EF5A5E)}
+#v121Lead .tl .v{font-size:18px;font-weight:600;line-height:1.3}
+#v121Lead .tl .m{font-family:var(--mono,monospace);font-size:12px;color:var(--text,#c9d4de);opacity:.9}
+#v121Lead .tl .li{font-size:13px;line-height:1.6}#v121Lead .tl .li .y{color:var(--pos,#35BB7D)}#v121Lead .tl .li .x{color:var(--muted,#8fa3b5)}#v121Lead .tl .li .w{color:var(--warn,#E3AE45)}#v121Lead .tl .li .z{color:var(--neg,#EF5A5E)}
+#v121Lead .tl .rl{margin-top:auto;font-size:11.5px;color:var(--muted,#8fa3b5);line-height:1.45}
+#v121Lead .tl .ts{font-size:10.5px;color:var(--faint,#5f7486)}
+#v121Lead .bar{position:relative;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--warn,#E3AE45) 0 20%,var(--pos,#35BB7D) 20% 75%,var(--neg,#EF5A5E) 75% 100%);opacity:.85}
+#v121Lead .bar i{position:absolute;top:-4px;width:4px;height:15px;margin-left:-2px;border-radius:2px;background:var(--text,#e6edf3)}
+#v121Lead .ft{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:8px;font-size:11px;color:var(--faint,#6f8394)}
+#v121Lead .ft span.u{border:1px dashed var(--line,#2b3a49);border-radius:999px;padding:3px 10px}
+#v121Lead{container-type:inline-size}
+#v121Lead .tl .h{flex-wrap:wrap}#v121Lead .tl .h span{min-width:0}
+@container (max-width:900px){#v121Lead .gr{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#v121Lead .tl{padding:10px 11px}#v121Lead .tl .v{font-size:16px}#v121Lead .b1 .vd{font-size:19px}#v121Lead .cd{margin-left:0}}
+@container (max-width:420px){#v121Lead .b1{padding:10px 12px}#v121Lead .b1 .vd{font-size:17px}#v121Lead .gr{gap:6px}#v121Lead .tl{padding:9px 9px;border-radius:10px;gap:4px}#v121Lead .tl .h{font-size:10px;letter-spacing:.04em}#v121Lead .tl .v{font-size:14.5px}#v121Lead .tl .m{font-size:11px}#v121Lead .tl .li{font-size:11.5px;line-height:1.5}#v121Lead .tl .rl{font-size:10.5px}#v121Lead .tl .ts{font-size:10px}#v121Lead .cd{font-size:11.5px;padding:4px 10px}#v121Lead .ft{font-size:10px}}
+#ph89 .v121ph{margin-left:8px;font-weight:600}#ph89 .v121ph.r{color:var(--neg,#EF5A5E)}#ph89 .v121ph.a{color:var(--warn,#E3AE45)}
+.v115t .v121k{white-space:nowrap}
+</style>
+<script data-module="v121">
+/* v121 · Tested N2N playbook (16 Oct 2026, preview, not deployed). Built from the backtests in this chat
+   (N2N 0.15Δ, 2× leg stop, NY entries; 1 yr hourly IV + 29 days of 1-min BTC):
+   - NY check line (Tonight card) replaced in the NY window by: Spike · Turn (1st–2nd red 15-m IV candle) · % below the NY high
+     (1.5–6 % = zone) · Confirm k/3 (VoV just turned down · Speed was >1.5× and is back ≤1.5× · Tonight IV above its clock) ·
+     Veto (Edge > +3 or Range < 1× = too quiet) → SELL · FULL/HALF · Δ. Size: FULL only if Current IV > N2N IV, spike ≤ 2,
+     Speed ≥ 1× and ≥ 2 confirms. Δ 0.12 if N2N IV < 28 or Thursday. Late (IV > 6 % off the high): RV 6 h falling → HALF, else WAIT.
+   - In a trade: HOLD · book 07:00, EXIT only on a leg at 2×, Impulse top level, or IV above the NY high after 02:30 and rising.
+   - Day / news gate: Saturday evening = no trade; high release → sell 2 h after (FOMC / minutes 1 h), medium 1 h.
+   - Leading signals board (#v104Lead hidden, #v121Lead drawn after it): 8 tested tiles + banner + 07:00 countdown;
+     untested inputs (skew, dealer γ, crowding, liquidity, forward vol) listed as info only.
+   Every input is computed here from candles[N2N] (Delta 1-min ATM IV), rvIndexBars (BTC 1-min), v105 Edge / Range,
+   v89 clockIv, impulseRead, v18 lab; any missing input shows "—" and never blocks the rest. Read-only; nothing is ordered. */
+(function(){'use strict';
+const W=window,D=document,fin=Number.isFinite,MIN=60000,HR=3600000,DAY=86400000,IST=19800000;
+const $=id=>D.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f1=v=>fin(v)?v.toFixed(1):'—',sg=v=>fin(v)?(v>=0?'+':'')+v.toFixed(1):'—';
+const hm=ms=>new Date(ms+IST).toISOString().slice(11,16);
+const keyOf=idx=>new Date(idx*DAY).toISOString().slice(0,10);
+const pct=v=>v==null?null:(v<5?v*100:v);
+/* ---------- calendar ---------- */
+function nthSun(y,m,n){const d=new Date(Date.UTC(y,m,1));const first=(7-d.getUTCDay())%7;return Date.UTC(y,m,1+first+7*(n-1));}
+function isEDT(ms){const y=new Date(ms).getUTCFullYear();return ms>=nthSun(y,2,2)+7*HR&&ms<nthSun(y,10,1)+6*HR;}
+function frame(now){const base=Math.floor((now+IST-17.5*HR)/DAY),D0=base*DAY-IST,edt=isEDT(D0+14*HR),open=D0+(edt?19:20)*HR;
+  return {base,D0,edt,open,end:open+7.5*HR,exit:D0+31*HR,cur:keyOf(base+1),nxt:keyOf(base+2),n2n:keyOf(base+3),settle:(base+3)*DAY-IST+17.5*HR,
+    listing:D0+17.5*HR,dow:new Date(base*DAY).getUTCDay()};}
+/* ---------- IV series of one expiry (Delta 1-min ATM IV, in %) ---------- */
+function series(e){let a=null;try{a=typeof candles!=='undefined'?candles[e]:null;}catch(x){}if(!a||!a.length)return null;
+  const out=[];for(const c of a){const v=c[4];if(fin(v)&&v>0)out.push([c[0]*1000,pct(v)]);}return out.length?out:null;}
+function at(s,t){if(!s)return null;let lo=0,hi=s.length-1;if(t<s[0][0])return null;while(lo<hi){const m=(lo+hi+1)>>1;if(s[m][0]<=t)lo=m;else hi=m-1;}return s[lo][1];}
+function within(s,a,b){const v=[];if(!s)return v;for(const p of s)if(p[0]>=a&&p[0]<b)v.push(p[1]);return v;}
+const med=v=>{if(!v.length)return null;const x=v.slice().sort((a,b)=>a-b);return x[x.length>>1];};
+function liveAtm(e){try{const a=typeof rec!=='undefined'&&rec.lastAtm?rec.lastAtm.get(e):null;if(a&&fin(a.atm)&&Date.now()-(a.at||0)<5*MIN)return pct(a.atm);}catch(x){}const s=series(e);return s?s[s.length-1][1]:null;}
+/* ---------- 15-minute IV candles ---------- */
+function q15(s,from,now){const B=15*MIN,out=[];if(!s)return out;let k=null,c=null;
+  for(const p of s){if(p[0]<from)continue;const kk=Math.floor(p[0]/B)*B;if(kk+B>now)break;if(k!==kk){if(k!=null)out.push({k,c});k=kk;}c=p[1];}
+  if(k!=null&&k+B<=now)out.push({k,c});for(let i=1;i<out.length;i++)out[i].o=out[i-1].c;return out.slice(1);}
+/* ---------- VoV of N2N IV (desk v47 formula: 5-min grid, 3 h fading weights, IV pts / day) ---------- */
+function vov(s,now){if(!s)return null;const g=[];const B=5*MIN;let k=null,last=null;
+  for(const p of s){if(p[0]<now-10*HR)continue;const kk=Math.floor(p[0]/B)*B;if(k!==kk){if(k!=null)g.push([k,last]);k=kk;}last=p[1];}if(k!=null)g.push([k,last]);
+  if(g.length<40)return null;const d=[];for(let i=1;i<g.length;i++)d.push([g[i][0],g[i][1]-g[i-1][1]]);
+  const ab=d.map(x=>Math.abs(x[1])).sort((a,b)=>a-b),md=ab[ab.length>>1]||0.01,cap=6*md/0.6745;
+  let num=0,den=0,prev=null;const out=[];for(const [t,x0] of d){const x=Math.max(-cap,Math.min(cap,x0));if(prev!=null){const kk=Math.exp(-(t-prev)/(3*HR));num*=kk;den*=kk;}num+=x*x;den+=300;prev=t;out.push([t,Math.sqrt(num/den*86400)]);}
+  const L=out[out.length-1],h1=at(out,now-HR),mx=Math.max(...out.filter(p=>p[0]>=now-4*HR).map(p=>p[1]));
+  return {now:L[1],h1,max4:mx,offpk:mx>0?1-L[1]/mx:null,chg:h1>0?L[1]/h1-1:null};}
+/* ---------- BTC: RV and Speed vs IV ---------- */
+function btcCloses(now,mins){let R=null;try{R=W.rvIndexBars?W.rvIndexBars():null;}catch(x){}if(!R||!R.bars||!R.bars.size)return null;
+  const end=Math.floor(now/MIN)*MIN,out=[];for(let t=end-mins*MIN;t<=end;t+=MIN){const b=R.bars.get(t);if(b&&fin(b.c))out.push([t,b.c]);}return out.length>mins*0.6?out:null;}
+function rvOver(cl,t,mins){const r=[];for(let i=1;i<cl.length;i++){if(cl[i][0]>t||cl[i][0]<=t-mins*MIN)continue;if(cl[i][0]-cl[i-1][0]===MIN)r.push(Math.log(cl[i][1]/cl[i-1][1]));}
+  if(r.length<mins*0.6)return null;const m=r.reduce((a,b)=>a+b,0)/r.length;return Math.sqrt(r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1)*525600)*100;}
+/* ---------- events (desk calendar, US Eastern) ---------- */
+function events(F){let L=[];try{L=typeof EV_FIXED!=='undefined'?EV_FIXED:[];}catch(x){}const out=[];
+  for(const r of L){const [d,tm,code,title,imp]=r;if(!(imp>=2))continue;const [h,m]=tm.split(':').map(Number);const base=Date.parse(d+'T00:00:00Z');
+    const t=base+(h*60+m)*MIN+(isEDT(base+12*HR)?4:5)*HR;if(t<F.D0+12*HR||t>F.D0+31*HR)continue;
+    const wait=(code==='FOMC'||code==='MIN'||code==='FED')?HR:imp>=3?2*HR:HR;out.push({t,code,title,imp,ok:t+wait});}
+  return out.sort((a,b)=>a.t-b.t);}
+/* ---------- the read ---------- */
+function read(now){const F=frame(now),s=series(F.n2n),R={F,now};
+  R.sat=F.dow===6;R.thu=F.dow===4;R.ev=events(F);R.evNext=R.ev.find(e=>e.ok>now)||null;
+  R.inNY=now>=F.open&&now<F.end;R.mins=(now-F.open)/MIN;
+  R.iv=liveAtm(F.n2n);R.cur=liveAtm(F.cur);
+  if(s){const pre=med(within(s,F.open-75*MIN,F.open-15*MIN));R.pre=pre;
+    const ny=within(s,F.open,now+MIN);R.nyHigh=ny.length?Math.max(...ny):null;
+    if(R.nyHigh!=null&&R.iv!=null){R.offPct=(R.nyHigh-R.iv)/R.nyHigh*100;}
+    if(pre!=null&&R.nyHigh!=null)R.spike=R.nyHigh-pre;
+    const q=q15(s,F.open-HR,now),l4=q.slice(-4);R.q=q;R.reds=l4.length===4?l4.filter(x=>x.c<x.o).length:null;R.lastRed=q.length?q[q.length-1].c<q[q.length-1].o:null;
+    R.vov=vov(s,now);R.iv15=at(s,now-15*MIN);
+    const a=F.listing+3*HR;if(now>=a+30*MIN){const ivA=med(within(s,a,a+30*MIN));let ck=null;try{ck=W.v89&&W.v89.clockIv?W.v89.clockIv(ivA,a,now,F.settle):null;}catch(x){}R.clock=fin(ck)?ck:null;R.tonight=R.clock!=null&&R.iv!=null?R.iv-R.clock:null;}else R.tonightWait=a+30*MIN;}
+  if(R.cur!=null&&R.iv!=null&&R.iv>0)R.term=(R.cur-R.iv)/R.iv*100;
+  const cl=btcCloses(now,7*60+10);if(cl&&R.iv){R.rv6=rvOver(cl,now,360);R.rv6h1=rvOver(cl,now-HR,360);R.rv6pk=Math.max(...[0,30,60,90,120,150,180,210,240].map(m=>rvOver(cl,now-m*MIN,360)||0));
+    const sp=t=>{const r=rvOver(cl,t,60),iv=at(s,t)||R.iv;return r!=null&&iv?r/iv:null;};R.speed=sp(now);let mx=null;for(let m=15;m<=120;m+=15){const v=sp(now-m*MIN);if(v!=null)mx=mx==null?v:Math.max(mx,v);}R.speedMax2h=mx;}
+  try{const V=W.v105;if(V){const e=V.edgeAt?V.edgeAt(now):null,r=V.rangeAt?V.rangeAt(now):null;R.edge=fin(e)?e:null;R.range=fin(r)?r:null;}}catch(x){}
+  try{R.imp=W.impulseRead?W.impulseRead():null;}catch(x){}
+  try{const L=W.v18&&W.v18.lab?W.v18.lab():null,c=L&&L.cur;if(c&&c.last&&c.last.legs){R.pos=c;R.legs=c.last.legs.map(l=>({type:l.type,x:fin(l.entry)&&l.entry>0&&fin(l.mark)?l.mark/l.entry:null}));}}catch(x){}
+  return judge(R);}
+/* ---------- the verdict ---------- */
+function judge(R){const F=R.F,now=R.now,K=(W.__rule&&W.__rule())||{offLo:1.5,offHi:6,spd:1.5,edge:3,range:1};   // v126: thresholds can be tuned from the rule check (Apply)
+  R.c={vov:R.vov&&fin(R.vov.offpk)&&fin(R.vov.chg)?(R.vov.offpk>=0.05&&R.vov.offpk<=0.2&&R.vov.chg<0):null,
+       speed:R.speed!=null&&R.speedMax2h!=null?(R.speedMax2h>K.spd&&R.speed<=K.spd):null,
+       tonight:R.tonight!=null?R.tonight>=0:null};
+  R.nConf=Object.values(R.c).filter(v=>v===true).length;
+  R.veto=[];if(R.edge!=null&&R.edge>K.edge)R.veto.push('Edge '+sg(R.edge));if(R.range!=null&&R.range<K.range)R.veto.push('Range '+R.range.toFixed(2)+'×');
+  R.delta=(R.iv!=null&&R.iv<28)||R.thu?0.12:0.15;
+  try{R.tilt=W.v126&&W.v126.tilt?W.v126.tilt(R):null;}catch(x){R.tilt=null;}R.dPut=R.tilt&&R.tilt.on?Math.min(R.delta,0.12):R.delta;   // v126: put leg lighter on tilt nights
+  const dTxt=R.dPut<R.delta?'C '+R.delta.toFixed(2)+' / P '+R.dPut.toFixed(2)+'Δ':R.delta.toFixed(2)+'Δ';
+  const full=R.term!=null&&R.term>0&&(R.spike==null||R.spike<=2)&&R.nConf>=2;R.size=full?'FULL':'HALF';
+  let v='WAIT',cls='a',why='';
+  if(R.pos){const L=(R.legs||[]).filter(l=>l.x!=null),mx=L.length?Math.max(...L.map(l=>l.x)):null;R.legMax=mx;
+    const late=now>=F.D0+26.5*HR&&now<F.exit,newHi=R.nyHigh!=null&&R.iv!=null&&R.iv>R.nyHigh+0.2&&R.iv15!=null&&R.iv>R.iv15;
+    if(mx!=null&&mx>=2){v='EXIT · leg 2×';cls='r';}
+    else if(R.imp&&R.imp.ok&&R.imp.st===3){v='EXIT · Impulse';cls='r';}
+    else if(late&&newHi){v='EXIT · IV new high';cls='r';}
+    else if(now>=F.exit&&now<F.exit+10*HR){v='BOOK NOW · 07:00 passed';cls='a';}
+    else{v='HOLD · book 07:00';cls='g';}
+    R.verdict={v,cls,why};return R;}
+  if(R.sat&&now>=F.D0+12*HR&&now<F.exit){v='NO TRADE · Saturday';cls='r';}
+  else if(!R.inNY){v=now<F.open?'WAIT · NY opens '+hm(F.open):'NY window over';cls='n';}
+  else if(R.evNext&&now<R.evNext.ok){v='WAIT · '+R.evNext.code+' '+hm(R.evNext.t)+' → sell after '+hm(R.evNext.ok);cls='a';}
+  else if(R.mins<60){v='WAIT · 1st hour';cls='a';}
+  else if(R.iv==null||R.nyHigh==null){v='WAIT · IV loading';cls='n';}
+  else if(R.spike!=null&&R.spike<=0){v='WAIT · no NY spike';cls='a';}
+  else if(R.veto.length){v='SKIP · too quiet';cls='r';why=R.veto.join(', ');}
+  else if(R.offPct>K.offHi){const rvf=R.rv6!=null&&R.rv6h1!=null&&R.rv6<R.rv6h1;v=rvf?'LATE · HALF · '+dTxt:'LATE · WAIT (RV rising)';cls=rvf?'a':'a';if(rvf)R.size='HALF';}
+  else if(R.offPct<K.offLo){v='WAIT · still at the top';cls='a';}
+  else if(R.reds==null||R.reds<1||R.reds>2){v=R.reds!=null&&R.reds>2?'WAIT · fall is old':'WAIT · no red yet';cls='a';}
+  else{v='SELL · '+R.size+' · '+dTxt;cls=R.size==='FULL'?'g':'g';}
+  R.verdict={v,cls,why};return R;}
+/* ---------- NY check line (replaces v118 in the NY window and in a trade) ---------- */
+const it=(b,t,tip)=>`<span class="v121k ${b===true?'g':b===false?'n':'n'}" title="${esc(tip)}">${b===true?'✓':b===false?'✕':'·'} ${esc(t)}</span>`;
+function lineHtml(R){if(R.pos){const L=R.legs||[],lx=L.map(l=>l.x!=null?l.x.toFixed(2)+'×':'—').join(' / ');
+    return `<div class="v115t ${R.verdict.cls==='r'?'r':R.verdict.cls==='g'?'g':'a'}"><b>Hold</b>${it(R.legMax==null?null:R.legMax<2,'Legs '+lx,'exit if either leg reaches 2× its sold price')}${it(R.imp&&R.imp.ok?R.imp.st!==3:null,'No Impulse','exit only at the Impulse level (top 1 %), not Fast')}${it(R.nyHigh!=null&&R.iv!=null?R.iv<=R.nyHigh+0.2:null,'Below NY high','after 02:30, IV above the NY high and rising = exit')}<em>${esc(R.verdict.v)}${R.verdict.v.startsWith('HOLD')?' ('+dur(R.F.exit-R.now)+')':''}</em></div>`;}
+  const off=R.offPct,ok3=off!=null?(off>=1.5&&off<=6):null;
+  return `<div class="v115t ${R.verdict.cls==='r'?'r':R.verdict.cls==='g'?'g':'a'}"><b>NY check</b>`+
+    it(R.spike==null?null:R.spike>0,'Spike','NY high − IV 17:45–18:45: '+sg(R.spike)+' pts (no rise = wait; over 2 = half)')+
+    it(R.reds==null?null:(R.reds>=1&&R.reds<=2),R.reds==null?'Turn':(R.reds+' red'),'1st–2nd red 15-m IV candle = sell; 3–4 = the fall is old')+
+    it(ok3,off!=null?off.toFixed(1)+'%':'% off','below the NY high: 1.5–6 % = sell zone')+
+    it(R.nConf>=2?true:(R.c.vov===null&&R.c.speed===null&&R.c.tonight===null?null:false),R.nConf+'/3','VoV turned down · Speed back ≤ 1.5× · Tonight above clock')+
+    it(R.veto.length?false:(R.edge==null&&R.range==null?null:true),'Veto',R.veto.length?R.veto.join(', ')+' (too quiet)':'Edge ≤ +3 and Range ≥ 1×')+
+    `<em>${esc(R.verdict.v)}</em></div>`;}
+const dur=ms=>{if(!(ms>0))return '0m';const m=Math.round(ms/MIN);return (m>=60?Math.floor(m/60)+'h ':'')+(m%60)+'m';};
+let prevTrap=null,mine=null;
+function hookLine(){const V=W.v115;if(!V||!V.trapHtml||V.trapHtml===mine)return;prevTrap=V.trapHtml;
+  mine=function(){try{const R=read(Date.now());if(R.pos||R.inNY||R.sat)return lineHtml(R);}catch(e){console.warn('v121 line',e);}return prevTrap.apply(this,arguments);};V.trapHtml=mine;}
+/* ---------- Leading signals board ---------- */
+const st=b=>b===true?'g':b===false?'r':'n';
+function tile(n,head,cls,word,v,m,body,rule,ts){return `<div class="tl ${cls}"><div class="h"><span>${n} · ${head}</span><b>${esc(word)}</b></div>${v?`<div class="v">${v}</div>`:''}${m?`<div class="m">${m}</div>`:''}${body||''}<div class="rl">${rule}</div><div class="ts">${ts}</div></div>`;}
+const li=(c,t)=>`<span class="${c}">${c==='y'?'✓':c==='z'?'✕':c==='w'?'!':'·'}</span> ${t}`;
+function board(R){const F=R.F,now=R.now,T=[];
+  // 1 day & news
+  const evTxt=R.ev.length?R.ev.map(e=>`${esc(e.code)} ${hm(e.t)}`).join(' · '):'no US release tonight';
+  const dayCls=R.sat?'r':R.evNext&&now<R.evNext.ok?'a':'g';
+  T.push({c:dayCls,h:tile(1,'DAY &amp; NEWS',dayCls,R.sat?'NO TRADE':R.evNext&&now<R.evNext.ok?'WAIT':'GO',['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][F.dow]+(R.thu?' · 0.12Δ':''),evTxt,
+    R.evNext&&now<R.evNext.ok?`<div class="li">${li('w','sell after '+hm(R.evNext.ok))}</div>`:'','Sat = no trade · high release: sell 2 h after · FOMC 1 h after','1 yr: Sat IV rose 94% of nights · FOMC IV fell 8/8')});
+  // 2 spike
+  const spC=R.spike==null?'n':R.spike<=0?'r':R.spike>2?'a':'g';
+  T.push({c:spC,h:tile(2,'NY SPIKE',spC,R.spike==null?'—':R.spike<=0?'NO SPIKE':R.spike>2?'BIG · HALF':'GO',R.spike!=null?sg(R.spike)+' pts':'—',`pre-NY ${f1(R.pre)} → high ${f1(R.nyHigh)}`,'','IV must rise after the NY open · no rise = wait · over 2 pts = half','no spike: 62% stopped')});
+  // 3 turn
+  const off=R.offPct,tC=off==null||R.reds==null?'n':(off>=1.5&&off<=6&&R.reds>=1&&R.reds<=2)?'g':off>6?'r':'a';
+  const pos=off==null?null:Math.max(0,Math.min(100,off<=1.5?off/1.5*20:off<=6?20+(off-1.5)/4.5*55:75+Math.min(25,(off-6)/6*25)));
+  T.push({c:tC,h:tile(3,'IV TURN',tC,tC==='g'?'SELL ZONE':tC==='r'?'LATE':tC==='a'?'WAIT':'—',(R.reds!=null?R.reds+' red':'—')+(off!=null?' · '+off.toFixed(1)+'%':''),`NY high ${f1(R.nyHigh)} · now ${f1(R.iv)}`,
+    pos!=null?`<div class="bar" aria-hidden="true"><i style="left:${pos.toFixed(0)}%"></i></div>`:'','sell on the 1st–2nd red 15-m candle, 1.5–6% below the NY high','tested: 14/18 won')});
+  // 4 term
+  const teC=R.term==null?'n':R.term>0?'g':'a';
+  T.push({c:teC,h:tile(4,'TERM → SIZE',teC,R.term==null?'—':R.term>0?'FULL':'HALF',R.term!=null?'Cur '+sg(R.term)+'% vs N2N':'—',`Current ${f1(R.cur)} · N2N ${f1(R.iv)}`,'','Current IV above N2N → full (best +5 to +15%)','1 yr: IV fell 85% vs 69% of nights')});
+  // 5 confirm
+  const cC=R.nConf>=2?'g':R.nConf===1?'a':(R.c.vov===null&&R.c.speed===null&&R.c.tonight===null)?'n':'r';
+  const cv=R.vov,vovTxt=cv&&fin(cv.offpk)?'VoV '+(cv.offpk*100).toFixed(0)+'% off peak':'VoV —',spTxt=R.speed!=null?'Speed '+R.speed.toFixed(2)+'×':'Speed —',toTxt=R.tonight!=null?'Tonight '+sg(R.tonight):R.tonightWait?'Tonight from '+hm(R.tonightWait):'Tonight —';
+  T.push({c:cC,h:tile(5,'CONFIRM',cC,R.nConf+' / 3','','',`<div class="li">${li(R.c.vov?'y':'x',vovTxt)}<br>${li(R.c.speed?'y':'x',spTxt)}<br>${li(R.c.tonight?'y':'x',toTxt)}</div>`,'need 2 of 3 for full size','VoV 15/19 · Speed 73% · Tonight 14/18')});
+  // 6 too quiet
+  const qC=R.veto.length?'r':(R.edge==null&&R.range==null)?'n':'g';
+  T.push({c:qC,h:tile(6,'TOO QUIET?',qC,R.veto.length?'SKIP':qC==='a'?'HALF':qC==='g'?'CLEAR':'—','','',`<div class="li">${li(R.edge==null?'x':R.edge>3?'z':'y','Edge '+sg(R.edge))}<br>${li(R.range==null?'x':R.range<1?'z':'y','Range '+(R.range!=null?R.range.toFixed(2)+'×':'—'))}<br>${li('x','Speed '+(R.speed!=null?R.speed.toFixed(2)+'×'+(R.speed<1?' slow':''):'—'))}</div>`,'Edge above +3 or Range below 1× = skip','Edge &gt; +3: 85% stopped')});
+  // 7 late
+  const lateOn=now>=F.D0+23*HR&&now<F.end,rvf=R.rv6!=null&&R.rv6h1!=null?R.rv6<R.rv6h1:null,crashed=off!=null&&off>6;
+  const lC=!lateOn?'n':!crashed?'g':rvf?'a':'r';
+  T.push({c:lC,h:tile(7,'LATE ENTRY',lC,!lateOn?'AFTER 23:00':!crashed?'IV RULES':rvf?'HALF':'WAIT','RV '+f1(R.rv6)+(rvf==null?'':rvf?' · falling':' · rising'),R.rv6pk?`${f1(R.rv6pk-R.rv6)} below its 4 h high`:'','','IV crashed &gt; 6% → RV falling = half, RV rising = wait','RV peak-fall: 86% won, 9% stopped')});
+  // 8 exit
+  const L=(R.legs||[]).filter(l=>l.x!=null),mx=L.length?Math.max(...L.map(l=>l.x)):null,impBad=R.imp&&R.imp.ok&&R.imp.st===3;
+  const xC=!R.pos?'n':R.verdict.cls==='r'?'r':'g';
+  T.push({c:xC,h:tile(8,'EXIT WATCH',xC,!R.pos?'FLAT':R.verdict.cls==='r'?'EXIT':'HOLD','','',`<div class="li">${li(mx==null?'x':mx>=2?'z':'y','Legs '+(L.length?L.map(l=>l.x.toFixed(2)+'×').join(' / '):'—'))}<br>${li(!R.imp||!R.imp.ok?'x':impBad?'z':'y','Impulse '+(R.imp&&R.imp.ok?['calm','normal','fast','IMPULSE'][R.imp.st]:'—'))}<br>${li(R.nyHigh==null||R.iv==null?'x':R.iv>R.nyHigh+0.2?'w':'y','IV '+(R.nyHigh!=null&&R.iv!=null&&R.iv>R.nyHigh?'above':'under')+' NY high')}</div>`,'book 07:00 · exit: leg 2×, Impulse, new IV high after 02:30','07:00 exit: worst −28% vs −134%')});
+  const vd=R.verdict,cd=now<F.exit?'Book 07:00 · '+dur(F.exit-now):'07:00 passed';
+  return `<div class="b1"><div><span class="ey">LEADING SIGNALS · N2N ${esc(F.n2n.slice(5))} · ${hm(now)} IST</span><span class="vd ${vd.cls}">${esc(vd.v)}</span></div>`+
+    `<div class="pips" aria-label="tile states">${T.slice(0,6).map(t=>`<i class="${t.c}"></i>`).join('')}</div><span class="cd">${cd}</span></div>`+
+    `<div class="gr">${T.map(t=>t.h).join('')}</div>`+
+    `<div class="ft"><span class="u">Info only · not tested: Skew 25Δ · Dealer γ · Crowding · Liquidity · Forward vol</span><span>Tested on N2N 0.15Δ, 2× leg stop: 16 Sep – 15 Oct (P&amp;L), Oct 2025 – Oct 2026 (IV). Read-only.</span></div>`;}
+let html='';
+function mount(){let el=$('v121Lead');const ref=$('v104Lead');if(!el){el=D.createElement('section');el.id='v121Lead';el.setAttribute('aria-label','Leading signals');
+    if(ref)ref.after(el);else{const pg=$('pgDesk');if(!pg)return null;pg.insertBefore(el,pg.firstChild);}}
+  else if(ref&&el.previousElementSibling!==ref)ref.after(el);return el;}
+function pill(R){const el=$('ph89');if(!el)return;let t='',c='a';const F=R.F,now=R.now,h=((now+IST)%DAY)/HR;
+  if(R.sat&&now>=F.D0+12*HR&&now<F.exit){t='SAT · NO TRADE';c='r';}
+  else if(R.evNext&&now<R.evNext.ok&&R.evNext.t-now<8*HR){t=R.evNext.code+' '+hm(R.evNext.t)+' · sell after '+hm(R.evNext.ok);}
+  else if(h>=12.5&&h<18.5){t='LONDON · WATCH ONLY';c='n';}
+  let tag=el.querySelector('.v121ph');if(!t){if(tag)tag.remove();return;}
+  if(!tag){tag=D.createElement('b');el.appendChild(tag);}tag.className='v121ph '+c;if(tag.textContent!==t)tag.textContent=t;}
+function tick(){if(D.hidden)return;let R=null;try{R=read(Date.now());}catch(e){console.warn('v121 read',e);return;}
+  W.v121.last=R;try{pill(R);}catch(e){}
+  const pg=$('pgDesk');if(pg&&!pg.classList.contains('on'))return;
+  const el=mount();if(!el)return;let h='';try{h=board(R);}catch(e){console.warn('v121 board',e);return;}if(h!==html){html=h;el.innerHTML=h;}}
+/* term chip on the N2N chart header (renderPaneMeta calls this) */
+function termChip(e){try{const F=frame(Date.now());if(e!==F.n2n)return null;const c=liveAtm(F.cur),n=liveAtm(F.n2n);if(c==null||n==null)return null;const t=(c-n)/n*100;
+    return `<span title="Current ${c.toFixed(2)} vs N2N ${n.toFixed(2)}: Current above N2N = full size (1 yr: IV fell 85% vs 69% of nights)">Cur ${t>0?'above':'below'} N2N <b class="${t>0?'pos':'neg'}">${sg(t)}% · ${t>0?'FULL':'HALF'}</b></span>`;}catch(x){return null;}}
+W.v121={read,frame,termChip,last:null,tick,__test:{board,lineHtml,judge},__fn:{vov,rvOver,q15,events,at,within,med,isEDT}};
+function boot(){hookLine();tick();setInterval(()=>{hookLine();tick();},15000);
+  const ph=$('ph89');if(ph&&!ph.__v121){ph.__v121=1;new MutationObserver(()=>{const R=W.v121.last;if(R&&!ph.querySelector('.v121ph'))try{pill(R);}catch(e){}}).observe(ph,{childList:true});}
+  D.addEventListener('visibilitychange',()=>{if(!D.hidden)setTimeout(tick,300);});}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1500));else setTimeout(boot,1500);
+})();
+</script>
+
+<style id="v122Css">
+/* v122 · tested rules drawn on the charts (light theme first) */
+.v122ov{position:absolute;inset:0;pointer-events:none;z-index:8;font-family:var(--font)}
+.v122ov>div{position:absolute}
+.v122b{box-sizing:border-box}
+.v122b.g{background:color-mix(in srgb,var(--pos,#26A69A) 13%,transparent);border-top:1px dashed color-mix(in srgb,var(--pos,#26A69A) 55%,transparent);border-bottom:1px dashed color-mix(in srgb,var(--pos,#26A69A) 55%,transparent)}
+.v122b.a{background:color-mix(in srgb,var(--warn,#E3AE45) 12%,transparent)}
+.v122b.r{background:color-mix(in srgb,var(--neg,#EF5350) 9%,transparent)}
+.v122b.q{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--muted,#8fa3b5) 16%,transparent) 0 5px,transparent 5px 10px)}
+.v122l{height:0;border-top:1.3px dashed var(--muted,#8fa3b5)}
+.v122l.pre{border-top-color:color-mix(in srgb,var(--muted,#8fa3b5) 85%,transparent)}
+.v122l.ent{border-top:1.6px solid #2F7CC0}
+.v122l.hi{border-top:1.3px dotted var(--neg,#EF5350)}
+.v122v{width:0;border-left:1.3px dashed var(--muted,#8fa3b5)}
+.v122v.bk{border-left:1.6px dashed #2F7CC0}
+.v122br{width:6px;border:1.6px solid var(--pos,#26A69A);border-left:0;border-radius:0 4px 4px 0}
+.v122br.a{border-color:var(--warn,#E3AE45)}.v122br.r{border-color:var(--neg,#EF5350)}
+.v122t{font:700 9.5px/1.2 var(--font);white-space:nowrap;color:var(--muted,#8fa3b5)}
+.v122t.g{color:var(--pos,#26A69A)}.v122t.a{color:var(--warn,#E3AE45)}.v122t.r{color:var(--neg,#EF5350)}.v122t.b{color:#2F7CC0}
+.v122n{width:15px;height:15px;margin:-7.5px 0 0 -7.5px;border-radius:50%;font:800 9px/15px var(--font);text-align:center;color:#fff;background:var(--neg,#EF5350)}
+.v122n.o{background:var(--muted,#8fa3b5)}
+.v122d{width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--warn,#E3AE45);border:2px solid var(--panel,#fff)}
+.v122c{width:max-content;padding:2px 7px;border-radius:8px;border:1.3px solid;background:color-mix(in srgb,var(--panel,#fff) 94%,transparent);font:800 9.5px/1.3 var(--font);white-space:nowrap}
+.v122c.g{border-color:var(--pos,#26A69A);color:var(--pos,#26A69A)}.v122c.a{border-color:var(--warn,#E3AE45);color:var(--warn,#E3AE45)}
+.v122c.r{border-color:var(--neg,#EF5350);color:var(--neg,#EF5350)}.v122c.b{border-color:#2F7CC0;color:#2F7CC0}.v122c.n{border-color:var(--line2,#c9d5df);color:var(--muted,#8fa3b5)}
+.v122c.big{font-size:10.5px;padding:3px 8px}
+.v122c span{font-weight:600;opacity:.85}
+/* v118 drew its own SELL ✓ tag and peak line: the tested 1st–2nd-red tag replaces them */
+.v118ov .v118c.g:not(.f),.v118ov .v118pk,.v118ov .v118t.pk{display:none!important}
+@media (max-width:760px){.v122t{font-size:8.5px}.v122c{font-size:8.5px;padding:1px 5px}.v122c.big{font-size:9.5px}}
+</style>
+<script data-module="v122">
+/* v122 · Charts show the tested rules (16 Oct 2026, preview, not deployed).
+   IV   : pre-NY line · spike bracket · zones under the NY high (0–1.5 % top = wait, 1.5–6 % = SELL ZONE, over 6 % = late)
+          · 15-m red candles numbered after the high (1st–2nd = sell, 3+ grey = old) · "SELL · 2nd red" tag · entry IV line
+          · 07:00 book line + countdown · Speed chip (was above 1.5×, back to 1.5× or below = ✓).
+   VoV  : 4 h peak dot · "turned down ✓" (5–20 % off the peak and falling) · "spiking · wait".
+   RV   : 4 h high line · "peaked & falling ✓ late OK" (3+ below, still falling) · grey band below 25 (too quiet).
+   DVOL : pre-NY line · green +0.3 to +1.0 from the NY open (5/5 won) · amber above +1.
+   Edge : red band above +3 (85 % stopped). Range: green 1–2×, red below 1× (lost every test), amber above 2× (wait).
+   Read-only; nothing is ordered. */
+(function(){'use strict';
+const W=window,D=document,fin=Number.isFinite,IST=19800,M=60,H=3600;
+const f1=v=>fin(v)?v.toFixed(1):'—',sg=v=>fin(v)?(Math.abs(v)<0.05?'0.0':(v>0?'+':'')+v.toFixed(1)):'—';
+function idx(c,t){let lo=0,hi=c.length-1;if(!c.length||t<c[0].time)return -1;while(lo<hi){const m=(lo+hi+1)>>1;if(c[m].time<=t)lo=m;else hi=m-1;}return lo;}
+function rd(ser){let d=null;try{d=ser.__reg&&Array.isArray(ser.__reg.full)&&ser.__reg.full.length?ser.__reg.full:ser.data();}catch(e){}
+  if(!d||d.length<5)return null;const o=[];for(const x of d){if(!x)continue;const v=fin(x.close)?x.close:x.value;if(!fin(v))continue;
+    o.push({time:x.time,v,h:fin(x.high)?x.high:v,o:fin(x.open)?x.open:v});}return o.length>4?o:null;}
+const vals=(c,a,b)=>{const v=[];for(const p of c)if(p.time>=a&&p.time<b)v.push(p.v);return v;};
+const med=v=>{if(!v.length)return null;const x=v.slice().sort((a,b)=>a-b);return x[x.length>>1];};
+/* session times (chart seconds = IST wall clock) from the v121 calendar */
+function sess(tl){if(!W.v121||!W.v121.frame)return null;const F=W.v121.frame((tl-IST)*1000);
+  return {open:F.open/1000+IST,exit:F.exit/1000+IST,end:F.end/1000+IST,F};}
+/* ---------- per-chart analysis (every 3 s) ---------- */
+function ivA(c){const tl=c[c.length-1].time,S=sess(tl);if(!S)return null;const A={S,tl};
+  A.pre=med(vals(c,S.open-75*M,S.open-15*M));if(tl<S.open)return A;
+  let nh=-Infinity,nhAt=null;for(const p of c){if(p.time<S.open||p.time>=S.exit)continue;if(p.h>nh){nh=p.h;nhAt=p.time;}}
+  if(!fin(nh))return A;A.nh=nh;A.nhAt=nhAt;if(A.pre!=null)A.spike=nh-A.pre;
+  // 15-minute candles from the NY open; numbered reds after the latest high
+  const B=900,q=[];let k=null,cur=null;for(const p of c){if(p.time<S.open-B||p.time>=S.exit)continue;const kk=Math.floor(p.time/B)*B;
+    if(kk!==k){if(cur)q.push(cur);k=kk;cur={k,c:p.v,h:p.h,t:p.time};}else{cur.c=p.v;cur.h=Math.max(cur.h,p.h);cur.t=p.time;}}
+  if(cur&&cur.k+B<=tl+M)q.push(cur);
+  let run=-Infinity,n=0;A.reds=[];A.sell=null;
+  for(let i=1;i<q.length;i++){const b=q[i];if(b.k<S.open)continue;if(b.h>=run){run=b.h;n=0;}
+    if(b.c<q[i-1].c){n++;const off=(run-b.c)/run*100,mins=(b.k+B-S.open)/60;A.reds.push({t:b.t,v:b.c,n});
+      if(!A.sell&&n<=2&&mins>=60&&off>=((W.__rule&&W.__rule().offLo)||1.5)&&off<=((W.__rule&&W.__rule().offHi)||6))A.sell={t:b.t,v:b.c,n,off};}}
+  A.now=c[c.length-1].v;A.offNow=(nh-A.now)/nh*100;return A;}
+function vovA(c){const tl=c[c.length-1].time;let mx=-Infinity,mt=null;for(let i=c.length-1;i>=0&&c[i].time>=tl-4*H;i--)if(c[i].v>mx){mx=c[i].v;mt=c[i].time;}
+  if(!fin(mx)||mx<=0)return null;const now=c[c.length-1].v,j=idx(c,tl-15*M),ago=j>=0?c[j].v:null,off=(mx-now)/mx;
+  return {mx,mt,now,off,falling:ago!=null&&now<ago,rising:ago!=null&&now>ago};}
+function rvA(c){const tl=c[c.length-1].time;let mx=-Infinity,mt=null;for(let i=c.length-1;i>=0&&c[i].time>=tl-4*H;i--)if(c[i].v>mx){mx=c[i].v;mt=c[i].time;}
+  const now=c[c.length-1].v,j=idx(c,tl-30*M),ago=j>=0?c[j].v:null;return {mx,mt,now,falling:ago!=null&&now<ago,rising:ago!=null&&now>ago};}
+function dvA(c){const tl=c[c.length-1].time,S=sess(tl);if(!S)return null;const pre=med(vals(c,S.open-75*M,S.open-15*M));
+  return {S,pre,now:c[c.length-1].v,tl};}
+/* ---------- drawing ---------- */
+const ST=new Map(),OV=new WeakMap();
+function geo(S){const t=S.t,bx=t.el.parentElement;if(!bx||!bx.clientWidth)return null;
+  const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top;
+  let pw=t.el.clientWidth,ph=t.el.clientHeight;try{pw=ts.width()||pw;}catch(e){}try{ph=t.el.clientHeight-(ts.height()||0);}catch(e){}
+  const c=S.c,X=tm=>{const i=idx(c,tm);if(i<0)return null;const v=ts.timeToCoordinate(c[i].time);return v==null?null:ox+v;};
+  const Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
+  return {bx,ox,oy,pw,ph,X,Y,R:ox+pw,B:oy+ph};}
+const cl=(g,x)=>Math.max(g.ox,Math.min(g.R,x));
+function hband(g,hi,lo,x0,cls,lab,lc){let y0=hi==null?g.oy:g.Y(hi),y1=lo==null?g.B:g.Y(lo);if(y0==null||y1==null)return '';
+  y0=Math.max(g.oy,Math.min(g.B,y0));y1=Math.max(g.oy,Math.min(g.B,y1));if(y1-y0<1)return '';const l=x0==null?g.ox:cl(g,x0);if(g.R-l<2)return '';
+  let h=`<div class="v122b ${cls}" style="left:${l}px;top:${y0}px;width:${g.R-l}px;height:${y1-y0}px"></div>`;
+  if(lab&&y1-y0>=9)h+=x0==null?`<div class="v122t ${lc||cls}" style="left:${g.R-6}px;top:${(y0+y1)/2-6}px;transform:translateX(-100%)">${lab}</div>`:`<div class="v122t ${lc||cls}" style="${l>g.R-130?`left:${g.R-6}px;transform:translateX(-100%)`:`left:${l+5}px`};top:${y0+3}px">${lab}</div>`;return h;}
+function hline(g,v,x0,cls,lab,lc,below){const y=g.Y(v);if(y==null||y<g.oy||y>g.B)return '';const l=x0==null?g.ox:cl(g,x0);if(g.R-l<2)return '';
+  return `<div class="v122l ${cls}" style="left:${l}px;top:${y}px;width:${g.R-l}px"></div>`+(lab?`<div class="v122t ${lc||''}" style="${l>g.R-220?`left:${g.R-6}px;transform:translateX(-100%)`:`left:${l+4}px`};top:${below?y+2:y-12}px">${lab}</div>`:'');}
+const chip=(x,y,cls,txt)=>`<div class="v122c ${cls}" style="left:${x}px;top:${y}px">${txt}</div>`;
+function dur(s){if(!(s>0))return '0m';const m=Math.round(s/60);return (m>=60?Math.floor(m/60)+'h ':'')+(m%60)+'m';}
+function drawIV(S,g){const A=S.a;if(!A)return '';let h='';const s=A.S,inSess=A.tl<s.exit;
+  const xo=g.X(s.open)!=null&&A.tl>=s.open?g.X(s.open):null;
+  if(A.pre!=null)h+=hline(g,A.pre,g.X(s.open-75*M),'pre','pre-NY '+f1(A.pre),'',true);
+  if(A.nh!=null){const nh=A.nh,x1=g.X(Math.max(s.open+H,A.nhAt));
+    if(inSess&&x1!=null&&A.tl>=s.open+H){
+      const K=(W.__rule&&W.__rule())||{offLo:1.5,offHi:6},lo=K.offLo/100,hi=K.offHi/100;
+      h+=hband(g,nh,nh*(1-lo),x1,'a','−'+K.offLo+'% top','a');
+      h+=hband(g,nh*(1-lo),nh*(1-hi),x1,'g','<b>SELL ZONE</b> '+K.offLo+'–'+K.offHi+'%','g');
+      h+=hband(g,nh*(1-hi),nh*(1-hi-0.03),x1,'r','late &gt;'+K.offHi+'%','r');}
+    // spike bracket
+    if(A.spike!=null){const xb=g.X(A.nhAt),y0=g.Y(A.nh),y1=g.Y(A.pre);if(xb!=null&&y0!=null&&y1!=null&&xb>=g.ox&&xb<=g.R){
+      const cls=A.spike<=0?'r':A.spike>2?'a':'';const top=Math.min(y0,y1),ht=Math.abs(y1-y0);
+      if(ht>=3)h+=`<div class="v122br ${cls}" style="left:${xb+5}px;top:${top}px;height:${ht}px"></div>`;
+      h+=`<div class="v122t ${cls||'g'}" style="${xb>g.R-110?`left:${xb-4}px;transform:translateX(-100%)`:`left:${xb+14}px`};top:${top+ht/2-6}px">${A.spike<=0?'no spike · wait':'spike '+sg(A.spike)+(A.spike>2?' · half':'')}</div>`;}}
+    // numbered reds
+    for(const r of A.reds){if(r.n>4)continue;const x=g.X(r.t),y=g.Y(r.v);if(x==null||y==null||x<g.ox||x>g.R)continue;
+      h+=`<div class="v122n${r.n>2?' o':''}" style="left:${x}px;top:${y+12}px">${r.n}</div>`;}
+    if(A.sell){const x=g.X(A.sell.t),y=g.Y(A.sell.v);if(x!=null&&y!=null&&x>=g.ox&&x<=g.R)
+      h+=chip(Math.min(g.R-150,x+12),y-30,'g big',`SELL · ${A.sell.n===1?'1st':'2nd'} red <span>${A.sell.off.toFixed(1)}%</span>`);}}
+  // position: entry IV, 07:00 book line
+  let pos=null;try{pos=W.v18&&W.v18.lab?W.v18.lab().cur:null;}catch(e){}
+  if(pos&&fin(pos.openedAt)){const te=pos.openedAt/1000+IST,i=idx(S.c,te);if(i>=0){const ev=S.c[i].v;
+    h+=hline(g,ev,g.X(te),'ent','entry IV '+f1(ev)+(g.pw<520?'':' · exit if back above NY high after 02:30'),'b');}}
+  const xb=g.X(s.exit);if(xb!=null&&A.tl>=s.exit-60)h+=`<div class="v122v bk" style="left:${xb}px;top:${g.oy}px;height:${g.ph}px"></div><div class="v122t b" style="left:${xb+4}px;top:${g.oy+4}px">07:00 BOOK</div>`;
+  // chips top-right: book countdown + speed
+  const now=Date.now()/1000+IST;let cy=g.oy+6;const R=W.v121&&W.v121.last;
+  if((pos||(now>=s.open&&now<s.exit))&&A.tl>=s.open-H){h+=chip(g.R-8,cy,'b','Book 07:00 · '+dur(s.exit-now)).replace('style="','style="transform:translateX(-100%);');cy+=20;}
+  if(R&&R.speed!=null&&now>=s.open&&now<s.exit){const sp=R.speed,mx=R.speedMax2h;let cls='n',t='Speed '+sp.toFixed(2)+'×';
+    if(sp<1){cls='n';t+=' · slow';}else if(sp>((W.__rule&&W.__rule().spd)||1.5)){cls='r';t+=' · fast · wait';}else if(mx!=null&&mx>((W.__rule&&W.__rule().spd)||1.5)){cls='g';t+=' · back ≤1.5 ✓';}
+    h+=chip(g.R-8,cy,cls,t).replace('style="','style="transform:translateX(-100%);');}
+  return h;}
+function drawVoV(S,g){const A=S.a;if(!A)return '';let h='';const x=g.X(A.mt),y=g.Y(A.mx);
+  if(x!=null&&y!=null&&x>=g.ox&&x<=g.R)h+=`<div class="v122d" style="left:${x}px;top:${y}px"></div><div class="v122t a" style="left:${x+7}px;top:${y-13}px">4 h peak</div>`;
+  let cls=null,t='';if(A.off<0.02&&A.rising){cls='r';t='spiking · wait';}
+  else if(A.off>=0.05&&A.off<=0.2&&A.falling){cls='g';t='turned down ✓ <span>'+Math.round(A.off*100)+'% off peak</span>';}
+  else if(A.off>0.2){cls='n';t=Math.round(A.off*100)+'% off peak · old';}
+  if(cls)h+=chip(g.R-8,g.oy+6,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
+function drawRV(S,g){const A=S.a;if(!A)return '';let h='';
+  h+=hband(g,25,null,null,'q','below 25 = too quiet','');
+  if(fin(A.mx)){const x=g.X(A.mt);h+=hline(g,A.mx,x,'hi','4 h high '+f1(A.mx)+(A.mx-A.now>0.05?' · now −'+(A.mx-A.now).toFixed(1):''),'r');}
+  const d=A.mx-A.now;let cls=null,t='';if(d>=3&&A.falling){cls='g';t='peaked &amp; falling ✓ late OK';}else if(A.rising&&d<1){cls='r';t='RV rising · wait';}
+  if(cls)h+=chip(g.R-8,g.oy+6,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
+function drawDV(S,g){const A=S.a;if(!A||A.pre==null)return '';let h='';const s=A.S,x0=g.X(s.open-75*M);
+  h+=hline(g,A.pre,x0,'pre','pre-NY '+f1(A.pre),'',true);
+  if(A.tl>=s.open&&A.tl<s.exit){const xo=g.X(s.open);h+=hband(g,A.pre+1.0,A.pre+0.3,xo,'g','+0.3 to +1.0 ✓','g');h+=hband(g,A.pre+2.5,A.pre+1.0,xo,'a','over +1 = half','a');
+    const d=A.now-A.pre;const cls=d>=0.3&&d<=1?'g':d>1?'a':'n';h+=chip(g.R-8,g.oy+6,cls,'DVOL '+sg(d)+' vs pre-NY'+(cls==='g'?' ✓':cls==='a'?' · half':' · no fear')).replace('style="','style="transform:translateX(-100%);');}
+  return h;}
+function drawEdge(S,g){return hband(g,null,3,null,'r','above +3 = too quiet · skip','r');}
+function drawRng(S,g){return hband(g,null,2,null,'a','above 2× · wait','a')+hband(g,2,1,null,'g','1–2× good','g')+hband(g,1,0,null,'r','below 1× = too quiet','r');}
+const DR={iv:drawIV,vov:drawVoV,rv:drawRV,dv:drawDV,edge:drawEdge,rng:drawRng};
+function draw(S){const t=S.t;if(!t||!t.el||!S.c||!DR[t.k])return;const g=geo(S);if(!g)return;
+  let ov=OV.get(S);if(!ov||!ov.isConnected||ov.parentElement!==g.bx){ov=D.createElement('div');ov.className='v122ov';g.bx.appendChild(ov);OV.set(S,ov);}
+  let h='';try{h=DR[t.k](S,g);}catch(e){console.warn('v122 draw',t.k,e);}
+  if(ov.__h!==h){ov.__h=h;ov.innerHTML=h;}}
+/* ---------- loop ---------- */
+function targets(){const out=[],S=W.v115&&W.v115.__st;if(S)for(const X of S.values())if(X&&X.t&&X.t.el&&X.t.ser)out.push(X.t);return out;}
+function analyse(){const live=new Set();for(const t of targets()){let S=ST.get(t.chart);if(!S){S={};ST.set(t.chart,S);}S.t=t;live.add(t.chart);
+    const c=rd(t.ser);S.c=c;if(!c){S.a=null;continue;}const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].v+'|'+Math.floor(Date.now()/60000);if(S.key===key)continue;S.key=key;
+    try{S.a=t.k==='iv'?ivA(c):t.k==='vov'?vovA(c):t.k==='rv'?rvA(c):t.k==='dv'?dvA(c):{};}catch(e){S.a=null;console.warn('v122',t.k,e);}}
+  for(const k of [...ST.keys()])if(!live.has(k)){const S=ST.get(k),ov=OV.get(S);if(ov)ov.remove();ST.delete(k);}}
+let raf=0,until=0;function frame(){raf=0;for(const S of ST.values())try{draw(S);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
+function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
+const subd=new WeakSet();
+function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v122',e);}
+  for(const S of ST.values()){const ch=S.t&&S.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}redraw();}
+setInterval(tick,3000);setTimeout(tick,5000);setInterval(()=>{if(!D.hidden)redraw();},1000);
+for(const ev of ['touchend','pointerup','wheel','resize'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
+W.v122={tick,__st:ST,__test:{ivA,vovA,rvA,dvA,rd}};
+})();
+</script>
+
+<script data-module="v123">
+/* v123 · Clean charts (16 Oct 2026, preview, not deployed). Session boxes only on BTC and Range (the one box state that tested
+   useful: Range inside its London box in NY → BTC reached 1× EM 50 % vs 81 %); IV keeps the NY open line, first-hour shade, NY high
+   and London high lines. RV / VoV / DVOL / Edge / ADX: no session or break boxes (no effect or untested). Speed strip only under IV.
+   VoV / RV / DVOL drawn as one line, green while falling and red while rising; Edge / Range as one plain line with the v122 bands.
+   IV stays candles (the tested entry is the 1st–2nd red 15-m candle); v118's coloured 1-hour line removed. Speed under 1× is neutral. */
+(function(){'use strict';const W=window,D=document,MODE={vov:'dir',rv:'dir',dv:'dir',edge:'plain',rng:'plain'};
+function apply(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){const t=X&&X.t;if(!t||!t.ser||!MODE[t.k])continue;
+  if(t.ser.__v123===MODE[t.k])continue;try{t.ser.applyOptions({v123Line:MODE[t.k]});t.ser.__v123=MODE[t.k];}catch(e){}}}
+setInterval(()=>{if(!D.hidden)apply();},2000);setTimeout(apply,1200);addEventListener('pointerup',()=>setTimeout(apply,300),{passive:true,capture:true});
+W.v123={apply};})();
+</script>
+<script data-module="v124">
+/* v124 · (16 Oct 2026, preview, not deployed)
+   RV chart: only RV (IV line, IV÷RV bars and the grey window line hidden: Speed vs IV and Edge already show them).
+   Range: London session box only (v115 quiet-base boxes removed). Tonight: colours follow the test (above clock = green, sell
+   from 21:00; below = grey, wait); v115 boxes, SELL/EXIT dots and Speed strip removed from Tonight; no exit signal from it. */
+(function(){'use strict';const W=window,D=document;
+function rv(){let P=null;try{P=typeof panes!=='undefined'?panes:null;}catch(e){}if(!P)return;
+  for(const p of P){if(!p)continue;for(const k of ['rvIvPath','rvRatio','rvOld']){const s=p[k];if(s&&!s.__v124){try{s.applyOptions({visible:false});s.__v124=1;}catch(e){}}}}}
+function rail(){if(W.v115&&W.v115.railExtras&&!W.v115.railExtras.__v124){const f=()=>null;f.__v124=1;W.v115.railExtras=f;}}
+function tick(){rv();rail();}
+setInterval(()=>{if(!D.hidden)tick();},2000);setTimeout(tick,800);
+W.v124={tick};})();
+</script>
+<style id="v126Css">
+/* v126 · tonight's plan · rule check (daily) · my Delta trades */
+#v126{max-width:1380px;margin:10px auto 2px;box-sizing:border-box;font-family:var(--font-text,var(--font));color:var(--text);container-type:inline-size}
+#v126 .v6pl{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+#v126 .v6t{display:flex;flex-direction:column;gap:5px;min-width:0;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--line2,var(--line));border-radius:12px;padding:11px 13px}
+#v126 .v6t.g{border-top-color:var(--pos)}#v126 .v6t.a{border-top-color:var(--warn)}#v126 .v6t.r{border-top-color:var(--neg)}
+#v126 .v6t .v6h{font-size:11px;letter-spacing:.08em;color:var(--muted)}
+#v126 .v6t .v6v{font-size:17px;font-weight:600;line-height:1.25}
+#v126 .v6t.a .v6v{color:var(--warn)}#v126 .v6t.r .v6v{color:var(--neg)}
+#v126 .v6t .v6s{font-size:11.5px;color:var(--muted);line-height:1.4}
+#v126 .v6st{margin-top:8px;font-family:var(--mono,monospace);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+#v126 .v6st b{color:var(--text);font-weight:600}
+#v126 details{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 14px}
+#v126 summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:12px 0;font-weight:600;font-size:14px}
+#v126 summary::-webkit-details-marker{display:none}
+#v126 summary .v6m{font-weight:400;font-family:var(--mono,monospace);font-size:12px;color:var(--muted)}
+#v126 summary .v6cnt{margin-left:auto;display:flex;gap:6px}
+#v126 .v6ch{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+#v126 .v6ch.g{color:var(--pos);background:color-mix(in srgb,var(--pos) 12%,transparent)}#v126 .v6ch.a{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+#v126 .v6ch.r{color:var(--neg);background:color-mix(in srgb,var(--neg) 11%,transparent)}#v126 .v6ch.n{color:var(--muted);background:color-mix(in srgb,var(--muted) 12%,transparent)}
+#v126 .v6tb{overflow-x:auto;padding-bottom:10px}
+#v126 table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px}
+#v126 th{text-align:left;font-size:10.5px;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+#v126 td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+#v126 td.v6n{font-family:var(--mono,monospace);white-space:nowrap}
+#v126 .v6tu{margin:4px 0 12px;border:1px dashed var(--line2,var(--line));border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+#v126 button{font:600 12.5px/1 var(--font);padding:9px 13px;border-radius:9px;border:1px solid var(--line2,var(--line));background:var(--panel2);color:var(--text);cursor:pointer;min-height:36px}
+#v126 button.v6p{background:var(--pos);border-color:var(--pos);color:#fff}
+#v126 .v6nt{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0 0 12px}
+@container (max-width:900px){#v126 .v6pl{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (max-width:480px){#v126 .v6pl{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#v126 .v6t{padding:9px 10px}#v126 .v6t .v6v{font-size:15px}}
+</style>
+<script data-module="v126">
+/* v126 · Tonight's plan · Rule check (runs by itself every morning) · My Delta trades (16 Oct 2026, preview, not deployed)
+   Plan: day & news, entry window, size, delta per leg, IV range, leg tilt (put lighter on news nights, when BTC fell
+     12:30→19:00, or IV under 28), approximate strikes and credit from BTC and N2N IV (check the chain before selling).
+   Rule check: after 07:05 IST each day (and on "Run now") the desk re-tests every rule on all nights stored in the archive
+     (suraj_archive_v1: 1-min IV per expiry, 1-min BTC). Engine = the backtest: v121 readings at each 15-m close, Black-Scholes
+     legs at ATM IV, strikes by delta, 2× per-leg stop on minute high/low (closes both), book 07:00. Status compares the rule
+     side with the other side on the stored nights: HOLDING / WEAKENING / BROKEN / NEW (under 10 nights on a side).
+   Suggested tune: band of the IV turn and the Edge veto; shown only when better in both halves and on 15+ trades.
+     Apply stores it (localStorage v126_cfg) and v121/v122 use it; nothing changes by itself. Reset returns to tested values.
+   My trades: closed Delta trades the desk logged from your fills (v99_trades) with the readings at their entry minute. */
+(function(){'use strict';
+const W=window,D=document,fin=Number.isFinite,MIN=60000,HR=3600000,DAY=86400000,IST=19800000;
+const DEF={offLo:1.5,offHi:6,spd:1.5,edge:3,range:1};
+const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+let CFG=Object.assign({},DEF,LSg('v126_cfg',{}));W.__rule=()=>CFG;
+const $=id=>D.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f1=v=>fin(v)?v.toFixed(1):'—',sg=v=>fin(v)?(Math.abs(v)<0.05?'0.0':(v>0?'+':'')+v.toFixed(1)):'—',pc=v=>fin(v)?Math.round(v)+'%':'—';
+const hm=ms=>new Date(ms+IST).toISOString().slice(11,16),dk=ms=>new Date(ms+IST).toISOString().slice(0,10);
+const FN=()=>W.v121&&W.v121.__fn;
+const AT=(s,t)=>s&&s.length?W.v121.__fn.at(s,t):null;
+/* ---------- maths ---------- */
+function ncdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p;}
+function ppf(p){const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924],b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857],
+  c=[-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878],d=[0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742],pl=0.02425;
+  if(p<pl){const q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p>1-pl){const q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  const q=p-0.5,r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+function bs(S,K,T,s,cp){T=Math.max(T,1e-6);s=Math.max(s,0.01)/100;const v=s*Math.sqrt(T),d1=(Math.log(S/K)+0.5*s*s*T)/v,d2=d1-v;return cp==='c'?S*ncdf(d1)-K*ncdf(d2):K*ncdf(-d2)-S*ncdf(-d1);}
+function strike(S,T,s,dl,cp){s=s/100;const d1=cp==='c'?ppf(dl):ppf(1-dl);return S*Math.exp(-(d1*s*Math.sqrt(T)-0.5*s*s*T));}
+const yrs=ms=>ms/(365*DAY);
+/* ---------- archive (read-only) ---------- */
+function idb(){return new Promise((res,rej)=>{let r;try{r=indexedDB.open('suraj_archive_v1');}catch(e){return rej(e);}
+  const to=setTimeout(()=>rej(new Error('archive timeout')),8000);
+  r.onupgradeneeded=()=>{try{r.transaction.abort();}catch(e){}};r.onsuccess=()=>{clearTimeout(to);res(r.result);};r.onerror=()=>{clearTimeout(to);rej(r.error||new Error('no archive'));};});}
+function keys(db,s){return new Promise((res,rej)=>{try{const t=db.transaction(s,'readonly'),r=t.objectStore(s).getAllKeys();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});}
+function getMany(db,s,ks){return new Promise((res,rej)=>{try{const t=db.transaction(s,'readonly'),o=t.objectStore(s),out=new Map();for(const k of ks){const r=o.get(k);r.onsuccess=()=>{if(r.result!==undefined)out.set(k,r.result);};}t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);}catch(e){rej(e);}});}
+const nextDay=d=>dk(Date.parse(d+'T12:00:00Z')+DAY),addDays=(d,n)=>dk(Date.parse(d+'T12:00:00Z')+n*DAY),d0=d=>Date.parse(d+'T00:00:00Z')-IST;
+const ivp=v=>fin(v)&&v>0?(v<5?v*100:v):NaN;
+function ivSeries(recs,e,days,from,to){const out=[];for(const d of days){const r=recs.get(e+'|'+d);if(!r||!r.c)continue;const b=d0(d);
+  for(let m=0;m<1440;m++){const t=b+m*MIN;if(t<from||t>to)continue;const v=ivp(r.c[m]);if(fin(v))out.push([t,v]);}}return out;}
+function btcSeries(recs,days,from,to){const cl=[],H=new Map();for(const d of days){const r=recs.get(d);if(!r||!r.c)continue;const b=d0(d);
+  for(let m=0;m<1440;m++){const t=b+m*MIN;if(t<from||t>to)continue;const c=r.c[m];if(!(c>0))continue;cl.push([t,c]);H.set(t,[r.h[m]>0?r.h[m]:c,r.l[m]>0?r.l[m]:c,c]);}}return {cl,H};}
+/* ---------- readings at minute t (same formulas as the Leading board) ---------- */
+function readAt(t,F,s,sc,cl){const f=FN();if(!f)return null;const R={t};
+  R.iv=AT(s,t);R.pre=f.med(f.within(s,F.open-75*MIN,F.open-15*MIN));const ny=f.within(s,F.open,t+MIN);R.nyHigh=ny.length?Math.max(...ny):null;
+  R.offPct=R.nyHigh!=null&&R.iv!=null?(R.nyHigh-R.iv)/R.nyHigh*100:null;R.spike=R.pre!=null&&R.nyHigh!=null?R.nyHigh-R.pre:null;
+  const q=f.q15(s,F.open-HR,t),l4=q.slice(-4);R.reds=l4.length===4?l4.filter(x=>x.c<x.o).length:null;
+  try{R.vov=f.vov(s,t);}catch(e){R.vov=null;}
+  const a=F.listing+3*HR;if(t>=a+30*MIN){const ivA=f.med(f.within(s,a,a+30*MIN));let ck=null;try{ck=W.v89&&W.v89.clockIv&&ivA!=null?W.v89.clockIv(ivA,a,t,F.settle):null;}catch(e){}R.tonight=fin(ck)&&R.iv!=null?R.iv-ck:null;}else R.tonight=null;
+  const cur=sc?AT(sc,t):null;R.term=cur!=null&&R.iv?(cur-R.iv)/R.iv*100:null;
+  if(cl&&cl.length&&R.iv){const w=cl.filter(p=>p[0]>t-11*HR&&p[0]<=t);const sp=x=>{const r=f.rvOver(w,x,60),iv=AT(s,x)||R.iv;return r!=null&&iv?r/iv:null;};
+    R.speed=sp(t);let mx=null;for(let m=15;m<=120;m+=15){const v=sp(t-m*MIN);if(v!=null)mx=mx==null?v:Math.max(mx,v);}R.speedMax2h=mx;
+    R.rv6=f.rvOver(w,t,360);R.rv6h=f.rvOver(w,t-30*MIN,360);let pk=null;for(let m=0;m<=240;m+=30){const v=f.rvOver(w,t-m*MIN,360);if(v!=null)pk=pk==null?v:Math.max(pk,v);}R.rv6pk=pk;}
+  try{const V=W.v105;if(V){const e=V.edgeAt?V.edgeAt(t):null,r=V.rangeAt?V.rangeAt(t):null;R.edge=fin(e)?e:null;R.range=fin(r)?r:null;}}catch(e){}
+  R.cVov=R.vov&&fin(R.vov.offpk)&&fin(R.vov.chg)?(R.vov.offpk>=0.05&&R.vov.offpk<=0.2&&R.vov.chg<0):null;
+  R.cSpd=R.speed!=null&&R.speedMax2h!=null?(R.speedMax2h>CFG.spd&&R.speed<=CFG.spd):null;R.cTon=R.tonight!=null?R.tonight>=0:null;
+  return R;}
+/* ---------- one strangle ---------- */
+function sim(t0,F,s,H,dC,dP,exitT){const f=FN(),S0=(H.get(t0)||[])[2],s0=AT(s,t0);if(!(S0>0)||!fin(s0))return null;
+  const T0=yrs(F.settle-t0),Kc=strike(S0,T0,s0,dC,'c'),Kp=strike(S0,T0,s0,dP,'p'),c0=bs(S0,Kc,T0,s0,'c'),p0=bs(S0,Kp,T0,s0,'p'),cr=c0+p0;
+  let sig=s0,cs=null,ps=null,both=null,last=null,j=0;while(j<s.length&&s[j][0]<=t0)j++;
+  const run=(from,end)=>{for(let t=from+MIN;t<=end;t+=MIN){while(j<s.length&&s[j][0]<=t){sig=s[j][1];j++;}const b=H.get(t);if(!b)continue;const T=yrs(F.settle-t);
+      const ch=bs(b[0],Kc,T,sig,'c'),pl=bs(b[1],Kp,T,sig,'p'),cc=bs(b[2],Kc,T,sig,'c'),pcl=bs(b[2],Kp,T,sig,'p');last={cc,pcl,t};
+      if(cs==null&&ch>=2*c0)cs={t,v:2*c0};if(ps==null&&pl>=2*p0)ps={t,v:2*p0};
+      if(both==null&&(ch>=2*c0||pl>=2*p0)){const cv=ch>=2*c0?2*c0:cc,pv=pl>=2*p0?2*p0:pcl;both={t,pnl:cr-cv-pv,leg:ch>=2*c0?'call':'put'};}}};
+  run(t0,exitT);if(!last)return null;const at07=last;
+  const out={t0,S0,iv0:s0,Kc,Kp,c0,p0,cr,stopped:!!both,leg:both?both.leg:'',pnl:both?both.pnl:cr-at07.cc-at07.pcl};
+  out.pct=out.pnl/cr*100;out.win=out.pnl>0;
+  out.callPct=(c0-(cs?cs.v:at07.cc))/c0*100;out.putPct=(p0-(ps?ps.v:at07.pcl))/p0*100;out.callStop=!!cs;out.putStop=!!ps;
+  {const e17=F.D0+41*HR;if(H.has(e17-MIN)||H.has(e17-2*MIN)){run(exitT,e17);out.pct17=(both?both.pnl:cr-last.cc-last.pcl)/cr*100;}}
+  return out;}
+/* ---------- nights ---------- */
+async function loadNights(prog){const db=await idb();const bk=new Set(await keys(db,'btc')),ik=await keys(db,'iv');const ivk=new Set(ik.map(String));
+  const days=[...bk].map(String).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort();const out=[];let i=0;
+  for(const d of days){i++;const n1=nextDay(d);if(!bk.has(n1))continue;const F=W.v121.frame(d0(d)+20*HR);if(F.dow===0)continue;
+    const need=[F.n2n+'|'+d,F.n2n+'|'+n1,F.cur+'|'+d];if(!ivk.has(need[0])||!ivk.has(need[1]))continue;
+    const iv=await getMany(db,'iv',need),bt=await getMany(db,'btc',[d,n1]);
+    const s=ivSeries(iv,F.n2n,[d,n1],d0(d)+6*HR,d0(d)+41*HR),sc=ivSeries(iv,F.cur,[d],d0(d)+6*HR,d0(d)+DAY);
+    const {cl,H}=btcSeries(bt,[d,n1],d0(d)+6*HR,d0(d)+41*HR);if(s.filter(p=>p[0]>=F.open&&p[0]<=F.exit).length<80||cl.length<600)continue;
+    out.push({d,F,s,sc,cl,H});if(prog&&i%4===0)prog(i,days.length);await new Promise(r=>setTimeout(r,0));}
+  // IV-only nights (year history): N2N IV 20:30 → 07:30, Current vs N2N
+  const ivOnly=[];const ivDays=[...new Set(ik.map(k=>String(k).split('|')[1]).filter(Boolean))].sort();
+  for(const d of ivDays){const F=W.v121.frame(d0(d)+20*HR),n1=nextDay(d);if(!ivk.has(F.n2n+'|'+d)||!ivk.has(F.n2n+'|'+n1))continue;
+    const iv=await getMany(db,'iv',[F.n2n+'|'+d,F.n2n+'|'+n1,F.cur+'|'+d]);const f=FN();
+    const s=ivSeries(iv,F.n2n,[d,n1],d0(d)+12*HR,d0(d)+32*HR),sc=ivSeries(iv,F.cur,[d],d0(d)+12*HR,d0(d)+DAY);
+    const a=AT(s,d0(d)+20.5*HR),b=AT(s,d0(d)+31.5*HR);if(!fin(a)||!fin(b))continue;
+    // only count points that are really near those times (hourly history is fine, but not a stale value)
+    const near=(t)=>{let best=Infinity;for(const p of s)best=Math.min(best,Math.abs(p[0]-t));return best<=90*MIN;};if(!near(d0(d)+20.5*HR)||!near(d0(d)+31.5*HR))continue;
+    const c=AT(sc,d0(d)+20.5*HR);ivOnly.push({d,F,a,b,cur:fin(c)?c:null,news:f.events(F).length>0});}
+  try{db.close();}catch(e){}return {nights:out,ivOnly};}
+/* ---------- the check ---------- */
+const TESTED={turn:'14 / 18 won · +1,709',term:'IV fell 85% vs 69%',vov:'15 / 19 won',spd:'73% won (22)',ton:'3 / 3 trades · calm 55–67%',rvl:'86% won',
+  edge:'85% stopped',rng:'lost every test',sat:'IV rose on 94%',news:'crush 2–4 pts extra',lon:'18 / 20 stopped',exit:'worst −28% vs −134%',tilt:'call +28% · put +7%',dvol:'5 / 5 won'};
+const rate=a=>a.length?a.filter(x=>x.win).length/a.length*100:null;
+function status(onN,offN,diff,minN){minN=minN||10;if(onN<minN||(offN!=null&&offN<minN))return ['NEW','n'];if(diff==null)return ['NEW','n'];
+  if(diff>=0)return ['HOLDING','g'];if(diff>-10)return ['WEAKENING','a'];return (onN>=15?['BROKEN','r']:['WEAKENING','a']);}
+function scanNight(N,K){const F=N.F,f=FN();if(F.dow===6)return {feat:[]};const ev=f.events(F),evOk=ev.length?Math.max(...ev.map(e=>e.ok)):0;
+  if(!N.feat){N.feat=[];for(let t=Math.ceil((F.open+60*MIN)/(15*MIN))*15*MIN;t<=F.end;t+=15*MIN){const R=readAt(t,F,N.s,N.sc,N.cl);if(R)N.feat.push(R);}}
+  let sell=null;for(const R of N.feat){if(R.t<evOk)continue;if(R.iv==null||R.nyHigh==null||R.spike==null||R.spike<=0)continue;
+    if((R.edge!=null&&R.edge>K.edge)||(R.range!=null&&R.range<K.range))continue;
+    if(R.offPct>=K.offLo&&R.offPct<=K.offHi&&R.reds>=1&&R.reds<=2){sell=R;break;}}
+  return {sell};}
+function deltaFor(N,iv){const thu=N.F.dow===4;const dC=(iv<28||thu)?0.12:0.15;return dC;}
+function tiltOf(N){const f=FN(),F=N.F,news=f.events(F).length>0;const a=(N.H.get(F.D0+12.5*HR)||[])[2],b=(N.H.get(F.open)||N.H.get(F.open-MIN)||[])[2];
+  const fell=a>0&&b>0?b<a:false,iv=AT(N.s,F.open+HR);return {news,fell,low:fin(iv)&&iv<28,on:news||fell||(fin(iv)&&iv<28)};}
+function tradesFor(nights,K){const T=[];for(const N of nights){const r=scanNight(N,K);if(!r.sell)continue;const R=r.sell,dC=deltaFor(N,R.iv);
+    const x=sim(R.t,N.F,N.s,N.H,dC,dC,N.F.exit);if(x){x.R=R;x.N=N;T.push(x);}}return T;}
+const total=T=>T.reduce((a,x)=>a+x.pct,0);
+function evaluate(data){const {nights,ivOnly}=data,K=CFG,rows=[];
+  const T=tradesFor(nights,K);
+  // baseline: 60 min after the NY open (after the release on news nights), every weekday night
+  const B=[];for(const N of nights){if(N.F.dow===6)continue;const f=FN(),ev=f.events(N.F),t=Math.max(N.F.open+HR,...ev.map(e=>e.ok));if(t>N.F.end)continue;
+    const iv=AT(N.s,t);const x=sim(t,N.F,N.s,N.H,deltaFor(N,iv),deltaFor(N,iv),N.F.exit);if(x){x.N=N;x.tilt=tiltOf(N);B.push(x);}}
+  const wr=rate(T),wb=rate(B);
+  rows.push({k:'turn',name:'IV turn',rule:`Sell 1st–2nd red 15-m candle, ${K.offLo}–${K.offHi}% below NY high`,live:T.length?`${T.filter(x=>x.win).length} / ${T.length} won · ${sg(total(T))}% credit`:'—',vs:B.length?`plain 20:00 entry ${pc(wb)} (${B.length})`:'',st:status(T.length,B.length,wr!=null&&wb!=null?wr-wb:null)});
+  // term (IV only, year)
+  const tOn=ivOnly.filter(x=>x.cur!=null&&x.cur>x.a&&x.F.dow!==6),tOff=ivOnly.filter(x=>x.cur!=null&&x.cur<=x.a&&x.F.dow!==6),fell=a=>a.length?a.filter(x=>x.b<x.a).length/a.length*100:null;
+  rows.push({k:'term',name:'Term → size',rule:'Current IV above N2N → FULL',live:`IV fell ${pc(fell(tOn))} (${tOn.length}) vs ${pc(fell(tOff))} (${tOff.length})`,st:status(tOn.length,tOff.length,fell(tOn)!=null&&fell(tOff)!=null?fell(tOn)-fell(tOff):null)});
+  const split=(key,lab,rule,tk)=>{const on=T.filter(x=>x.R[key]===true),off=T.filter(x=>x.R[key]===false);const a=rate(on),b=rate(off);
+    rows.push({k:tk,name:lab,rule,live:`${on.filter(x=>x.win).length} / ${on.length} won vs ${off.length?pc(b)+' without ('+off.length+')':'—'}`,st:status(on.length,off.length,a!=null&&b!=null?a-b:null,5)});};
+  split('cVov','VoV','Turned down 5–20% off its 4 h peak','vov');
+  split('cSpd','Speed',`Was above ${K.spd}×, back to ${K.spd}× or below`,'spd');
+  split('cTon','Tonight','IV above the clock path (from 21:00)','ton');
+  rows.push({k:'dvol',name:'DVOL',rule:'Rose 0.3–1.0 at the NY open',live:'DVOL history is not stored in the archive',st:['NO DATA','n']});
+  // late RV entries
+  const L=[];for(const N of nights){if(N.F.dow===6)continue;const F=N.F;for(let t=F.D0+23*HR;t<=F.end;t+=15*MIN){const R=readAt(t,F,N.s,N.sc,N.cl);if(!R||R.rv6==null||R.rv6pk==null||R.rv6h==null)continue;
+      if(R.rv6pk-R.rv6>=3&&R.rv6<R.rv6h){const x=sim(t,F,N.s,N.H,deltaFor(N,R.iv),deltaFor(N,R.iv),F.exit);if(x)L.push(x);break;}}}
+  rows.push({k:'rvl',name:'RV (late)',rule:'Peaked 3+ and still falling',live:L.length?`${L.filter(x=>x.win).length} / ${L.length} won vs plain ${pc(wb)}`:'—',st:status(L.length,B.length,rate(L)!=null&&wb!=null?rate(L)-wb:null,5)});
+  // vetoes (only where the desk still holds Edge / Range for that minute)
+  const eOn=B.filter(x=>{const v=W.v105&&W.v105.edgeAt?W.v105.edgeAt(x.t0):null;return fin(v)&&v>K.edge;}),eOff=B.filter(x=>{const v=W.v105&&W.v105.edgeAt?W.v105.edgeAt(x.t0):null;return fin(v)&&v<=K.edge;});
+  const sr=a=>a.length?a.filter(x=>x.stopped).length/a.length*100:null;
+  rows.push({k:'edge',name:'Edge veto',rule:`Above +${K.edge} = skip`,live:eOn.length+eOff.length?`stopped ${pc(sr(eOn))} (${eOn.length}) vs ${pc(sr(eOff))} (${eOff.length})`:'Edge history only for recent days',st:status(eOn.length,eOff.length,sr(eOn)!=null&&sr(eOff)!=null?sr(eOn)-sr(eOff):null,5)});
+  const gOn=B.filter(x=>{const v=W.v105&&W.v105.rangeAt?W.v105.rangeAt(x.t0):null;return fin(v)&&v<K.range;}),gOff=B.filter(x=>{const v=W.v105&&W.v105.rangeAt?W.v105.rangeAt(x.t0):null;return fin(v)&&v>=K.range;});
+  rows.push({k:'rng',name:'Range veto',rule:`Below ${K.range}× = skip`,live:gOn.length+gOff.length?`won ${pc(rate(gOn))} (${gOn.length}) vs ${pc(rate(gOff))} (${gOff.length})`:'Range history only for recent days',st:status(gOn.length,gOff.length,rate(gOn)!=null&&rate(gOff)!=null?rate(gOff)-rate(gOn):null,5)});
+  const sat=ivOnly.filter(x=>x.F.dow===6),rose=sat.length?sat.filter(x=>x.b>x.a).length/sat.length*100:null;
+  rows.push({k:'sat',name:'Day',rule:'Saturday = no trade',live:sat.length?`IV rose on ${pc(rose)} of ${sat.length} Saturdays`:'—',st:sat.length<10?['NEW','n']:rose>=50?['HOLDING','g']:rose>=40?['WEAKENING','a']:['BROKEN','r']});
+  const wk=ivOnly.filter(x=>x.F.dow!==6&&x.F.dow!==0),nw=wk.filter(x=>x.news),nn=wk.filter(x=>!x.news),avg=a=>a.length?a.reduce((s,x)=>s+(x.b-x.a),0)/a.length:null;
+  rows.push({k:'news',name:'News',rule:'Sell 2 h after an 18:00 release, 1 h after FOMC',live:nw.length?`IV ${sg(avg(nw))} pts news (${nw.length}) vs ${sg(avg(nn))} normal`:'—',st:status(nw.length,nn.length,avg(nw)!=null&&avg(nn)!=null?avg(nn)-avg(nw):null,5)});
+  const Lo=[];for(const N of nights){if(N.F.dow===6)continue;const t=N.F.D0+13.5*HR,iv=AT(N.s,t);const x=sim(t,N.F,N.s,N.H,deltaFor(N,iv),deltaFor(N,iv),N.F.exit);if(x)Lo.push(x);}
+  rows.push({k:'lon',name:'London',rule:'No London entries',live:Lo.length?`13:30 entries stopped ${pc(sr(Lo))} (${Lo.length}) vs NY ${pc(sr(B))}`:'—',st:status(Lo.length,B.length,sr(Lo)!=null&&sr(B)!=null?sr(Lo)-sr(B):null)});
+  const X=T.filter(x=>fin(x.pct17));const w7=X.length?Math.min(...X.map(x=>x.pct)):null,w17=X.length?Math.min(...X.map(x=>x.pct17)):null;
+  rows.push({k:'exit',name:'Exit',rule:'Book 07:00',live:X.length?`worst ${sg(w7)}% vs ${sg(w17)}% at 17:00 · avg ${sg(total(X)/X.length)}% vs ${sg(X.reduce((a,x)=>a+x.pct17,0)/X.length)}%`:'—',st:status(X.length,X.length,w7!=null&&w17!=null?w7-w17:null,5)});
+  const tn=B.filter(x=>x.tilt&&x.tilt.on),cA=tn.length?tn.reduce((a,x)=>a+x.callPct,0)/tn.length:null,pA=tn.length?tn.reduce((a,x)=>a+x.putPct,0)/tn.length:null;
+  rows.push({k:'tilt',name:'Leg tilt',rule:'Put lighter on news nights, after BTC fell 12:30→19:00, or IV under 28',live:tn.length?`those nights: call ${sg(cA)}% · put ${sg(pA)}% (${tn.length})`:'—',st:status(tn.length,null,cA!=null&&pA!=null?cA-pA:null,5)});
+  // IV range table (year)
+  const bands=[[0,28,'below 28'],[28,35,'28–35'],[35,45,'35–45'],[45,60,'45–60'],[60,999,'60+']].map(([a,b,l])=>{const g=wk.filter(x=>x.a>=a&&x.a<b);const tr=B.filter(x=>x.iv0>=a&&x.iv0<b);
+    return {l,n:g.length,fell:fell(g),avg:g.length?g.reduce((s,x)=>s+(x.b-x.a)/x.a*100,0)/g.length:null,jump:g.length?g.filter(x=>x.b-x.a>2).length/g.length*100:null,tn:tr.length,cs:tr.filter(x=>x.callStop).length,ps:tr.filter(x=>x.putStop).length,res:tr.length?total(tr)/tr.length:null};});
+  // suggested tune: band of the IV turn and the Edge veto
+  let tune=null;const half=nights.length>>1,firstH=new Set(nights.slice(0,half).map(n=>n.d));
+  const score=K2=>{const t=tradesFor(nights,K2);const a=t.filter(x=>firstH.has(x.N.d)),b=t.filter(x=>!firstH.has(x.N.d));return {n:t.length,tot:total(t),a:total(a),b:total(b),w:t.filter(x=>x.win).length};};
+  const base=score(K);
+  for(const lo of [1,1.5,2,2.5])for(const hi of [4,5,6,8]){if(lo===K.offLo&&hi===K.offHi)continue;const K2=Object.assign({},K,{offLo:lo,offHi:hi}),r=score(K2);
+    if(r.n>=15&&r.a>base.a&&r.b>base.b&&r.tot-base.tot>=50&&(!tune||r.tot>tune.r.tot))tune={K2,r,what:`IV turn band ${K.offLo}–${K.offHi}% → <b>${lo}–${hi}%</b>`};}
+  return {at:Date.now(),day:dk(Date.now()),nNights:nights.length,nIv:ivOnly.length,from:nights.length?nights[0].d:null,to:nights.length?nights[nights.length-1].d:null,rows,bands,
+    tune:tune?{K:tune.K2,what:tune.what,txt:`would have won ${tune.r.w} / ${tune.r.n} · ${sg(tune.r.tot)}% credit, instead of ${base.w} / ${base.n} · ${sg(base.tot)}% (better in both halves)`}:null,
+    base:{n:base.n,w:base.w,tot:base.tot}};}
+/* ---------- run (daily, after the 07:00 book) ---------- */
+let RUN=null,DATA=null,busy=false,prog='';
+async function runCheck(force){if(busy)return;const now=Date.now(),last=LSg('v126_check',null),today=dk(now),h=(now+IST)%DAY/HR;
+  if(!force&&last&&last.day===today)return;if(!force&&h<7.08)return;if(!FN()||!W.v121.frame)return;
+  busy=true;prog='loading archive…';render();
+  try{DATA=await loadNights((i,n)=>{prog=`reading night ${i} of ${n}…`;render();});prog='testing…';render();await new Promise(r=>setTimeout(r,30));
+    RUN=evaluate(DATA);const keep=Object.assign({},RUN);LSs('v126_check',keep);}
+  catch(e){console.warn('v126 check',e);RUN=Object.assign(LSg('v126_check',{})||{},{err:String(e&&e.message||e)});}
+  finally{busy=false;prog='';render();}}
+/* ---------- tonight's plan ---------- */
+function tilt(R){const f=FN();if(!f||!R||!R.F)return null;const F=R.F,news=(R.ev||f.events(F)).length>0;let fell=false;
+  try{const B=W.rvIndexBars?W.rvIndexBars().bars:null;if(B){const near=t=>{for(let k=0;k<=30;k++){const x=B.get(t+k*MIN)||B.get(t-k*MIN);if(x&&x.c>0)return x;}return null;};const a=near(F.D0+12.5*HR),b=near(F.open);if(a&&b)fell=b.c<a.c;}}catch(e){}
+  const low=R.iv!=null&&R.iv<28,on=news||fell||low;const why=[news?'news night':'',fell?'BTC fell 12:30→19:00':'',low?'IV under 28':''].filter(Boolean).join(' · ');return {on,news,fell,low,why};}
+function band(iv){if(!fin(iv))return null;return iv<28?['below 28','0.12Δ · put lighter','a']:iv<35?['28–35','0.15Δ · normal','g']:iv<45?['35–45','0.15Δ · normal','g']:iv<60?['45–60','HALF · IV jumps more','a']:['60+','HALF or skip','r'];}
+function planHtml(){const R=W.v121&&W.v121.last;if(!R||!R.F)return '<div class="v6st">Plan loading…</div>';const F=R.F,now=Date.now(),t=R.tilt||tilt(R)||{on:false,why:''};
+  const ev=R.ev||[],evTxt=ev.length?ev.map(e=>e.code+' '+hm(e.t)).join(', '):'clear',dname=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][F.dow];
+  const win0=Math.max(F.open+HR,...ev.map(e=>e.ok)),bd=band(R.iv),dC=R.delta||0.15,dP=R.dPut||dC;
+  const T=[];
+  T.push(['DAY & NEWS',dname+' · '+(R.sat?'no trade':ev.length?'news':'clear'),R.sat?'Saturday: IV rose on 94%':ev.length?evTxt+' → sell from '+hm(Math.max(...ev.map(e=>e.ok))):'no release tonight',R.sat?'r':ev.length?'a':'g']);
+  T.push(['ENTRY WINDOW',R.sat?'—':hm(win0)+'–'+hm(F.end),'1st–2nd red, '+CFG.offLo+'–'+CFG.offHi+'% under NY high','g']);
+  T.push(['SIZE',R.size||'—',R.term!=null?'Cur '+sg(R.term)+'% vs N2N':'term loading',R.size==='FULL'?'g':'a']);
+  T.push(['DELTA',dP<dC?'C '+dC.toFixed(2)+' · P '+dP.toFixed(2):dC.toFixed(2)+'Δ both','0.12 if IV under 28 or Thursday','g']);
+  T.push(['IV RANGE',bd?f1(R.iv)+' · '+bd[0]:'—',bd?bd[1]:'',bd?bd[2]:'n']);
+  T.push(['LEG TILT',t.on?'Put lighter':'Equal legs',t.on?t.why:'BTC rose into NY, no news',t.on?'a':'g']);
+  let strikes='';try{const B=W.rvIndexBars?W.rvIndexBars().bars:null;let S=null;if(B){for(let k=0;k<5&&!S;k++){const b=B.get(Math.floor(now/MIN)*MIN-k*MIN);if(b&&b.c>0)S=b.c;}}
+    if(S&&fin(R.iv)&&F.settle>now){const Tm=yrs(F.settle-now),Kc=strike(S,Tm,R.iv,dC,'c'),Kp=strike(S,Tm,R.iv,dP,'p'),c=bs(S,Kc,Tm,R.iv,'c'),p=bs(S,Kp,Tm,R.iv,'p');
+      strikes=`<span>Call <b>${Math.round(Kc/200)*200}</b> · ${dC.toFixed(2)}Δ · ≈$${Math.round(c)}</span><span>Put <b>${Math.round(Kp/200)*200}</b> · ${dP.toFixed(2)}Δ · ≈$${Math.round(p)}</span><span>credit ≈$${Math.round(c+p)} per 1 BTC · fees ≈7% · at ATM IV, no skew: check the chain</span>`;}}catch(e){}
+  return `<div class="v6pl">${T.map(x=>`<div class="v6t ${x[3]}"><span class="v6h">${x[0]}</span><span class="v6v">${esc(x[1])}</span><span class="v6s">${esc(x[2])}</span></div>`).join('')}</div>${strikes?`<div class="v6st">${strikes}</div>`:''}`;}
+/* ---------- rule check html ---------- */
+function checkHtml(){const C=RUN||LSg('v126_check',null);const changed=JSON.stringify(CFG)!==JSON.stringify(DEF);
+  if(!C||!C.rows)return `<details id="v126c"><summary>Rule check <span class="v6m">${busy?esc(prog):'runs by itself after 07:05 IST'}</span><span class="v6cnt"><button data-v126="run">${busy?'Running…':'Run now'}</button></span></summary><p class="v6nt">${C&&C.err?'Could not read the archive: '+esc(C.err):'No run yet. It needs the archive (Settings → Archive) with BTC and IV nights.'}</p></details>`;
+  const cnt={g:0,a:0,r:0,n:0};for(const r of C.rows)cnt[r.st[1]]++;
+  const rows=C.rows.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td><span class="v6ch ${r.st[1]}">${r.st[0]}</span></td><td class="v6n">${esc(r.live)}${r.vs?'<br><span style="color:var(--muted)">'+esc(r.vs)+'</span>':''}</td><td class="v6n">${esc(TESTED[r.k]||'')}</td><td>${esc(r.rule)}</td></tr>`).join('');
+  const bands=(C.bands||[]).map(b=>`<tr><td><b>${b.l}</b></td><td class="v6n">${b.n}</td><td class="v6n">${pc(b.fell)}</td><td class="v6n">${b.avg!=null?sg(b.avg)+'%':'—'}</td><td class="v6n">${pc(b.jump)}</td><td class="v6n">${b.tn}</td><td class="v6n">${b.cs} / ${b.ps}</td><td class="v6n">${b.res!=null?sg(b.res)+'%':'—'}</td></tr>`).join('');
+  const tune=C.tune&&!(LSg('v126_ign',null)===JSON.stringify(C.tune.K))?`<div class="v6tu"><span>Suggested: ${C.tune.what} ${esc(C.tune.txt)}</span><button class="v6p" data-v126="apply">Apply</button><button data-v126="ignore">Ignore</button></div>`:'';
+  const rs=changed?`<div class="v6tu"><span>Using your applied values: IV turn ${CFG.offLo}–${CFG.offHi}%, Edge veto +${CFG.edge}, Speed line ${CFG.spd}×</span><button data-v126="reset">Back to tested values</button></div>`:'';
+  return `<details id="v126c"${LSg('v126_open',0)?' open':''}><summary>Rule check <span class="v6m">${busy?esc(prog):'last run '+dk(C.at)+' '+hm(C.at)+' · '+C.nNights+' nights with BTC ('+(C.from||'—')+' → '+(C.to||'—')+') · '+C.nIv+' IV nights'}</span>
+    <span class="v6cnt"><span class="v6ch g">${cnt.g} holding</span>${cnt.a?`<span class="v6ch a">${cnt.a} weakening</span>`:''}${cnt.r?`<span class="v6ch r">${cnt.r} broken</span>`:''}<span class="v6ch n">${cnt.n} new</span><button data-v126="run">${busy?'Running…':'Run now'}</button></span></summary>
+    ${tune}${rs}
+    <div class="v6tb"><table><thead><tr><th>RULE</th><th>STATUS</th><th>LIVE · ALL STORED NIGHTS</th><th>TESTED (16 OCT)</th><th>WHAT IT SAYS</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="v6tb"><table><thead><tr><th>N2N IV AT 20:30</th><th>NIGHTS</th><th>IV FELL BY 07:30</th><th>AVG CHANGE</th><th>JUMPED 2+ PTS</th><th>TRADES</th><th>CALL / PUT STOPS</th><th>RESULT</th></tr></thead><tbody>${bands}</tbody></table></div>
+    <p class="v6nt">Model nights: Black-Scholes legs at ATM IV (no skew), strikes by delta, 2× leg stop on minute high/low, book 07:00. Status = the rule side against the other side on the same nights (NEW under 10 nights a side). Thresholds change only when you press Apply.</p></details>`;}
+/* ---------- my Delta trades ---------- */
+function tradesHtml(){const L=LSg('v99_trades',[])||[],cur=LSg('v99_trade',null);const all=L.slice(-30).reverse();if(cur)all.unshift(Object.assign({open:true},cur));
+  if(!all.length)return `<details id="v126t"><summary>My trades · from Delta fills <span class="v6m">none logged yet · connect the Delta key in Settings (read-only)</span></summary><p class="v6nt">Each trade the desk sees in your fills is kept here with the readings at its entry minute.</p></details>`;
+  const N=DATA&&DATA.nights?new Map(DATA.nights.map(n=>[n.d,n])):null;
+  const rowOf=x=>{const t=x.openedAt,cr=(x.fills||[]).reduce((a,f)=>a+(f.cr||0)*(f.lots||0),0),lots=(x.fills||[]).reduce((a,f)=>a+(f.lots||0),0);let rd='';
+    if(N&&t){const F=W.v121.frame(t),n=N.get(dk(F.D0+12*HR));if(n){const R=readAt(Math.floor(t/MIN)*MIN,F,n.s,n.sc,n.cl);if(R){const ok=R.offPct!=null&&R.offPct>=CFG.offLo&&R.offPct<=CFG.offHi&&R.reds>=1&&R.reds<=2;
+      rd=[['IV turn',ok],['VoV',R.cVov],['Speed',R.cSpd],['Tonight',R.cTon],['Term',R.term!=null?R.term>0:null]].map(([l,v])=>`${v===true?'✓':v===false?'✕':'·'} ${l}`).join(' · ');}}}
+    if(!rd)rd='<span style="color:var(--muted)">readings after the next rule check</span>';
+    return `<tr><td class="v6n">${t?dk(t):'—'}</td><td class="v6n">${t?hm(t):'—'}</td><td class="v6n">${x.Kc||'—'} C / ${x.Kp||'—'} P</td><td class="v6n">${lots?lots+' lots':''}${cr?' · $'+Math.round(cr):''}</td><td>${rd}</td><td class="v6n">${x.open?'open':x.closedAt?hm(x.closedAt):'—'}</td><td class="v6n">${fin(x.pnlUsd)?(x.pnlUsd>=0?'+':'')+'$'+x.pnlUsd.toFixed(2):'—'}</td></tr>`;};
+  const won=L.filter(x=>fin(x.pnlUsd)&&x.pnlUsd>0).length,tot=L.reduce((a,x)=>a+(fin(x.pnlUsd)?x.pnlUsd:0),0);
+  return `<details id="v126t"><summary>My trades · from Delta fills <span class="v6m">${L.length} closed · ${won} won · ${tot>=0?'+':''}$${tot.toFixed(2)}</span></summary>
+    <div class="v6tb"><table><thead><tr><th>NIGHT</th><th>ENTRY</th><th>STRIKES</th><th>SIZE · CREDIT</th><th>RULES AT ENTRY</th><th>EXIT</th><th>RESULT</th></tr></thead><tbody>${all.map(rowOf).join('')}</tbody></table></div>
+    <p class="v6nt">Read-only: the desk reads fills with your key and never places orders.</p></details>`;}
+/* ---------- mount ---------- */
+function mount(){let el=$('v126');const ref=$('v121Lead');if(!ref)return null;if(!el){el=D.createElement('section');el.id='v126';el.setAttribute('aria-label','Tonight plan and rule check');ref.after(el);
+    el.addEventListener('click',onClick);el.addEventListener('toggle',e=>{if(e.target.id==='v126c')LSs('v126_open',e.target.open?1:0);},true);}
+  else if(el.previousElementSibling!==ref)ref.after(el);return el;}
+function onClick(e){const b=e.target.closest('[data-v126]');if(!b)return;e.preventDefault();e.stopPropagation();const a=b.dataset.v126,C=RUN||LSg('v126_check',null);
+  if(a==='run')runCheck(true);
+  else if(a==='apply'&&C&&C.tune){CFG=Object.assign({},DEF,C.tune.K);LSs('v126_cfg',CFG);render();try{W.v121.tick&&W.v121.tick();}catch(x){}}
+  else if(a==='ignore'&&C&&C.tune){LSs('v126_ign',JSON.stringify(C.tune.K));render();}
+  else if(a==='reset'){CFG=Object.assign({},DEF);LSs('v126_cfg',{});render();try{W.v121.tick&&W.v121.tick();}catch(x){}}}
+function render(){const el=mount();if(!el)return;const P=planHtml(),C=checkHtml(),T=tradesHtml();
+  const parts=el.__p||{};if(parts.p!==P||!el.querySelector('#v126p')){if(!el.querySelector('#v126p')){el.innerHTML='<div id="v126p"></div><div id="v126cw"></div><div id="v126tw"></div>';}
+    el.querySelector('#v126p').innerHTML=P;parts.p=P;}
+  const cw=el.querySelector('#v126cw'),tw=el.querySelector('#v126tw');
+  if(parts.c!==C){const op=cw.querySelector('details');const was=op?op.open:null;cw.innerHTML=C;if(was!=null){const d=cw.querySelector('details');if(d)d.open=was;}parts.c=C;}
+  if(parts.t!==T){const op=tw.querySelector('details');const was=op?op.open:null;tw.innerHTML=T;if(was!=null){const d=tw.querySelector('details');if(d)d.open=was;}parts.t=T;}
+  el.__p=parts;}
+W.v126={tilt,band,runCheck,evaluate,loadNights,readAt,sim,render,cfg:()=>CFG,last:()=>RUN||LSg('v126_check',null),__test:{bs,strike,ppf,ncdf,tradesFor,scanNight}};
+function tick(){if(D.hidden)return;try{render();}catch(e){console.warn('v126',e);}}
+setTimeout(tick,2500);setInterval(tick,15000);
+setTimeout(()=>runCheck(false),25000);setInterval(()=>{if(!D.hidden)runCheck(false);},10*MIN);
+})();
+</script>
+
 </body>
 </html>
