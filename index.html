@@ -1,5 +1,24 @@
 <!doctype html>
 <!--
+  v135 (16 Oct 2026, preview, not deployed): review + one time axis. script[data-module=v135] + style#v135Css (end of body),
+    window.__v135lock switch (early script; localStorage v135_lock='0' turns it off).
+    · BTC chart = master; IV · RV · VoV · DVOL follow it BY TIME (time→bar maps from each chart's own bars, extrapolated past the
+      ends; invisible gap-fill bars so holes in a vol chart's history do not squeeze time); dragging/zooming a vol chart moves
+      the BTC chart and so every chart. Same left edge, width and price-axis width as the BTC chart; one time axis under the
+      bottom vol chart; dashed hairline through the gaps; v83 crosshair group now includes the vol charts and snaps to each
+      chart's own bar. Old pairwise followers (RV link, VoV lagOf/reconcile/0.4 s re-aligner, DVOL alignTo, IV frameLive,
+      v128 per-chart fit) stand down while the lock is on; v128 − + Fit on a vol chart act on the BTC chart.
+    · Fit to screen (v133.fit): the window is shared out (1 vol chart ≈ 30 %, 2 ≈ 44 %, 3 ≈ 52 %, 4 ≈ 56 %), floor 420 px (was 600).
+    · Bugs fixed: crosshair re-fire storm (series restyles re-fired the last crosshair spot, dragging all charts' crosshairs
+      and time pills to the last bar every tick); Decision-page Leading board frozen; v118 session lines from the wrong
+      expiry; hidden panes voting with stale data; v118 null crash after the 17:30 listing; v127 forcing pattern layers
+      every 2.5 s; v133 fit.adj never reset; v133 clear() left vol heights on phone; v126 "Run now" blocking the 07:05 run;
+      RV 4 h high read only 3.5 h; v134 replays even with Entry signals off.
+    · Smoother: overlay loops (v115/v118/v122) draw one frame a second instead of 0.6 s of every second; crosshair sync once
+      per frame with cached chart lists (no forced layout per move); legends skip identical rewrites; no-op class writes on
+      price tags and impulse tag removed; DVOL shown() cached; v126 trade readings memoised.
+-->
+<!--
   v121 (16 Oct 2026, preview, not deployed): tested N2N playbook (backtests in chat, 16 Oct). New layer style#v121Css +
     script[data-module=v121] (window.v121): Leading signals board rebuilt (#v121Lead after a hidden #v104Lead): banner verdict,
     6 pips, 07:00 countdown, 8 tiles — Day & news · NY spike · IV turn (1.5–6 % off NY high, 1st–2nd red) · Term → size
@@ -13,6 +32,12 @@
 <!--
   v119 (16 Oct 2026, preview, not deployed): Asia (05:30–12:30), London (12:30–18:30) and New York (18:30–02:30, grows as
     it runs) boxes on all six charts; session background colours removed from the IV / RV / VoV / DVOL charts (white).
+  v133 (16 Oct 2026, preview, not deployed): clean first screen without full screen (charts only, fitted to the window), Decision page gets notice/news/market context, P&L live from Delta fills (script[data-module=v133]).
+  v132 (16 Oct 2026, preview, not deployed): CoinGlass-style — dark default, one ƒx Indicators menu (multi-select), master expiry beside the timeframes, drawing bar on the left, Decision and P&L pages, charts full width (script[data-module=v132]).
+  v131 (16 Oct 2026, preview, not deployed): VOL CHARTS picker (IV · RV · VoV · DVOL, several at once) sits right under the INDICATOR tabs in the BTC panel; the picked charts follow straight below.
+  v130 (16 Oct 2026, preview, not deployed): one full screen — both buttons show the BTC chart platform only; side panels, Tonight rail, notices, vol and flow rows step aside (style#v130Css, script[data-module=v130]).
+  v128 (16 Oct 2026, preview, not deployed): zoom − + Fit on every chart, vol charts one per row and taller, charts open fitted to 24 h, fewer lines (no bid/ask, VoV grey line, Edge/Range averages) (script[data-module=v128]).
+  v127 (16 Oct 2026, preview, not deployed): Option A — one indicator under the BTC chart via tabs (Speed vs IV · Edge · Range · ADX), vol-chart picker IV · RV · VoV · DVOL (script[data-module=v127]).
   v126 (16 Oct 2026, preview, not deployed): Tonight's plan (day/news, window, size, delta per leg, IV range, leg tilt, approx strikes), Rule check re-tested on all archive nights every morning with Apply/Ignore tunes, My Delta trades (script[data-module=v126]).
   v125 (16 Oct 2026, preview, not deployed): v115 Top/Base box-break boxes and Box ↓ / EXIT ↑ chips removed from the IV chart too.
   v124 (16 Oct 2026, preview, not deployed): RV chart shows RV only, Range keeps only its London box, Tonight recoloured to the test (above clock = green sell OK from 21:00) without boxes/dots/speed strip (script[data-module=v124]).
@@ -483,6 +508,7 @@ if(F)W.fetch=function(input,init){var u=typeof input==='string'?input:(input&&in
     LOW.push(j);flushLow();});};
 })();
 </script>
+<script>/* v135 · one time axis switch, read before any chart is drawn */try{window.__v135lock=localStorage.getItem('v135_lock')!=='0';}catch(e){window.__v135lock=true;}</script>
 <meta name="theme-color" content="#0A1014">
 <meta name="robots" content="noindex,nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4205,6 +4231,14 @@ window.deskNote=function(msg,ms){try{let t=document.getElementById('deskNote');i
 </script>
 </head>
 <body>
+<script data-module="v133early">
+/* v133: first open after this update → BTC chart layers off (session shading/boxes, candle and chart patterns, structure,
+   IV-by-session strip, σ/strike lines): candles only, like CoinGlass. Switch any back under Layers. Runs once (v133clean). */
+try{if(!localStorage.getItem('v133clean')){const k='pa_layer_prefs_v3';let p={};try{p=JSON.parse(localStorage.getItem(k))||{};}catch(e){}
+  Object.assign(p,{sess:false,boxes:false,candles:false,charts:false,struct:false,ivl:false,xlv:false,b56:1});localStorage.setItem(k,JSON.stringify(p));localStorage.setItem('v133clean','1');}}catch(e){}
+window.__v133Gex=(()=>{try{return JSON.parse(localStorage.getItem('v132_ind')||'{}').gex===true;}catch(e){return false;}})();
+</script>
+
 <div class="app">
 
 <!-- ───────── ticker strip ───────── -->
@@ -4388,7 +4422,7 @@ function arrange(){if(busy)return;busy=true;try{var desk=D.querySelector('#pgDes
   if(top.firstChild!==ch)top.insertBefore(ch,top.firstChild);
   var hd=$('v110PnlHd');if(!hd){hd=D.createElement('div');hd.id='v110PnlHd';hd.className='v110-hd';hd.innerHTML='<span>My trade · P&amp;L</span>';}
   var wide=wideNow(),lead=$('v104Lead'),inn=$('v22SideIn');
-  var want=[$('v89Rail'),top,$('volRow'),wide?null:lead,$('side2'),$('flowRow'),hd,$('v18Trade')].filter(Boolean);
+  var want=[$('v89Rail'),top,$('volRow'),wide?null:lead,$('side2'),$('flowRow'),hd,$('v18Trade')].filter(function(e){return e&&!(e.dataset&&e.dataset.v134);});
   var kids=Array.prototype.filter.call(desk.children,function(e){return want.indexOf(e)>=0;});
   if(!(kids.length===want.length&&want.every(function(e,i){return kids[i]===e;})))want.forEach(function(e){desk.appendChild(e);});
   if(wide&&lead&&lead.parentNode!==inn)inn.appendChild(lead);
@@ -4776,7 +4810,7 @@ const LEGACY_STORE_KEYS=['btc_atm_iv_delta_india_v29','btc_atm_iv_delta_india_v2
 const IDB_NAME='btc_atm_iv_persistent_v30';
 const IDB_STORE='state';
 const IDB_KEY='dashboard';
-const THEME_KEY='btc_atm_iv_theme_v122';   // v122: new key so the desk opens light once; your switch is remembered here
+const THEME_KEY='btc_atm_iv_theme_v132';   // v122: new key so the desk opens light once; your switch is remembered here
 const RETENTION_DAYS=45;   // v26: was 21; the archive keeps everything beyond this
 const MAX_SAMPLES_PER_EXPIRY=16000;
 const EXPIRY_UTC_HOUR=12;           // Delta India BTC options settle 17:30 IST = 12:00 UTC
@@ -5784,7 +5818,7 @@ async function refresh(){
 /* ---------------- Theme ---------------- */
 function initTheme(){
   let t=null;try{t=localStorage.getItem(THEME_KEY);}catch(e){}
-  if(t!=='dark')t='light';   // v122: light unless you switch it to dark
+  if(t!=='light')t='dark';   // v132: dark (CoinGlass style) unless you switch it to light
   applyTheme(t);
   $('themeBtn').onclick=()=>{const n=document.documentElement.dataset.theme==='light'?'dark':'light';applyTheme(n);try{localStorage.setItem(THEME_KEY,n);}catch(e){}};
 }
@@ -6306,7 +6340,7 @@ function easeRange(p,ts,lr,from,to){
   p._ease=requestAnimationFrame(step);
 }
 function frameLive(p,force){
-  if(!p||!p.chart||!p.last)return;
+  if(!p||!p.chart||!p.last||window.__v135lock)return;   // v135: the BTC chart frames every vol chart
   if(!force&&p.userMoved)return;
   try{
     const ts=p.chart.timeScale(),lr=ts.getVisibleLogicalRange();if(!lr)return;
@@ -8036,7 +8070,7 @@ function deskUpdate(){
     p.ivWs=p.chart.addLineSeries({priceScaleId:'ws',lineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     p.chart.priceScale('ws').applyOptions({visible:false});
     const link=(a,b)=>a.timeScale().subscribeVisibleLogicalRangeChange(r=>{
-      if(p.rvSyncing||!r||p.rvMode!=='panel')return;p.rvSyncing=true;try{b.timeScale().setVisibleLogicalRange(r);}catch(e){}p.rvSyncing=false;});
+      if(p.rvSyncing||!r||p.rvMode!=='panel'||window.__v135lock)return;p.rvSyncing=true;try{b.timeScale().setVisibleLogicalRange(r);}catch(e){}p.rvSyncing=false;});
     link(p.chart,p.rvChart);link(p.rvChart,p.chart);
     p.chart.subscribeCrosshairMove(param=>{
       if(p.rvMode!=='panel'||p.rvXsync)return;p.rvXsync=true;
@@ -8118,6 +8152,7 @@ function deskUpdate(){
   // legend in the RV panel: RV OHLC + change, IV at that bar, IV/RV
   function rvLegend(i,time){
     const p=panes[i],box=el('rvLeg'+i);if(!box||p.rvMode!=='panel')return;
+    if(time!=null){const k=time+'|'+(p.rvMap&&p.rvMap.size)+'|'+(p.dataMap&&p.dataMap.size);if(p.__rvLk===k)return;p.__rvLk=k;}else p.__rvLk=null;   // v135: the same hovered bar is not rebuilt on every mouse move
     const b=time!=null?p.rvMap?.get(time):p.rvLast,ivb=time!=null?p.dataMap?.get(time):p.last;
     try{box.classList.toggle('nrw',box.parentElement.clientWidth<430);}catch(e){}
     const head=`<b class="lg-title">Realised vol</b><span class="lg-title">${winText(p)}</span>`;
@@ -8440,7 +8475,7 @@ function deskUpdate(){
   const toIv=(p,r)=>pushRange(p.chart,shift(r,lagOf(p)));
   // safety net, once a second: whatever happened in between, the two charts end on the same bars
   function reconcile(p){
-    if(!p.vovChart||!shown(p.i))return;
+    if(!p.vovChart||!shown(p.i)||window.__v135lock)return;
     try{const a=p.chart.timeScale().getVisibleLogicalRange(),b=p.vovChart.timeScale().getVisibleLogicalRange();
       if(!a||!b||near(a,shift(b,lagOf(p))))return;
       if(leads(S[p.i]))toIv(p,b);else toVov(p,a);}catch(e){}
@@ -8477,8 +8512,8 @@ function deskUpdate(){
     // Scroll and zoom move together with the IV chart (and, through it, the RV panel). The chart library reports a
     // range change late, so a simple "I am syncing" flag can swallow the last step of a drag. Instead one chart leads:
     // this panel while it is being dragged or wheeled (and for a moment after, for the glide), the IV chart otherwise.
-    p.chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&!leads(st))toVov(p,r);});
-    p.vovChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&leads(st))toIv(p,r);});
+    p.chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&!leads(st)&&!window.__v135lock)toVov(p,r);});
+    p.vovChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r&&shown(p.i)&&leads(st)&&!window.__v135lock)toIv(p,r);});
     // a pan, pinch or wheel here stops the auto-framing, exactly as it does on the IV chart
     for(const ev of ['pointerdown','touchstart'])box.addEventListener(ev,()=>{p.userMoved=true;st.active=true;},{passive:true,capture:true});
     box.addEventListener('wheel',()=>{p.userMoved=true;st.holdUntil=Date.now()+1500;},{passive:true,capture:true});
@@ -8668,7 +8703,7 @@ function deskUpdate(){
       handleScale:{axisPressedMouseMove:COARSE_PTR?{time:false,price:true}:true,mouseWheel:true,pinch:true}});
     window.__gexChart=G.chart;
     G.chart.applyOptions(chartThemeOptions());
-    G.chart.applyOptions({watermark:{visible:true,fontSize:30,horzAlign:'center',vertAlign:'center',text:'BTC · GAMMA'}});
+    G.chart.applyOptions({watermark:{visible:true,fontSize:30,horzAlign:'center',vertAlign:'center',text:'BTC'}});
     G.sess=G.chart.addAreaSeries({priceScaleId:'sess',priceLineVisible:false,lastValueVisible:false,lineVisible:false,lineWidth:1,crosshairMarkerVisible:false,
       lineColor:'rgba(0,0,0,0)',topColor:'rgba(0,0,0,0)',bottomColor:'rgba(0,0,0,0)',autoscaleInfoProvider:()=>({priceRange:{minValue:0,maxValue:1}})});
     G.chart.priceScale('sess').applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
@@ -8709,7 +8744,7 @@ function deskUpdate(){
   }
   function paintGex(scroll){
     if(!G.chart)return;
-    G.chart.applyOptions(chartThemeOptions());G.chart.applyOptions({watermark:{visible:true,text:'BTC · GAMMA'}});
+    G.chart.applyOptions(chartThemeOptions());G.chart.applyOptions({watermark:{visible:true,text:'BTC'}});
     styleCandles();
     const tf=TF_SEC[chartPrefs.tf],all=indexBars(tf);
     // v71: the newest bars load first (phone 1,500, desktop 3,000); dragging to the left edge loads older ones, up to a
@@ -8765,6 +8800,7 @@ function deskUpdate(){
     if(xlv&&S&&C?.sig){const f=cssVar('--muted');
       want.push({price:S+C.sig,color:hexA(f,0.7),lineWidth:1,lineStyle:3,title:'+1σ night'},{price:S-C.sig,color:hexA(f,0.7),lineWidth:1,lineStyle:3,title:'−1σ night'});
       want.push({price:S+1.2*C.sig,color:hexA(cssVar('--night'),0.9),lineWidth:1,lineStyle:3,title:'1.2σ'},{price:S-1.2*C.sig,color:hexA(cssVar('--night'),0.9),lineWidth:1,lineStyle:3,title:'1.2σ'});}
+    if(!window.__v133Gex){for(let i=want.length-1;i>=0;i--)if(['γ flip','Call wall','Put wall'].includes(want[i].title))want.splice(i,1);}   // v133: clean chart unless Dealer gamma is ticked
     const sig=JSON.stringify(want.map(w=>[Math.round(w.price),w.title,w.color]));
     if(!force&&sig===G.lineSig){meta();return;}
     G.lineSig=sig;
@@ -10506,7 +10542,7 @@ Signs follow Settings → Dealer positioning.`;
     else{let x=null;try{x=reading();}catch(e){}
       if(x&&x.ok){h=`<b>${fx(x.r)}</b>`;cls='s'+x.st;}else h='<b>—</b>';}
     if(S.tag.__h!==h){S.tag.innerHTML=BARS+h;S.tag.__h=h;}
-    S.tag.className='imp-tag '+cls;
+    if(S.tag.className!=='imp-tag '+cls)S.tag.className='imp-tag '+cls;   // v135: no restyle when nothing changed
   }
 
   /* ---------- loop ---------- */
@@ -11211,9 +11247,11 @@ Signs follow Settings → Dealer positioning.`;
         m.push({time:R.bars[p.i].time,position:pos,color:p.b>0?up:p.b<0?dn:mu,shape:p.b>0?'arrowUp':p.b<0?'arrowDown':'circle',
           text:crowd?'':txt,size:p.w>=2?0.9:0.6});}
     }
+    try{if(window.v134sig&&R&&R.bars){m=m.concat(window.v134sig.marks(R.bars));m.sort((a,b)=>a.time-b.time);}}catch(e){}   // v134: tested entry / exit signals
     try{P.series.setMarkers(m);}catch(e){}
   }
 
+  window.paSetMarkers=()=>{try{setMarkers();}catch(e){}};
   /* ---------------- overlay drawing ---------------- */
   function schedDraw(){try{const bs=P.chart.timeScale().options().barSpacing||6,k=bs>=16?2:bs>=9?1:0;if(P.res&&k!==P.mkBs)setMarkers();}catch(e){}if(P.raf)return;P.raf=requestAnimationFrame(()=>{P.raf=0;try{draw();}catch(e){console.warn('pa draw',e);}});}
   function draw(){
@@ -11841,6 +11879,7 @@ Signs follow Settings → Dealer positioning.`;
     if(!c.chart.__lpR){try{c.chart.timeScale().subscribeVisibleLogicalRangeChange(sched);}catch(e){}c.chart.__lpR=1;}
   }
   function hide(t){if(t.tag&&t.tag.classList.contains('on'))t.tag.classList.remove('on');}
+  const tgc=(e,c,on)=>{if(e.classList.contains(c)!==on)e.classList.toggle(c,on);};   // v135: a no-op class write still restyles the page
   function paint(t,tf,n,left,cur){
     const c=t.cc,G=t.geo;if(!c||!c.box||!G||!G.w){hide(t);return;}c.geo=G;
     wire(t,c);
@@ -11862,14 +11901,14 @@ Signs follow Settings → Dealer positioning.`;
     const tx=fmtT(left,tf);if(t.txt!==tx){tag.querySelector('.lp-t').textContent=tx;t.txt=tx;}
     {const k=Math.max(0,Math.min(100,100-left/(tf*10)))|0,kv=k+'%';if(t.pk!==kv){tag.style.setProperty('--lpk',kv);t.pk=kv;}}
     /* v82: no live dot or glow on the last candle (it hid the candle); the dotted price line + axis label mark the close */
-    tag.classList.toggle('soon',left<=Math.max(10000,tf*1000*0.1));tag.classList.toggle('last',left<=10000);tag.classList.toggle('stale',stale);
+    tgc(tag,'soon',left<=Math.max(10000,tf*1000*0.1));tgc(tag,'last',left<=10000);tgc(tag,'stale',stale);
     const H=G.h-tsH,th=t.th||(c.big?33:29);let y=null;try{y=c.series.priceToCoordinate(b.close);}catch(e){}
     let top,edge='';if(y==null||!Number.isFinite(y)){top=H-th;edge='b';}else{top=y-8;/* v82: price row centred on the line */if(top<0){top=0;edge=y<0?'t':'';}if(top>H-th){top=Math.max(0,H-th);edge=y>H?'b':'';}}
-    tag.classList.toggle('edge-t',edge==='t');tag.classList.toggle('edge-b',edge==='b');
+    tgc(tag,'edge-t',edge==='t');tgc(tag,'edge-b',edge==='b');
     let cw=G.w;try{const el=c.chart.chartElement(),ew=el?el.clientWidth:0;if(ew>0&&ew<G.w-2)cw=ew;}catch(e){}
     const TW=Math.max(psW,52),L=Math.max(0,G.l+cw-TW),st=tag.style;   // v82: the label sits exactly on the price axis, like TradingView
     if(st.left!==L+'px')st.left=L+'px';const Tp=(G.t+top)+'px';if(st.top!==Tp)st.top=Tp;if(st.width!==TW+'px')st.width=TW+'px';
-    tag.classList.add('on');
+    tgc(tag,'on',true);
   }
   function paintAll(){
     if(document.hidden)return;
@@ -13419,6 +13458,7 @@ Signs follow Settings → Dealer positioning.`;
       if(window.__lwcReg&&window.__lwcReg.on&&window.chartReplay){try{window.chartReplay.start(window.__lwcReg.cursor);}catch(x){}b.hidden=true;return;}
       const ts=chart.timeScale();
       try{ts.applyOptions({rightOffset:12});ts.scrollToRealTime();}catch(x){}
+      if(window.__v135lock)try{const m=window.paChart&&window.paChart();if(m&&m!==chart)m.timeScale().scrollToRealTime();}catch(x){}   // v135: the vol charts follow the BTC chart, so it is the one that goes back to live
       let pane=null;try{pane=panes.find(q=>q.chart===chart)||null;}catch(x){}
       const again=()=>{try{if(pane){pane.userMoved=false;frameLive(pane,true);}else ts.scrollToRealTime();}catch(x){}};
       requestAnimationFrame(again);setTimeout(again,250);
@@ -13694,7 +13734,7 @@ Signs follow Settings → Dealer positioning.`;
     for(const ev of ['pointerdown','touchstart'])b.addEventListener(ev,()=>{vovDown[i]=true;vovTouch[i]=Date.now();},{passive:true,capture:true});
     b.addEventListener('wheel',()=>{vovTouch[i]=Date.now();},{passive:true,capture:true});
     for(const ev of ['pointerup','pointercancel','touchend','touchcancel'])addEventListener(ev,()=>{if(vovDown[i]){vovDown[i]=false;vovTouch[i]=Date.now();}},{passive:true,capture:true});}
-  setInterval(()=>{if(document.hidden||typeof panes==='undefined')return;
+  setInterval(()=>{if(document.hidden||typeof panes==='undefined'||window.__v135lock)return;
     for(const p of panes){try{if(!p.chart||!p.vovChart)continue;watchVov(p.i);const b=$('vovBox'+p.i);
       if(!b||b.offsetParent===null||!b.clientHeight||vovDown[p.i]||Date.now()-vovTouch[p.i]<2500)continue;
       alignTo(p.chart,p.vovChart,null);}catch(e){}}},400);
@@ -13702,7 +13742,9 @@ Signs follow Settings → Dealer positioning.`;
   /* ---------- panel on each IV chart ---------- */
   const S=[{},{},{}];
   const viewOf=i=>$('pane'+i)?.dataset.view||'auto';
-  function shown(i){const b=$('dvBox'+i);if(!b||pref.mode==='off')return false;
+  const shownC=[];   // v135: read at most every 300 ms, like the VoV panel (each read forced a page layout on every crosshair move)
+  function shown(i){const now=performance.now(),c=shownC[i];if(c&&now-c.t<300)return c.v;const v=shown0(i);shownC[i]={t:now,v};return v;}
+  function shown0(i){const b=$('dvBox'+i);if(!b||pref.mode==='off')return false;
     if(document.fullscreenElement&&document.fullscreenElement!==document.documentElement&&!document.fullscreenElement.contains(b))return false;
     return b.offsetParent!==null&&b.clientHeight>0;}
   function lagOf(p,st){
@@ -13739,8 +13781,8 @@ Signs follow Settings → Dealer positioning.`;
     window.__dvCharts=window.__dvCharts||[];window.__dvCharts[p.i]={chart:st.chart,series:st.series};
     // v69: the IV chart leads, except while this panel is being dragged, wheeled or pinched (then it leads, for 1.5 s after)
     const leads=()=>!!st.active||Date.now()<(st.holdUntil||0);
-    p.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&!leads())alignTo(p.chart,st.chart,st);});
-    st.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&leads()){p.userMoved=true;alignTo(st.chart,p.chart,null);}});
+    p.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&!leads()&&!window.__v135lock)alignTo(p.chart,st.chart,st);});
+    st.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(shown(p.i)&&leads()&&!window.__v135lock){p.userMoved=true;alignTo(st.chart,p.chart,null);}});
     for(const ev of ['pointerdown','touchstart'])box.addEventListener(ev,()=>{st.active=true;},{passive:true,capture:true});
     box.addEventListener('wheel',()=>{st.holdUntil=Date.now()+1500;},{passive:true,capture:true});
     const release=()=>{if(st.active){st.active=false;st.holdUntil=Date.now()+1500;}};
@@ -15936,7 +15978,7 @@ document.addEventListener('keydown',ev=>{if(ev.key!=='Delete'&&ev.key!=='Backspa
 window.chartDraw2={db:()=>DB,inst:id=>I[id]};
 
 /* ---------- 6. reset to default ---------- */
-const PREF_KEYS=['btc_atm_iv_theme_v122','btc_atm_iv_theme','btc_iv_pane_view_v1','gfs_split_v1','btc_atm_iv_chart_prefs_v1','btc_dflow_prefs_v1','btc_impulse_prefs_v1','btc_rv_overlay_prefs_v1',
+const PREF_KEYS=['btc_atm_iv_theme_v132','btc_atm_iv_theme_v122','btc_atm_iv_theme','btc_iv_pane_view_v1','gfs_split_v1','btc_atm_iv_chart_prefs_v1','btc_dflow_prefs_v1','btc_impulse_prefs_v1','btc_rv_overlay_prefs_v1',
   'btc_vol_desk_prefs_v1','btc_vol_events_pref_v1','edge_rank_prefs_v1','ivprob_pref_v1','pa_layer_prefs_v2','pa_layer_prefs_v3','dv_prefs_v1','sr_prefs_v1','xs_prefs_v1','gxs_v1',
   'v80_page','v80_pane','v80_gpanes','v80_gpane','v80_em','v80_sr_open','v80_clock24_view','v80_events_filter'];
 const rb=$('resetBtn');
@@ -15966,7 +16008,7 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MON=['Jan','Feb','Mar','Ap
 const p2=n=>String(n).padStart(2,'0');
 // chart times are IST-shifted epoch seconds (bucketOf), so UTC getters print IST
 const fmtT=(t,dateOnly)=>{const d=new Date(t*1000);const s=`${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;return dateOnly?s:`${s} · ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`;};
-function groupOf(el){const id=el&&el.id||'';if(/^(chartG|paVol|paAdx|ofBox)$/.test(id))return 'btc';const m=/^(chart|rvChart|vovChart|dvChart)(\d)$/.exec(id);if(m)return 'vol'+m[2];if(/^reg[A-Z]/.test(id))return 'reg';return null;}
+function groupOf(el){const id=el&&el.id||'';if(/^(chartG|paVol|paAdx|ofBox)$/.test(id))return 'btc';const m=/^(chart|rvChart|vovChart|dvChart)(\d)$/.exec(id);if(m)return window.__v135lock?'btc':'vol'+m[2];   /* v135: one group with the BTC chart */if(/^reg[A-Z]/.test(id))return 'reg';return null;}
 const vis=el=>!!el&&el.isConnected&&el.offsetParent!==null&&el.clientWidth>0;
 
 /* ---------- 1. one price-scale width per group ---------- */
@@ -15980,7 +16022,10 @@ setInterval(alignScales,1500);setTimeout(alignScales,1200);
 
 /* ---------- 2. synced crosshair + time label ---------- */
 const hooked=new WeakSet();let syncing=false;
-function refSeries(e){let best=null;for(const r of e.series){let n=0;try{n=r.s.data().length;}catch(x){}let o={};try{o=r.s.options();}catch(x){}if(!n||o.visible===false)continue;if(!best||n>best.n)best={r,n};}return best&&best.r;}
+function refSeries(e){const now=performance.now();if(e.__rs&&now-e.__rsAt<1500)return e.__rs;let best=null;   /* v135: counts from the registry copy (series.data() copied every bar on every mouse move) and skips value-less whitespace series; cached 1.5 s */
+  for(const r of e.series){const F=r.full||[],n=F.length;if(!n)continue;let o={};try{o=r.s.options();}catch(x){}if(o.visible===false)continue;const L=F[n-1];if(!L||(L.close==null&&L.value==null))continue;if(!best||n>best.n)best={r,n};}
+  e.__rs=best&&best.r;e.__rsAt=now;return e.__rs;}
+function barAt(rec,t){const F=rec.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<=t)a=m+1;else b=m;}for(let i=Math.max(0,a-1),k=0;i>=0&&k<8;i--,k++){const x=F[i];const v=x&&(x.close!=null?x.close:x.value);if(v!=null)return {t:x.time,v};}const x=F[a];const v=x&&(x.close!=null?x.close:x.value);return v!=null?{t:x.time,v}:null;}
 function valAt(rec,t){const F=rec.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<t)a=m+1;else b=m;}const x=F[Math.min(a,F.length-1)];if(!x)return null;return x.close!=null?x.close:x.value!=null?x.value:null;}
 function pill(e){const host=e.el;if(!host)return null;if(!e.__pill||!e.__pill.isConnected){if(getComputedStyle(host).position==='static')host.style.position='relative';
     const d=document.createElement('div');d.className='v83-tpill';d.hidden=true;host.appendChild(d);e.__pill=d;}return e.__pill;}
@@ -15989,20 +16034,25 @@ function showPill(e,t){const d=pill(e);if(!d)return;if(t==null||axisShown(e)){d.
   if(x==null){const r=refSeries(e),F=r&&r.full||[];let a=0,b=F.length;while(a<b){const m=(a+b)>>1;if(F[m].time<=t)a=m+1;else b=m;}const q=F[Math.max(0,a-1)];if(q)try{x=e.chart.timeScale().timeToCoordinate(q.time);}catch(z){}}   // no bar at exactly that time: nearest earlier bar
   if(x==null){d.hidden=true;return;}const tf=(e.__tf||0);d.textContent=fmtT(t,tf>=86400);d.hidden=false;
   // on the hairline, at the bottom of the plot (where a time axis label would be), never under the price scale
-  let ps=0;try{ps=e.chart.priceScale('right').width()||0;}catch(z){}const w=d.offsetWidth||96,max=e.el.clientWidth-ps-w;
+  let ps=0;try{ps=e.chart.priceScale('right').width()||0;}catch(z){}const tl=d.textContent.length;if(d.__tl!==tl||!d.__w){d.__tl=tl;d.__w=d.offsetWidth||96;}const w=d.__w,max=(e.__cw&&performance.now()-e.__cwAt<1000?e.__cw:(e.__cwAt=performance.now(),e.__cw=e.el.clientWidth))-ps-w;
   d.style.left=Math.max(0,Math.min(max,x-w/2))+'px';d.style.top='';d.style.bottom='2px';}
 function tfOf(e){const r=refSeries(e);if(!r)return 0;const F=r.full;if(!F||F.length<3)return 0;return Math.abs(F[F.length-1].time-F[F.length-2].time);}
 function hook(e){if(hooked.has(e.chart))return;const g=groupOf(e.el);if(!g)return;hooked.add(e.chart);
   try{e.chart.applyOptions({crosshair:{vertLine:{labelVisible:true}}});}catch(x){}
-  e.chart.subscribeCrosshairMove(p=>{if(syncing)return;syncing=true;
-    try{const t=p&&p.time!=null?p.time:null;const R=W.__lwcReg;
-      for(const o of R.charts){if(groupOf(o.el)!==g||!vis(o.el))continue;o.__tf=o.__tf||tfOf(o);
+  e.chart.subscribeCrosshairMove(p=>{if(syncing)return;if(p&&p.point&&!p.sourceEvent)return;   /* v135: a series restyle re-fires the last crosshair spot (no mouse behind it): it used to drag every chart's crosshair to that old bar each tick */
+    XQ.e=e;XQ.g=g;XQ.t=p&&p.time!=null?p.time:null;if(!XQ.raf)XQ.raf=requestAnimationFrame(flushX);});}
+/* v135: one crosshair pass per frame (a mouse sends several moves a frame, each one restyled every chart), with the list of
+   charts in a group cached for half a second (checking visibility forced a page layout per chart per move) */
+const XQ={e:null,g:null,t:null,raf:0},GL={};
+function members(g){const now=performance.now(),c=GL[g];if(c&&now-c.at<500)return c.list;const R=W.__lwcReg,list=[];for(const o of R.charts)if(groupOf(o.el)===g&&vis(o.el))list.push(o);GL[g]={at:now,list};return list;}
+function flushX(){XQ.raf=0;const e=XQ.e,g=XQ.g,t=XQ.t;if(!e)return;syncing=true;
+    try{for(const o of members(g)){o.__tf=o.__tf||tfOf(o);
         if(o===e){showPill(o,t);continue;}   // the chart under the cursor shows its own date/time too
         if(t==null){try{o.chart.clearCrosshairPosition();}catch(x){}showPill(o,null);continue;}
-        showPill(o,t);const r=refSeries(o);if(!r)continue;const v=valAt(r,t);
-        try{o.chart.setCrosshairPosition(v!=null?v:0,t,r.s);}catch(x){}}
+        showPill(o,t);const r=refSeries(o);if(!r)continue;const q=barAt(r,t);   /* v135: snap to this chart's own bar at or before t (its bars can be 5 m while the BTC chart is 1 m) */
+        try{if(q)o.chart.setCrosshairPosition(q.v,q.t,r.s);else o.chart.clearCrosshairPosition();}catch(x){}}
       if(g==='btc')sizeAt(t);
-    }catch(x){}syncing=false;});}
+    }catch(x){}syncing=false;}
 function sweep(){const R=W.__lwcReg;if(!R)return;for(const e of R.charts){try{hook(e);}catch(x){}}}
 setInterval(sweep,2000);setTimeout(sweep,1500);
 
@@ -16736,7 +16786,7 @@ try{localStorage.removeItem('v87_adx');}catch(e){}
 (function IvBA(){
 'use strict';
 const W=window,KEY='v88:ivba:v1',KEEP=35*86400,DAYS=86400,ISTs=typeof IST_SEC==='number'?IST_SEC:19800;
-const on=()=>{try{return localStorage.getItem('v88_ba')!=='0';}catch(e){return true;}};
+const on=()=>{try{return localStorage.getItem('v88_ba')==='1';}catch(e){return false;}};   // v128: off unless you switch it on (two extra lines on the IV chart)
 const cv=(n,f)=>{try{return (typeof cssVar==='function'&&cssVar(n))||f;}catch(e){return f;}};
 const ST={d:{},legs:{},dirty:false,ver:0,loaded:false,P:[null,null,null]};
 const med=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);return s[s.length>>1];};
@@ -18006,7 +18056,7 @@ async function dget(path,query){const K=API.key();const q=query?'?'+query:'';
     catch(e){API.tries.push(name+': blocked');lastErr=e;r=null;}}
   if(!r)throw lastErr||new Error('Failed to fetch');
   const j=await r.json().catch(()=>null);if(!r.ok||!j||j.success===false){const c=j&&j.error?(j.error.code||j.error.message||JSON.stringify(j.error)):'HTTP '+r.status;const er=new Error(String(c));er.detail=j&&j.error||null;er.status=r.status;throw er;}
-  return j.result;}
+  dget.meta=j.meta||null;return j.result;}
 function legIv(px,K,type,t,exp){const S=(()=>{try{const R=W.rvIndexBars&&W.rvIndexBars();if(R&&R.bars){let best=null;for(const b of R.bars.values())if(b&&b.t<=t&&(!best||b.t>best.t))best=b;if(best&&t-best.t<15*MIN)return best.c;}}catch(e){}return null;})();
   const st=settleOf(exp);if(!(S>0&&px>0&&st>t))return null;const T=(st-t)/(365*DAY);
   const nc=x=>{const a=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*a*(0.3193815+a*(-0.3565638+a*(1.781478+a*(-1.821256+a*1.330274))));return x>=0?1-p:p;};
@@ -18060,7 +18110,7 @@ function boot(){if(!$('pgDesk')){setTimeout(boot,600);return;}cleanAnchors();tic
   setTimeout(()=>{paintOI(true);computeSig(true);},6000);
   apiPoll(true);D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#v100Conn'))onConn(e);});}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1500));else setTimeout(boot,1500);
-W.v100={setLevels:(e,x)=>{if(e>0&&x>e&&(e!==ENTRY||x!==EXIT)){ENTRY=e;EXIT=x;VS.at=0;computeSig(true);}},levels:()=>({E:ENTRY,X:EXIT}),ivHourly,expShort,slot,expNow,setSlot,computeSig:()=>computeSig(true),vs:()=>VS,api:API,tradeFrom,oi:()=>OI.last,poll:()=>apiPoll(true)};
+W.v100={dget:(p,q)=>dget(p,q),dgetMeta:()=>dget.meta,setLevels:(e,x)=>{if(e>0&&x>e&&(e!==ENTRY||x!==EXIT)){ENTRY=e;EXIT=x;VS.at=0;computeSig(true);}},levels:()=>({E:ENTRY,X:EXIT}),ivHourly,expShort,slot,expNow,setSlot,computeSig:()=>computeSig(true),vs:()=>VS,api:API,tradeFrom,oi:()=>OI.last,poll:()=>apiPoll(true)};
 })();
 </script>
 
@@ -18971,6 +19021,7 @@ canvas{image-rendering:auto}
 
 </style>
 <script data-module="v105">
+window.__v128NoAvg=true;   /* v128: Edge / Range without average lines or threshold price lines (the v122 bands show the thresholds) */
 /* =====================================================================
    v105 (12 Oct 2026) · Edge and Range candles under the BTC chart
    · EDGE  = mark ATM IV of the master expiry − expected realised vol from that moment to the
@@ -19118,7 +19169,7 @@ function build(k){const P=PANES[k];if(P.chart)return true;
   P.ser=ch.addCandlestickSeries({priceLineVisible:false,lastValueVisible:true,borderVisible:false,wickVisible:true,upColor:c.up,downColor:c.dn,wickUpColor:c.up,wickDownColor:c.dn,
     priceFormat:{type:'custom',formatter:v=>P.fmt(v),minMove:0.01},
     autoscaleInfoProvider:o=>{const r=o(),pr=P.range(r&&r.priceRange?r.priceRange:{minValue:0,maxValue:0}),B=BAND[k];if(B&&fin(B.hi)&&fin(B.lo)){pr.minValue=Math.min(pr.minValue,B.lo);pr.maxValue=Math.max(pr.maxValue,B.hi);}return {priceRange:pr};}});
-  for(const [v,cc,t] of P.lines)P.ser.createPriceLine({price:v,color:ha(c[cc],0.85),lineWidth:1,lineStyle:2,axisLabelVisible:true,title:t});
+  for(const [v,cc,t] of (window.__v128NoAvg?[]:P.lines))P.ser.createPriceLine({price:v,color:ha(c[cc],0.85),lineWidth:1,lineStyle:2,axisLabelVisible:true,title:t});
   P.chart=ch;
   src.timeScale().subscribeVisibleLogicalRangeChange(r=>{svg(k);if(!r||P.sync||P.user)return;follow(k,r);});
   ch.timeScale().subscribeVisibleLogicalRangeChange(r=>{svg(k);if(!r||P.sync||!P.user||!box.clientWidth)return;const ts=src.timeScale();if(near(ts.getVisibleLogicalRange(),r))return;P.sync=true;try{ts.setVisibleLogicalRange(r);}catch(e){}P.sync=false;});
@@ -19166,13 +19217,13 @@ function band(k){const m=k==='edge'?EG.m:RG.m,key=(k==='edge'?EG.key:RG.key)+'|'
   const out={key,at:Date.now(),n:full.length,hi:null,lo:null};
   if(full.length>=5){out.hi=full.reduce((s,x)=>s+x.hi,0)/full.length;out.lo=full.reduce((s,x)=>s+x.lo,0)/full.length;}
   BAND[k]=out;return out;}
-function bandLines(k){const P=PANES[k];if(!P.ser)return;const B=band(k),c=col(),f=k==='edge'?(v=>sg(v)):(v=>v.toFixed(2)+'×');
+function bandLines(k){const P=PANES[k];if(!P.ser)return;if(window.__v128NoAvg){for(const nm of ['bHi','bLo'])if(P[nm]){try{P.ser.removePriceLine(P[nm]);}catch(e){}P[nm]=null;}P.band=null;return;}const B=band(k),c=col(),f=k==='edge'?(v=>sg(v)):(v=>v.toFixed(2)+'×');
   for(const [nm,v,t] of [['bHi',B.hi,'avg high'],['bLo',B.lo,'avg low']]){
     if(!fin(v)){if(P[nm]){try{P.ser.removePriceLine(P[nm]);}catch(e){}P[nm]=null;}continue;}
     const ph=innerWidth<=760,o={price:v,color:ph?'#5B6B7C':'rgba(0,0,0,0)',lineWidth:ph?2:1,lineStyle:ph?2:3,axisLabelVisible:true,axisLabelColor:'#5B6B7C',axisLabelTextColor:'#fff',title:t};   /* phones: drawn by the chart itself (no SVG redraw while scrolling) */   /* line drawn in 3D by svg() */
     if(P[nm])try{P[nm].applyOptions(o);}catch(e){}else try{P[nm]=P.ser.createPriceLine(o);}catch(e){}}
   P.band=B;}
-function bandTxt(k){const B=BAND[k];if(!B||!fin(B.hi))return `<span class="dim">usual day: needs 5 full weekdays</span>`;const f=k==='edge'?(v=>sg(v)):(v=>v.toFixed(2)+'×');
+function bandTxt(k){if(window.__v128NoAvg)return '';const B=BAND[k];if(!B||!fin(B.hi))return `<span class="dim">usual day: needs 5 full weekdays</span>`;const f=k==='edge'?(v=>sg(v)):(v=>v.toFixed(2)+'×');
   return `<span class="dim">usual weekday ${f(B.lo)} → ${f(B.hi)} (avg low / high, ${B.n} days)</span>`;}
 function legend(k){const P=PANES[k];if(!P.leg)return;const Dd=P.data;
   if(!Dd){P.leg.innerHTML=`<b>${P.name.toUpperCase()}</b><span class="dim">waiting for BTC candles…</span>`;return;}
@@ -19189,7 +19240,7 @@ function svg(k){const P=PANES[k];if(!P.svg||!P.chart)return;if(innerWidth<=760){
   let g='';try{g+=W.paHair?W.paHair(Dd.R,P.chart.timeScale(),pw,H):'';}catch(e){}
   // shaded zone: Edge above +3 (sell zone), Range above 1.5× (gate flag)
   /* v105.12: clean background (no shaded zones); the usual-day average lines are drawn in 3D */
-  {const B=BAND[k];if(B&&fin(B.hi)&&fin(B.lo)){for(const [v,cc] of [[B.hi,'#5B6B7C'],[B.lo,'#5B6B7C']]){const yy=P.ser.priceToCoordinate(v);if(yy!=null&&yy>2&&yy<H-2)g+=W.line3d(2,pw-64,yy,cc,{w:2,dash:'7 5'});   /* stops short of the axis title */}}}
+  {const B=window.__v128NoAvg?null:BAND[k];if(B&&fin(B.hi)&&fin(B.lo)){for(const [v,cc] of [[B.hi,'#5B6B7C'],[B.lo,'#5B6B7C']]){const yy=P.ser.priceToCoordinate(v);if(yy!=null&&yy>2&&yy<H-2)g+=W.line3d(2,pw-64,yy,cc,{w:2,dash:'7 5'});   /* stops short of the axis title */}}}
   P.svg.innerHTML=g;}catch(e){}});}
 
 /* ---------------- pane switches (Panes menu) ---------------- */
@@ -20157,7 +20208,7 @@ if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',go);else go();
    touched the chart for 5 s, the view slides back so the newest candle is near the right edge (same zoom, or tighter
    when fewer candles are loaded than the zoom would show). Replay and Go-to are left alone. */
 (function(){var D=document,last=0;
-['pointerdown','touchstart','wheel'].forEach(function(ev){addEventListener(ev,function(e){try{if(e.target&&e.target.closest&&e.target.closest('#chartp'))last=Date.now();}catch(x){}},{passive:true,capture:true});});
+['pointerdown','touchstart','wheel'].forEach(function(ev){addEventListener(ev,function(e){try{if(e.target&&e.target.closest&&e.target.closest('#chartp,#charts'))last=Date.now();}catch(x){}},{passive:true,capture:true});});
 function fix(){try{if(D.hidden||Date.now()-last<5000)return;if(window.__lwcReg&&window.__lwcReg.on)return;if(D.body.classList.contains('rp-on'))return;
   var m=window.paChart&&window.paChart(),s=window.__gexSeries;if(!m||!s)return;var n=s.data().length;if(n<10)return;
   var ts=m.timeScale(),r=ts.getVisibleLogicalRange();if(!r)return;var w=r.to-r.from,over=r.to-(n-1);
@@ -20382,7 +20433,7 @@ function stripFor(S,t,c){const ch=t.chart;
 function analyse(){const T=targets(),byK={};
   for(const t of T){let S=ST.get(t.chart);if(!S){S={};ST.set(t.chart,S);}S.t=t;const c=closed(t.ser);S.c=c;if(!c){S.res=null;continue;}
     const key=c.length+'|'+c[c.length-1].time+'|'+c[c.length-1].close;if(S.key!==key){S.key=key;S.res=boxes(c);}
-    if(t.k==='iv')stripFor(S,t,c);byK[t.k]=S;}   // v123: Speed strip only under IV
+    if(t.k==='iv')stripFor(S,t,c);byK[t.k]=S;}for(const [ch,S0] of ST)if(!T.some(x=>x.chart===ch)){S0.c=null;S0.res=null;S0.key=null;}   // v135: hidden panes do not vote with stale data · v123: Speed strip only under IV
   // IV breaks → signals
   const iv=byK.iv,out={sell:null,exit:null,events:[]};
   if(iv&&iv.res){const c=iv.c,u=iv.res.u;
@@ -20402,7 +20453,7 @@ let SIG={events:[]};
 function chip(x,y,rgb,t1,t2,dark,below,big){return `<div class="v115c" style="left:${Math.max(3,x-14)}px;top:${below?y+9:y-27}px;border-color:rgba(${rgb},${big?1:.75})"><b style="color:rgb(${rgb});font-size:${big?9.5:8.5}px">${t1}</b>${t2?`<span>${t2}</span>`:''}</div>`;}
 function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(!bx||!bx.clientWidth)return;
   let ov=S.ov;if(!ov||!ov.isConnected){ov=D.createElement('div');ov.className='v115ov';bx.appendChild(ov);S.ov=ov;}
-  if(!S.res||!S.c||t.k!=='iv'){ov.innerHTML='';return;}   // v124: break boxes only on IV (Range keeps its London session box from v118)
+  if(!S.res||!S.c||t.k!=='iv'){if(ov.__h!==''){ov.__h='';ov.innerHTML='';}return;}   // v124: break boxes only on IV (Range keeps its London session box from v118)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,c=S.c;
   const X=i=>{const v=ts.timeToCoordinate(c[i].time);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
   let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
@@ -20428,7 +20479,7 @@ function draw(S){const t=S.t;if(!t||!t.el)return;const bx=t.el.parentElement;if(
 let raf=0,until=0;function frame(){raf=0;for(const S of ST.values())try{draw(S);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
 function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
 for(const ev of ['touchend','pointerup','wheel'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);setTimeout(redraw,3200);},{passive:true,capture:true});
-setInterval(()=>{if(!D.hidden)redraw();},1000);
+setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
 /* v117: the vol charts (IV · RV · VoV · DVOL) share one right-axis width, so their candles line up under each other */
 function sameAxis(){try{let P=typeof panes!=='undefined'?panes:null;if(!P)return;for(const p of P){if(!p||!p.chart)continue;const box=D.getElementById('pane'+p.i);if(!box||!box.classList.contains('on'))continue;
   const cs=[p.chart,p.rvMode==='panel'?p.rvChart:null,p.vovChart,W.__dvCharts&&W.__dvCharts[p.i]&&W.__dvCharts[p.i].chart].filter(Boolean);let w=0;
@@ -20461,7 +20512,7 @@ function railExtras(R,x,y,Wd,H,now,pane){if(!R||!R.pts||R.pts.length<8)return {s
   if(bars){const one=sy+6+sh-sh/1.6;s+=`<text x="2" y="${sy}" font-size="7.5" font-weight="700" fill="var(--muted)" font-family="var(--font)" letter-spacing=".08em">SPEED VS IV</text><line x1="0" x2="${Wd}" y1="${one.toFixed(1)}" y2="${one.toFixed(1)}" stroke="rgba(227,174,69,.85)" stroke-dasharray="3 3"/>`+bars;}
   return {svg:s,h:bars?sy+6+sh+2-H:0};}
 /* ---------- Trap check ---------- */
-function trap(){const iv=[...ST.values()].find(S=>S.t&&S.t.k==='iv'),now=Date.now()/1000+IST_S;
+function trap(){const iv=[...ST.values()].find(S=>S.t&&S.t.k==='iv'&&S.c),now=Date.now()/1000+IST_S;
   let pos=false;try{pos=!!(W.v18&&W.v18.lab&&W.v18.lab().cur);}catch(e){}
   const s=SIG.sell,peak=!!(s&&s.ok&&s.st==='real'&&now-s.sec<8*3600&&!(SIG.exit&&SIG.exit.sec>s.sec&&SIG.exit.st!=='fake'));
   let paid=null,pane=iv?iv.t.pi:masterPane();{let sum=0,n=0;for(let j=1;j<=4;j++){const v=speedAt(now-j*900,pane);if(v!=null){sum+=v;n++;}}if(n)paid=sum/n;}
@@ -20551,7 +20602,7 @@ function draw(S){const t=S.t;if(!t||!t.el||!S.c)return;const bx=t.el.parentEleme
   if(t.k!=='iv'&&t.k!=='rng'){if(ov.__h!==''){ov.__h='';ov.innerHTML='';}return;}   // v123: sessions only on IV (lines) and Range (boxes)
   const ts=t.chart.timeScale(),cr=t.el.getBoundingClientRect(),br=bx.getBoundingClientRect(),ox=cr.left-br.left,oy=cr.top-br.top,H=t.el.clientHeight,Wd=t.el.clientWidth;
   const X=tm=>{const v=ts.timeToCoordinate(tm);return v==null?null:ox+v;},Y=v=>{const y=t.ser.priceToCoordinate(v);return y==null?null:oy+y;};
-  const c=S.c,ses=ST[t.k]&&ST[t.k].ses||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
+  const c=S.c,ses=S.__ses118||[];let half=3;try{half=Math.max(1.5,ts.options().barSpacing*0.45);}catch(e){}
   const xAt=tm=>{const i=idxAt(c,tm);if(i<0)return null;const x=X(c[i].time);return x;};
   const main=t.k==='iv';let h='';
   const clampX=x=>Math.max(ox,Math.min(ox+Wd,x));
@@ -20594,16 +20645,16 @@ function ivLines(S){const ch=S.t.chart,c=S.c;if(!c||c.length<10)return;let L=LN[
   try{L.ma.setData([]);}catch(e){}   // v123: coloured 1-hour line removed (older, untested rule); the 1st–2nd red candles decide
   const med=median3d(c);if(med!=null){try{if(!L.medLine)L.medLine=S.t.ser.createPriceLine({price:med,color:'rgba(227,174,69,.9)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'3-day median'});else L.medLine.applyOptions({price:med});}catch(e){}}}
 /* ---------- loop ---------- */
-function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=sessions(X.c);ST[k].S=X;
+function analyse(){const S=W.v115&&W.v115.__st;if(!S)return;for(const X of S.values()){if(!X.t||!X.c)continue;const k=X.t.k;ST[k]=ST[k]||{};ST[k].ses=X.__ses118=sessions(X.c);ST[k].S=X;
     if(k==='iv'){ST.iv.sig=ivSignal(X.c,ST.iv.ses);try{ivLines(X);}catch(e){}if(ST.iv.sig&&ST.iv.sig.sell)ST.iv.sig.agree=others(ST.iv.sig.sell.t);}}
-  if(ST.iv&&ST.iv.sig){const s=ST.iv.sig,last=ST.iv.S.c[ST.iv.S.c.length-1];s.agreeNow=others(last.time);}}
+  if(ST.iv&&ST.iv.sig&&ST.iv.S&&ST.iv.S.c&&ST.iv.S.c.length){const s=ST.iv.sig,last=ST.iv.S.c[ST.iv.S.c.length-1];s.agreeNow=others(last.time);}}
 let raf=0,until=0;function frame(){raf=0;const S=W.v115&&W.v115.__st;if(S)for(const X of S.values())try{draw(X);}catch(e){}if(performance.now()<until)raf=requestAnimationFrame(frame);}
 function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=requestAnimationFrame(frame);}
 const subd=new WeakSet();
 function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v118',e);}
   const S=W.v115&&W.v115.__st;if(S)for(const X of S.values()){const ch=X.t&&X.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}
   redraw();}
-setInterval(tick,3000);setTimeout(tick,4500);setInterval(()=>{if(!D.hidden)redraw();},1000);
+setInterval(tick,3000);setTimeout(tick,4500);setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
 for(const ev of ['touchend','pointerup','wheel'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
 /* ---------- NY check (replaces the Trap check line in the NY window; outside it: Falling · IV high · Others agree) ---------- */
 function check(){const s=ST.iv&&ST.iv.sig;if(!s)return W.v115&&W.v115.__trap0?W.v115.__trap0():'';
@@ -20759,7 +20810,7 @@ function read(now){const F=frame(now),s=series(F.n2n),R={F,now};
     R.vov=vov(s,now);R.iv15=at(s,now-15*MIN);
     const a=F.listing+3*HR;if(now>=a+30*MIN){const ivA=med(within(s,a,a+30*MIN));let ck=null;try{ck=W.v89&&W.v89.clockIv?W.v89.clockIv(ivA,a,now,F.settle):null;}catch(x){}R.clock=fin(ck)?ck:null;R.tonight=R.clock!=null&&R.iv!=null?R.iv-R.clock:null;}else R.tonightWait=a+30*MIN;}
   if(R.cur!=null&&R.iv!=null&&R.iv>0)R.term=(R.cur-R.iv)/R.iv*100;
-  const cl=btcCloses(now,7*60+10);if(cl&&R.iv){R.rv6=rvOver(cl,now,360);R.rv6h1=rvOver(cl,now-HR,360);R.rv6pk=Math.max(...[0,30,60,90,120,150,180,210,240].map(m=>rvOver(cl,now-m*MIN,360)||0));
+  const cl=btcCloses(now,10*60+10);if(cl&&R.iv){R.rv6=rvOver(cl,now,360);R.rv6h1=rvOver(cl,now-HR,360);R.rv6pk=Math.max(...[0,30,60,90,120,150,180,210,240].map(m=>rvOver(cl,now-m*MIN,360)||0));
     const sp=t=>{const r=rvOver(cl,t,60),iv=at(s,t)||R.iv;return r!=null&&iv?r/iv:null;};R.speed=sp(now);let mx=null;for(let m=15;m<=120;m+=15){const v=sp(now-m*MIN);if(v!=null)mx=mx==null?v:Math.max(mx,v);}R.speedMax2h=mx;}
   try{const V=W.v105;if(V){const e=V.edgeAt?V.edgeAt(now):null,r=V.rangeAt?V.rangeAt(now):null;R.edge=fin(e)?e:null;R.range=fin(r)?r:null;}}catch(x){}
   try{R.imp=W.impulseRead?W.impulseRead():null;}catch(x){}
@@ -20857,7 +20908,7 @@ function board(R){const F=R.F,now=R.now,T=[];
 let html='';
 function mount(){let el=$('v121Lead');const ref=$('v104Lead');if(!el){el=D.createElement('section');el.id='v121Lead';el.setAttribute('aria-label','Leading signals');
     if(ref)ref.after(el);else{const pg=$('pgDesk');if(!pg)return null;pg.insertBefore(el,pg.firstChild);}}
-  else if(ref&&el.previousElementSibling!==ref)ref.after(el);return el;}
+  else if(ref&&el.previousElementSibling!==ref&&!el.dataset.v132)ref.after(el);return el;}
 function pill(R){const el=$('ph89');if(!el)return;let t='',c='a';const F=R.F,now=R.now,h=((now+IST)%DAY)/HR;
   if(R.sat&&now>=F.D0+12*HR&&now<F.exit){t='SAT · NO TRADE';c='r';}
   else if(R.evNext&&now<R.evNext.ok&&R.evNext.t-now<8*HR){t=R.evNext.code+' '+hm(R.evNext.t)+' · sell after '+hm(R.evNext.ok);}
@@ -20866,7 +20917,7 @@ function pill(R){const el=$('ph89');if(!el)return;let t='',c='a';const F=R.F,now
   if(!tag){tag=D.createElement('b');el.appendChild(tag);}tag.className='v121ph '+c;if(tag.textContent!==t)tag.textContent=t;}
 function tick(){if(D.hidden)return;let R=null;try{R=read(Date.now());}catch(e){console.warn('v121 read',e);return;}
   W.v121.last=R;try{pill(R);}catch(e){}
-  const pg=$('pgDesk');if(pg&&!pg.classList.contains('on'))return;
+  const pg=$('pgDesk'),dp=$('pgDecision');if(pg&&!pg.classList.contains('on')&&!(dp&&dp.classList.contains('on')))return;   /* v135: the board lives on the Decision page too */
   const el=mount();if(!el)return;let h='';try{h=board(R);}catch(e){console.warn('v121 board',e);return;}if(h!==html){html=h;el.innerHTML=h;}}
 /* term chip on the N2N chart header (renderPaneMeta calls this) */
 function termChip(e){try{const F=frame(Date.now());if(e!==F.n2n)return null;const c=liveAtm(F.cur),n=liveAtm(F.n2n);if(c==null||n==null)return null;const t=(c-n)/n*100;
@@ -20995,7 +21046,7 @@ function drawIV(S,g){const A=S.a;if(!A)return '';let h='';const s=A.S,inSess=A.t
     h+=hline(g,ev,g.X(te),'ent','entry IV '+f1(ev)+(g.pw<520?'':' · exit if back above NY high after 02:30'),'b');}}
   const xb=g.X(s.exit);if(xb!=null&&A.tl>=s.exit-60)h+=`<div class="v122v bk" style="left:${xb}px;top:${g.oy}px;height:${g.ph}px"></div><div class="v122t b" style="left:${xb+4}px;top:${g.oy+4}px">07:00 BOOK</div>`;
   // chips top-right: book countdown + speed
-  const now=Date.now()/1000+IST;let cy=g.oy+6;const R=W.v121&&W.v121.last;
+  const now=Date.now()/1000+IST;let cy=g.oy+40;const R=W.v121&&W.v121.last;
   if((pos||(now>=s.open&&now<s.exit))&&A.tl>=s.open-H){h+=chip(g.R-8,cy,'b','Book 07:00 · '+dur(s.exit-now)).replace('style="','style="transform:translateX(-100%);');cy+=20;}
   if(R&&R.speed!=null&&now>=s.open&&now<s.exit){const sp=R.speed,mx=R.speedMax2h;let cls='n',t='Speed '+sp.toFixed(2)+'×';
     if(sp<1){cls='n';t+=' · slow';}else if(sp>((W.__rule&&W.__rule().spd)||1.5)){cls='r';t+=' · fast · wait';}else if(mx!=null&&mx>((W.__rule&&W.__rule().spd)||1.5)){cls='g';t+=' · back ≤1.5 ✓';}
@@ -21006,16 +21057,16 @@ function drawVoV(S,g){const A=S.a;if(!A)return '';let h='';const x=g.X(A.mt),y=g
   let cls=null,t='';if(A.off<0.02&&A.rising){cls='r';t='spiking · wait';}
   else if(A.off>=0.05&&A.off<=0.2&&A.falling){cls='g';t='turned down ✓ <span>'+Math.round(A.off*100)+'% off peak</span>';}
   else if(A.off>0.2){cls='n';t=Math.round(A.off*100)+'% off peak · old';}
-  if(cls)h+=chip(g.R-8,g.oy+6,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
+  if(cls)h+=chip(g.R-8,g.oy+40,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
 function drawRV(S,g){const A=S.a;if(!A)return '';let h='';
   h+=hband(g,25,null,null,'q','below 25 = too quiet','');
   if(fin(A.mx)){const x=g.X(A.mt);h+=hline(g,A.mx,x,'hi','4 h high '+f1(A.mx)+(A.mx-A.now>0.05?' · now −'+(A.mx-A.now).toFixed(1):''),'r');}
   const d=A.mx-A.now;let cls=null,t='';if(d>=3&&A.falling){cls='g';t='peaked &amp; falling ✓ late OK';}else if(A.rising&&d<1){cls='r';t='RV rising · wait';}
-  if(cls)h+=chip(g.R-8,g.oy+6,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
+  if(cls)h+=chip(g.R-8,g.oy+40,cls,t).replace('style="','style="transform:translateX(-100%);');return h;}
 function drawDV(S,g){const A=S.a;if(!A||A.pre==null)return '';let h='';const s=A.S,x0=g.X(s.open-75*M);
   h+=hline(g,A.pre,x0,'pre','pre-NY '+f1(A.pre),'',true);
   if(A.tl>=s.open&&A.tl<s.exit){const xo=g.X(s.open);h+=hband(g,A.pre+1.0,A.pre+0.3,xo,'g','+0.3 to +1.0 ✓','g');h+=hband(g,A.pre+2.5,A.pre+1.0,xo,'a','over +1 = half','a');
-    const d=A.now-A.pre;const cls=d>=0.3&&d<=1?'g':d>1?'a':'n';h+=chip(g.R-8,g.oy+6,cls,'DVOL '+sg(d)+' vs pre-NY'+(cls==='g'?' ✓':cls==='a'?' · half':' · no fear')).replace('style="','style="transform:translateX(-100%);');}
+    const d=A.now-A.pre;const cls=d>=0.3&&d<=1?'g':d>1?'a':'n';h+=chip(g.R-8,g.oy+40,cls,'DVOL '+sg(d)+' vs pre-NY'+(cls==='g'?' ✓':cls==='a'?' · half':' · no fear')).replace('style="','style="transform:translateX(-100%);');}
   return h;}
 function drawEdge(S,g){return hband(g,null,3,null,'r','above +3 = too quiet · skip','r');}
 function drawRng(S,g){return hband(g,null,2,null,'a','above 2× · wait','a')+hband(g,2,1,null,'g','1–2× good','g')+hband(g,1,0,null,'r','below 1× = too quiet','r');}
@@ -21035,7 +21086,7 @@ function redraw(){until=Math.max(until,performance.now()+600);if(!raf)raf=reques
 const subd=new WeakSet();
 function tick(){if(D.hidden)return;try{analyse();}catch(e){console.warn('v122',e);}
   for(const S of ST.values()){const ch=S.t&&S.t.chart;if(ch&&!subd.has(ch)){subd.add(ch);try{ch.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch(e){}}}redraw();}
-setInterval(tick,3000);setTimeout(tick,5000);setInterval(()=>{if(!D.hidden)redraw();},1000);
+setInterval(tick,3000);setTimeout(tick,5000);setInterval(()=>{if(!D.hidden&&!raf)raf=requestAnimationFrame(frame);},1000);   /* v135: one frame a second, not 0.6 s of every second */
 for(const ev of ['touchend','pointerup','wheel','resize'])addEventListener(ev,()=>{redraw();setTimeout(redraw,350);setTimeout(redraw,1300);},{passive:true,capture:true});
 W.v122={tick,__st:ST,__test:{ivA,vovA,rvA,dvA,rd}};
 })();
@@ -21258,7 +21309,7 @@ function evaluate(data){const {nights,ivOnly}=data,K=CFG,rows=[];
 /* ---------- run (daily, after the 07:00 book) ---------- */
 let RUN=null,DATA=null,busy=false,prog='';
 async function runCheck(force){if(busy)return;const now=Date.now(),last=LSg('v126_check',null),today=dk(now),h=(now+IST)%DAY/HR;
-  if(!force&&last&&last.day===today)return;if(!force&&h<7.08)return;if(!FN()||!W.v121.frame)return;
+  if(!force&&last&&last.day===today&&((last.at||0)+IST)%DAY/HR>=7.08)return;if(!force&&h<7.08)return;if(!FN()||!W.v121.frame)return;
   busy=true;prog='loading archive…';render();
   try{DATA=await loadNights((i,n)=>{prog=`reading night ${i} of ${n}…`;render();});prog='testing…';render();await new Promise(r=>setTimeout(r,30));
     RUN=evaluate(DATA);const keep=Object.assign({},RUN);LSs('v126_check',keep);}
@@ -21302,7 +21353,7 @@ function tradesHtml(){const L=LSg('v99_trades',[])||[],cur=LSg('v99_trade',null)
   if(!all.length)return `<details id="v126t"><summary>My trades · from Delta fills <span class="v6m">none logged yet · connect the Delta key in Settings (read-only)</span></summary><p class="v6nt">Each trade the desk sees in your fills is kept here with the readings at its entry minute.</p></details>`;
   const N=DATA&&DATA.nights?new Map(DATA.nights.map(n=>[n.d,n])):null;
   const rowOf=x=>{const t=x.openedAt,cr=(x.fills||[]).reduce((a,f)=>a+(f.cr||0)*(f.lots||0),0),lots=(x.fills||[]).reduce((a,f)=>a+(f.lots||0),0);let rd='';
-    if(N&&t){const F=W.v121.frame(t),n=N.get(dk(F.D0+12*HR));if(n){const R=readAt(Math.floor(t/MIN)*MIN,F,n.s,n.sc,n.cl);if(R){const ok=R.offPct!=null&&R.offPct>=CFG.offLo&&R.offPct<=CFG.offHi&&R.reds>=1&&R.reds<=2;
+    if(N&&t){const F=W.v121.frame(t),n=N.get(dk(F.D0+12*HR));if(n){const tm=Math.floor(t/MIN)*MIN,RC=n.rc||(n.rc=new Map());if(!RC.has(tm))RC.set(tm,readAt(tm,F,n.s,n.sc,n.cl));const R=RC.get(tm);if(R){const ok=R.offPct!=null&&R.offPct>=CFG.offLo&&R.offPct<=CFG.offHi&&R.reds>=1&&R.reds<=2;
       rd=[['IV turn',ok],['VoV',R.cVov],['Speed',R.cSpd],['Tonight',R.cTon],['Term',R.term!=null?R.term>0:null]].map(([l,v])=>`${v===true?'✓':v===false?'✕':'·'} ${l}`).join(' · ');}}}
     if(!rd)rd='<span style="color:var(--muted)">readings after the next rule check</span>';
     return `<tr><td class="v6n">${t?dk(t):'—'}</td><td class="v6n">${t?hm(t):'—'}</td><td class="v6n">${x.Kc||'—'} C / ${x.Kp||'—'} P</td><td class="v6n">${lots?lots+' lots':''}${cr?' · $'+Math.round(cr):''}</td><td>${rd}</td><td class="v6n">${x.open?'open':x.closedAt?hm(x.closedAt):'—'}</td><td class="v6n">${fin(x.pnlUsd)?(x.pnlUsd>=0?'+':'')+'$'+x.pnlUsd.toFixed(2):'—'}</td></tr>`;};
@@ -21331,6 +21382,651 @@ function tick(){if(D.hidden)return;try{render();}catch(e){console.warn('v126',e)
 setTimeout(tick,2500);setInterval(tick,15000);
 setTimeout(()=>runCheck(false),25000);setInterval(()=>{if(!D.hidden)runCheck(false);},10*MIN);
 })();
+</script>
+
+<style id="v127Css">
+/* v127 · Option A: indicator tabs under the BTC chart (one open) + vol-chart picker (IV / RV / VoV / DVOL) */
+body[data-v127] .g-tabs{display:flex!important;gap:6px;flex-wrap:wrap;align-items:center;padding:7px 10px;border-top:1px solid var(--line);flex:none}
+body[data-v127] .g-tabs::before{content:"INDICATOR";font-size:10.5px;letter-spacing:.08em;color:var(--muted);margin-right:4px;min-width:70px}
+body[data-v127] .g-tabs button{font:600 12.5px/1 var(--font);padding:7px 14px;border-radius:999px;border:1px solid var(--line2,var(--line));background:var(--panel);color:var(--text);cursor:pointer;min-height:32px}
+body[data-v127] .g-tabs button[aria-selected="true"]{background:#2F7CC0;border-color:#2F7CC0;color:#fff}
+.v127-off{display:none!important}
+body.charts-row #charts .pane.on>.v127-off.v127-off,#charts .pane>.v127-off.v127-off{display:none!important}
+#v127Vol{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);flex:none}
+#v127Vol .v7lb{min-width:70px;font-size:10.5px;letter-spacing:.08em;color:var(--muted);margin-right:4px}
+#v127Vol button{font:600 12.5px/1 var(--font);padding:7px 14px;border-radius:999px;border:1px solid var(--line2,var(--line));background:var(--panel);color:var(--text);cursor:pointer;min-height:32px}
+#v127Vol button[aria-pressed="true"]{background:#2F7CC0;border-color:#2F7CC0;color:#fff}
+#v127Vol .v7nt{font-size:11px;color:var(--muted)}
+@media (min-width:761px){
+  body.charts-row #charts .pane.on[data-v127n="1"]{grid-template-columns:minmax(0,1fr)!important}
+  body.charts-row #charts .pane.on[data-v127n="2"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body.charts-row #charts .pane.on[data-v127n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media (max-width:760px){#v127Vol .v7nt{display:none}}
+@media (min-width:761px){body[data-v127] #pgDesk #paneG>#v105EdgeBox,body[data-v127] #pgDesk #paneG>#v105RangeBox,body[data-v127] #pgDesk #paneG>#cvLane{height:150px!important;max-height:none!important}}
+</style>
+<script data-module="v127">
+/* v132 (replaces v127's tabs) · ONE Indicators menu, CoinGlass style (16 Oct 2026, preview, not deployed).
+   "ƒx Indicators" in the BTC chart bar opens a list with search: Speed vs IV · Edge · Range · ADX · ATM IV · RV · VoV ·
+   DVOL · Tonight. Tick any number; each ticked one is shown as its own panel, the rest are hidden. Remembered (v132_ind).
+   Speed / Edge / Range / ADX sit under the BTC chart (heights shared out); IV / RV / VoV / DVOL follow straight below the BTC
+   panel, one per row; Tonight is the IV-vs-clock rail. The old INDICATOR tabs, VOL CHARTS buttons and Panes menu are gone. */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);
+const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const LIST=[['spd','Speed vs IV','RV ÷ IV bars · 1× and 1.5× lines','btc'],['edge','Edge','IV − expected RV · above +3 = too quiet','btc'],['rng','Range 24H','24 h move ÷ DVOL day move · 1–2× good','btc'],
+  ['adx','ADX 14','trend strength · +DI / −DI','btc'],['iv','ATM IV','candles of the chosen expiry · SELL zone','vol'],['rv','Realised vol (RV)','6 h RV · 4 h high · peaked & falling','vol'],
+  ['vov','Vol of vol (VoV)','turned down ✓ / spiking','vol'],['dv','DVOL','Deribit 30-day index · pre-NY band','vol'],['ton','Tonight','IV vs the clock path · from 21:00','rail'],
+  ['gex','Dealer gamma','γ flip · call / put walls · flows line · profile on the BTC chart','btc'],
+  ['sig','Entry signals','tested N2N playbook · SELL / EXIT marks on the BTC chart','btc'],['pat','Chart patterns','head & shoulders · double top / bottom · BOS / CHoCH','btc'],['cdl','Candle patterns','engulfing · hammer · star labels on candles','btc']];
+const IND={spd:()=>$('cvLane'),edge:()=>$('v105EdgeBox'),rng:()=>$('v105RangeBox'),adx:()=>$('paAdxBox')};
+const DEF={spd:true,edge:false,rng:false,adx:false,iv:true,rv:false,vov:false,dv:false,ton:false,gex:false,sig:true,pat:true,cdl:false};   // v133: a clean first screen; tick more in the menu
+let on=Object.assign({},DEF,LSg('v133_ind',{}));
+function save(){LSs('v133_ind',on);}
+function refit(){try{W.paRefit&&W.paRefit();}catch(e){}setTimeout(()=>{try{W.dispatchEvent(new Event('resize'));}catch(e){}},60);setTimeout(()=>{try{W.v128&&W.v128.refit&&W.v128.refit();}catch(e){}},700);}
+/* ---------- the menu ---------- */
+function button(){const top=$('gTop');if(!top||$('v132IndBtn'))return;const r=top.querySelector('.r')||top;
+  const b=D.createElement('button');b.type='button';b.id='v132IndBtn';b.className='tool v132ib';b.setAttribute('aria-haspopup','dialog');
+  b.innerHTML='<b>ƒx</b> Indicators <span class="v132n"></span>';r.insertBefore(b,r.firstChild);b.addEventListener('click',e=>{e.stopPropagation();openMenu();});}
+function count(){const n=Object.values(on).filter(Boolean).length;const s=D.querySelector('#v132IndBtn .v132n');if(s)s.textContent=n;}
+function openMenu(){let m=$('v132Ind');if(m){m.hidden=!m.hidden;if(!m.hidden){paint();const q=m.querySelector('input[type=search]');if(q)q.focus();}return;}
+  m=D.createElement('div');m.id='v132Ind';m.setAttribute('role','dialog');m.setAttribute('aria-label','Indicators');
+  m.innerHTML='<div class="h"><b>Indicators</b><button type="button" class="x" aria-label="Close">✕</button></div><label class="s"><span aria-hidden="true">⌕</span><input type="search" placeholder="Search" aria-label="Search indicators"></label><div class="lb">Indicators</div><div class="ls" role="list"></div><div class="f"><button type="button" data-a="all">Show all</button><button type="button" data-a="def">Default set</button></div>';
+  D.body.appendChild(m);
+  m.addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('.x')){m.hidden=true;return;}const a=e.target.closest('[data-a]');if(a){if(a.dataset.a==='all')for(const [k] of LIST)on[k]=true;else on=Object.assign({},DEF);save();apply(true);paint();return;}
+    const it=e.target.closest('[data-k]');if(it){const k=it.dataset.k;on[k]=!on[k];if(!Object.values(on).some(Boolean))on[k]=true;save();apply(true);paint();}});
+  m.querySelector('input').addEventListener('input',paint);
+  D.addEventListener('click',e=>{if(!m.hidden&&!e.target.closest('#v132Ind,#v132IndBtn'))m.hidden=true;});
+  D.addEventListener('keydown',e=>{if(e.key==='Escape'&&!m.hidden){m.hidden=true;e.stopPropagation();}},true);paint();m.querySelector('input').focus();}
+function paint(){const m=$('v132Ind');if(!m)return;const q=(m.querySelector('input').value||'').toLowerCase();
+  m.querySelector('.ls').innerHTML=LIST.filter(([k,n,d])=>!q||(n+' '+d).toLowerCase().includes(q)).map(([k,n,d])=>`<button type="button" role="listitem" data-k="${k}" aria-pressed="${!!on[k]}"><span><b>${n}</b><i>${d}</i></span><em>${on[k]?'✓':'+'}</em></button>`).join('')||'<p class="no">No match</p>';count();}
+/* ---------- show / hide ---------- */
+function apply(force){D.body.dataset.v127='1';D.body.dataset.gpane='none';let ch=false;
+  const shown=Object.keys(IND).filter(k=>on[k]&&IND[k]()),n=shown.length,h=n<=1?190:n===2?150:n===3?120:100;
+  for(const k in IND){const el=IND[k]();if(!el)continue;const off=!on[k];if(el.classList.contains('v127-off')!==off){el.classList.toggle('v127-off',off);ch=true;}
+    if(D.body.classList.contains('v133')&&innerWidth>760){}   // v134: v133.fit() owns the lane heights (two owners made a resize loop = the blinking)
+    else if(!off&&innerWidth>760){const want=h+'px';if(el.style.getPropertyValue('height')!==want){el.style.setProperty('height',want,'important');ch=true;}}else if(el.style.getPropertyValue('height')){el.style.removeProperty('height');ch=true;}}
+  D.querySelectorAll('#charts .pane').forEach(p=>{const m={iv:p.querySelector(':scope>.chart-box'),rv:p.querySelector(':scope>.rv-box'),vov:p.querySelector(':scope>.vov-box'),dv:p.querySelector(':scope>.dv-box')};
+    let c=0;for(const k in m){const el=m[k];if(!el)continue;const off=!on[k];if(el.classList.contains('v127-off')!==off){el.classList.toggle('v127-off',off);ch=true;}if(!off)c++;}
+    const nn=String(Math.max(1,c));if(p.dataset.v127n!==nn){p.dataset.v127n=nn;ch=true;}});
+  const vr=$('volRow');const anyVol=on.iv||on.rv||on.vov||on.dv;if(vr&&vr.classList.contains('v127-off')===anyVol){vr.classList.toggle('v127-off',!anyVol);ch=true;}
+  const rail=$('v89Rail');if(rail&&rail.classList.contains('v127-off')===!!on.ton){rail.classList.toggle('v127-off',!on.ton);ch=true;}
+  for(const k in IND){const el=IND[k]();if(el&&on[k]&&el.classList.contains('v80-hide')){el.classList.remove('v80-hide');ch=true;}}   // the old Panes menu could still be hiding it
+  if(W.__v133Gex!==!!on.gex){W.__v133Gex=!!on.gex;D.body.classList.toggle('v133-gex',!!on.gex);ch=true;}else D.body.classList.toggle('v133-gex',!!on.gex);
+  try{W.v133&&W.v133.fit&&W.v133.fit();}catch(e){}
+  if(force||!layers.done)try{layers();}catch(e){}try{W.v134sig&&W.v134sig.enable(!!on.sig);}catch(e){}
+  count();if(ch||force)refit();}
+/* v134: pattern items drive the price-action layers (same buttons as the old layer menu) */
+function layers(){const want={charts:!!on.pat,struct:!!on.pat,candles:!!on.cdl};let n=0;for(const k in want){const b=D.querySelector('.pa-tg[data-k="'+k+'"]');if(!b)continue;n++;if((b.getAttribute('aria-pressed')==='true')!==want[k])b.click();}if(n===3)layers.done=1;}   /* v135: once, then the Layers menu is yours */
+function tick(){try{button();apply(false);}catch(e){console.warn('v132 ind',e);}}
+setTimeout(tick,600);setTimeout(tick,2000);setInterval(()=>{if(!D.hidden)tick();},2500);addEventListener('resize',()=>setTimeout(()=>apply(false),200));
+W.v127={tick,state:()=>({on})};W.v132ind={open:openMenu,state:()=>on,apply};})();
+</script>
+<style id="v128Css">
+/* v128 · bigger panels: vol charts one per row under the BTC block; zoom − + fit on every chart */
+@media (min-width:761px){
+  body.charts-row #charts .pane.on,body.charts-row #charts .pane.on[data-v127n]{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:none!important;grid-auto-rows:auto!important;height:auto!important;max-height:none!important;overflow:visible!important}
+  body.charts-row #charts .pane.on>.chart-box{height:440px!important;min-height:440px!important;max-height:none!important}
+  body.charts-row #charts .pane.on>.rv-box,body.charts-row #charts .pane.on>.vov-box,body.charts-row #charts .pane.on>.dv-box{height:320px!important;min-height:320px!important;max-height:none!important}
+  #volRow,#chartsSlotDesk,#charts{height:auto!important;max-height:none!important}
+  body.charts-row #charts .pane.on>*{grid-column:1/-1!important;grid-row:auto!important}
+  body[data-v127] #pgDesk #paneG>#v105EdgeBox,body[data-v127] #pgDesk #paneG>#v105RangeBox,body[data-v127] #pgDesk #paneG>#cvLane{height:190px!important}}
+.v128z{position:absolute;top:6px;z-index:9;display:flex;gap:4px;pointer-events:auto}
+.v128z button{width:30px;height:28px;border-radius:8px;border:1px solid var(--line2,var(--line));background:color-mix(in srgb,var(--panel) 92%,transparent);color:var(--text);font:700 15px/1 var(--font);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+.v128z button:hover{border-color:#2F7CC0;color:#2F7CC0}
+.v128z button.f{width:auto;padding:0 8px;font-size:11.5px}
+.v128z .zl{align-self:center;font-size:14px;color:var(--muted);padding:0 2px}
+@media (max-width:760px){.v128z button{width:34px;height:32px}}
+</style>
+<script data-module="v128">
+/* v128 (16 Oct 2026, preview, not deployed). Zoom − / + / Fit on every chart (IV, RV, VoV, DVOL, Edge, Range, ADX);
+   Edge / Range / ADX / Speed follow the BTC chart, so their buttons zoom the BTC chart. Vol charts open fitted like the BTC
+   chart (last 24 h, a little room on the right) instead of squeezed by the space up to settlement. Desktop: vol charts one per
+   row, IV 440 px, others 320 px; the open indicator 190 px. Fewer lines: no bid/ask lines on IV (switch Bid/Ask to show them),
+   no grey comparison line on VoV, no dashed last-value line on RV, no average lines on Edge / Range. */
+(function(){'use strict';const W=window,D=document,MASTER=new Set(['edge','rng','adx','spd']);
+function master(){try{return W.paChart?W.paChart():null;}catch(e){return null;}}
+function bars(ser){let d=null;try{d=ser.__reg&&Array.isArray(ser.__reg.full)&&ser.__reg.full.length?ser.__reg.full:ser.data();}catch(e){}return d||[];}
+function zoom(ch,f){if(!ch)return;try{const ts=ch.timeScale(),r=ts.getVisibleLogicalRange();if(!r)return;const w=Math.max(10,(r.to-r.from)*f);ts.setVisibleLogicalRange({from:r.to-w,to:r.to});}catch(e){}}
+function fit(ch,ser){if(!ch||!ser)return false;const d=bars(ser).filter(x=>x&&(x.close!=null||x.value!=null));const n=d.length;if(n<20)return false;
+  let g=Infinity;for(let i=Math.max(1,n-60);i<n;i++){const x=d[i].time-d[i-1].time;if(x>0&&x<g)g=x;}if(!isFinite(g))g=300;
+  const T=d[n-1].time;let i0=n-1;while(i0>0&&d[i0-1].time>=T-24*3600)i0--;
+  // logical index of the last real bar in the chart (whitespace series can sit in front)
+  let li=null;try{li=ch.timeScale().coordinateToLogical(ch.timeScale().timeToCoordinate(T));}catch(e){}
+  const all=(()=>{try{const D2=ser.data();return D2.length;}catch(e){return n;}})();const last=li!=null&&isFinite(li)?li:all-1,first=last-(n-1-i0);
+  try{ch.timeScale().setVisibleLogicalRange({from:first,to:last+Math.max(2,Math.round(2*3600/g))});return true;}catch(e){return false;}}
+function fitMaster(){try{const b=D.querySelector('#gRange [data-r="1"]');if(b)b.click();}catch(e){}}
+function ivOf(pi){const S=W.v115&&W.v115.__st;if(S)for(const X of S.values()){const t=X&&X.t;if(t&&t.k==='iv'&&t.pi===pi)return t;}return null;}
+function targets(){const out=[];const S=W.v115&&W.v115.__st;if(S)for(const X of S.values()){const t=X&&X.t;if(t&&t.el&&t.chart)out.push({k:t.k,chart:t.chart,ser:t.ser,el:t.el,pi:t.pi});}
+  try{const a=W.paAdxChart&&W.paAdxChart(),el=D.getElementById('paAdx');if(a&&el)out.push({k:'adx',chart:a,ser:W.paAdxSeries&&W.paAdxSeries(),el});}catch(e){}
+  try{const el=D.getElementById('cvLane');if(el)out.push({k:'spd',chart:null,ser:null,el,lane:true});}catch(e){}
+  return out;}
+const FIT=new WeakMap();
+function controls(t){const host=t.lane?t.el:t.el.parentElement;if(!host)return;let z=host.querySelector(':scope>.v128z');
+  if(!z){z=D.createElement('div');z.className='v128z';z.innerHTML='<span class="zl" aria-hidden="true">⟷</span><button type="button" data-z="out" aria-label="Zoom out in time" title="Zoom out (more hours)">−</button><button type="button" data-z="in" aria-label="Zoom in in time" title="Zoom in (fewer hours)">+</button><button type="button" class="f" data-z="fit" aria-label="Fit to last 24 hours" title="Fit: last 24 h">Fit</button>';
+    if(getComputedStyle(host).position==='static')host.style.position='relative';host.appendChild(z);
+    z.addEventListener('pointerdown',e=>e.stopPropagation());
+    z.addEventListener('click',e=>{const b=e.target.closest('[data-z]');if(!b)return;e.preventDefault();e.stopPropagation();const a=b.dataset.z,T=z.__t;if(!T)return;
+      /* the BTC chart leads Edge/Range/ADX/Speed; the IV chart leads RV/VoV/DVOL of its pane (they follow it) */
+      const M=MASTER.has(T.k)||!!W.__v135lock,L=M?null:(T.k==='iv'?T:(ivOf(T.pi)||T)),ch=M?master():L.chart;   /* v135: every chart follows the BTC chart */
+      if(a==='in')zoom(ch,0.7);else if(a==='out')zoom(ch,1/0.7);else{if(M)fitMaster();else{fit(L.chart,L.ser);if(L!==T)fit(T.chart,T.ser);}}});}
+  z.__t=t;let ps=64;try{if(t.chart)ps=t.chart.priceScale('right').width()||64;}catch(e){}const r=(t.lane?8:ps+8)+'px';if(z.style.right!==r)z.style.right=r;
+  if(!MASTER.has(t.k)&&t.chart&&!W.__v135lock){const st=FIT.get(t.chart)||{n:0,user:false,at:0};if(!FIT.has(t.chart)){FIT.set(t.chart,st);const h=t.el.parentElement;if(h)for(const ev of ['pointerdown','wheel','touchstart'])h.addEventListener(ev,e=>{if(!e.target.closest('.v128z'))st.user=true;},{passive:true});}
+    /* fit when data first arrives, and again while the history is still filling in (the desk re-sets the range as it loads) — until you touch the chart */
+    const n=bars(t.ser).length;if(!st.user&&n>=20&&(st.n===0||n>st.n*1.3)&&Date.now()-st.at>1500){if(fit(t.chart,t.ser)){st.n=n;st.at=Date.now();}}}}
+function lines(){let P=null;try{P=typeof panes!=='undefined'?panes:null;}catch(e){}if(!P)return;
+  for(const p of P){if(!p)continue;const s=p.vovOld;if(s&&!s.__v128){try{s.applyOptions({visible:false});s.__v128=1;}catch(e){}}
+    const r=p.rvSub;if(r&&!r.__v128){try{r.applyOptions({priceLineVisible:false});r.__v128=1;}catch(e){}}}}
+function tick(){if(D.hidden)return;try{lines();for(const t of targets())controls(t);}catch(e){console.warn('v128',e);}}
+setTimeout(tick,1500);setTimeout(tick,4000);setInterval(tick,2500);
+addEventListener('resize',()=>setTimeout(tick,300));
+function refit(){if(W.__v135lock)return;for(const t of targets()){if(MASTER.has(t.k)||!t.chart)continue;const st=FIT.get(t.chart);if(st&&st.user)continue;fit(t.chart,t.ser);}}
+W.v128={tick,fit,zoom,refit};})();
+</script>
+<style id="v130Css">
+/* v130 · full screen = the chart platform only (header and ticker stay); the side panels, Tonight rail and notices step aside */
+/* the vol-chart toolbar was sticky and slid over the IV stats row (Expires · Live · Cur above N2N · RV · IV−RV …) */
+#charts>.chart-toolbar{position:relative!important;top:auto!important}
+body.gfs #v121Lead,body.gfs #v126,body.gfs #v23Tog,body.gfs #v89Rail,body.gfs #freshWarning,body.gfs .notice{display:none!important}
+body.gfs #pgDesk #side2,body.gfs #pgDesk #flowRow,body.gfs #pgDesk .flowrow,body.gfs #pgDesk #volRow,body.gfs #pgDesk #v127Vol{display:none!important}
+</style>
+<script data-module="v130">
+/* v130 · one full screen. Both buttons (header ⛶ and "Full screen" in the BTC chart head) now do the same thing: the
+   browser goes full screen and the desk shows the BTC chart platform only (ticker and header stay); Esc or the button
+   again leaves it. The old in-chart mode (gfs-max) kept the side column in the page, which collapsed it to a sliver. */
+(function(){'use strict';const D=document,$=id=>D.getElementById(id);
+function label(){const on=D.body.classList.contains('gfs');D.querySelectorAll('.gfs-b').forEach(b=>{const t=on?'Exit full screen':'Full screen';if(!b.textContent.includes(t)){const svg=b.querySelector('svg');b.textContent='';if(svg)b.appendChild(svg);b.appendChild(D.createTextNode(t));}b.setAttribute('aria-pressed',String(on));});
+  const f=$('fsBtn');if(f){f.setAttribute('aria-pressed',String(on));f.title=on?'Exit full screen (F or Esc)':'Full screen (F)';}}
+D.addEventListener('click',e=>{const b=e.target.closest('.gfs-b');if(!b)return;e.preventDefault();e.stopImmediatePropagation();
+  if(D.body.classList.contains('gfs-max')){D.body.classList.remove('gfs-max');const p=$('paneG');if(p)p.classList.remove('gfs-on');}
+  const f=$('fsBtn');if(f)f.click();setTimeout(label,50);},true);
+new MutationObserver(label).observe(D.body,{attributes:true,attributeFilter:['class']});
+D.addEventListener('fullscreenchange',()=>setTimeout(label,50));setTimeout(label,2000);
+window.v130={label};})();
+</script>
+<style id="v132Css">
+/* v132 · CoinGlass-style desk: near-black theme, one Indicators menu, master expiry beside the timeframes, drawing bar on
+   the left, Decision and P&L as their own pages, chart page full width. */
+:root:not([data-theme="light"]){--bg:#0b0c0f;--panel:#111317;--panel2:#15181d;--panel3:#1b1f26;--line:#1f232a;--line2:#2a2f37;--text:#e8eaed;--muted:#8a8f98;--faint:#5d636c;--chart-bg:#0b0c0f;--term-line:#1f232a}
+:root:not([data-theme="light"]) body{background:#0b0c0f}
+/* old controls replaced by the Indicators menu */
+#gTabs,#v127Vol,#gPanesBtn,#gPanesMenu{display:none!important}
+.v132ib{display:inline-flex!important;align-items:center;gap:6px;font-weight:600!important}
+.v132ib b{font-style:italic;font-family:Georgia,serif}.v132ib .v132n{font:600 10.5px/16px var(--mono,monospace);min-width:16px;padding:0 4px;border-radius:8px;background:var(--panel3,var(--panel2));color:var(--muted)}
+#v132Ind{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:200;width:360px;max-height:calc(100vh - 140px);display:flex;flex-direction:column;border-radius:8px;border:1px solid var(--line2);background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 96%,#1f6feb 4%),color-mix(in srgb,var(--panel) 96%,#d63c50 4%));box-shadow:0 22px 60px rgba(0,0,0,.5);color:var(--text)}
+#v132Ind[hidden]{display:none!important}
+#v132Ind .h{display:flex;align-items:center;padding:14px 14px 10px}#v132Ind .h b{font-size:15px}
+#v132Ind .x{margin-left:auto;border:0;background:none;color:var(--text);font-size:16px;cursor:pointer;width:32px;height:32px;border-radius:8px}
+#v132Ind .s{display:flex;align-items:center;gap:8px;margin:0 14px 8px;padding:8px 10px;border-radius:6px;background:var(--bg);color:var(--muted)}
+#v132Ind .s input{flex:1;border:0;background:none;color:var(--text);font:13px var(--font);outline:none}
+#v132Ind .lb{padding:2px 14px 6px;font-size:12px;color:var(--muted)}
+#v132Ind .ls{overflow-y:auto;flex:1}
+#v132Ind .ls button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 14px;border:0;border-bottom:1px dashed var(--line2);background:none;color:var(--text);cursor:pointer;font:13px var(--font)}
+#v132Ind .ls button:hover{background:color-mix(in srgb,var(--text) 5%,transparent)}
+#v132Ind .ls span{display:flex;flex-direction:column;gap:2px;flex:1}#v132Ind .ls i{font-style:normal;font-size:11.5px;color:var(--muted)}
+#v132Ind .ls em{font-style:normal;font-weight:700;color:var(--muted);width:18px;text-align:center}
+#v132Ind .ls button[aria-pressed="true"] em{color:var(--pos,#16c784)}
+#v132Ind .f{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+#v132Ind .f button{flex:1;padding:8px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:600 12.5px var(--font);cursor:pointer}
+#v132Ind .no{padding:12px 14px;color:var(--muted);font-size:13px}
+/* master expiry beside the timeframes */
+#gTop #v100Master{margin:0 6px;display:inline-flex;align-items:center}
+#gTop .v132xl{font-size:10.5px;letter-spacing:.08em;color:var(--muted);margin-left:8px}
+/* drawing bar on the left */
+body.v132-left #chartp{position:relative;padding-left:40px!important;box-sizing:border-box}
+#v132Left{position:absolute;left:0;top:0;bottom:0;width:40px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:6px;background:var(--panel);z-index:6}
+#v132Left .dw-bar{position:static!important;display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;gap:2px!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;max-width:none!important;opacity:1!important}
+html body #v132Left .dw-bar{transform:none!important;translate:none!important;margin:0!important;left:auto!important;inset:auto!important}
+#v132Left .dw-bar>*{display:flex!important}#v132Left .dw-tog{display:none!important}
+#v132Left .dw-b{width:32px!important;height:32px!important}
+#v132Left .dw-sep{width:20px!important;height:1px!important;background:var(--line2);margin:4px 0}
+#v132Left .v132al{width:32px;height:32px;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer;margin-top:6px}
+#v132Left .v132al:hover,#v132Left .dw-b:hover{background:var(--panel2);color:var(--text)}
+/* chart page full width: decision panels live on their own page */
+body.v132-pages #v22Side,body.v132-pages #v23Tog{display:none!important}
+body.v132-pages #v22Top{grid-template-columns:minmax(0,1fr)!important}
+body.v132-pages #v22Top>#chartp{flex:1 1 auto!important;width:auto!important;max-width:none!important}
+/* new pages */
+#pgDecision,#pgPnl{padding:12px 8px 40px}
+#pgDecision.on,#pgPnl.on{display:block}
+#pgDecision #v121Lead,#pgDecision #v126{max-width:1380px;margin:0 auto 12px}
+#v132Pnl{max-width:1380px;margin:0 auto;font-family:var(--font);color:var(--text);display:flex;flex-direction:column;gap:12px}
+#v132Pnl .hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#v132Pnl .hd h2{margin:0 12px 0 0;font-size:18px}
+#v132Pnl .hd button,#v132Pnl .hd a{font:600 12.5px var(--font);padding:7px 12px;border-radius:8px;border:1px solid var(--line2);background:var(--panel);color:var(--text);cursor:pointer;text-decoration:none}
+#v132Pnl .hd button[aria-pressed="true"]{background:#2F7CC0;border-color:#2F7CC0;color:#fff}
+#v132Pnl .hd .v6x{margin-left:auto;font-size:12px;color:var(--muted)}
+#v132Pnl .k{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+#v132Pnl .c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+#v132Pnl .c .l{font-size:11px;letter-spacing:.08em;color:var(--muted)}#v132Pnl .c .v{font-size:21px;font-weight:600}#v132Pnl .c .s{font-size:11.5px;color:var(--muted)}
+#v132Pnl .pos{color:var(--pos,#16c784)}#v132Pnl .neg{color:var(--neg,#f6465d)}
+#v132Pnl .g2{display:grid;grid-template-columns:2fr 1fr;gap:12px}#v132Pnl .g3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#v132Pnl table{width:100%;border-collapse:collapse;font-size:12.5px}#v132Pnl th{text-align:left;font-size:10.5px;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+#v132Pnl td{padding:7px 8px;border-bottom:1px solid var(--line);font-family:var(--mono,monospace);white-space:nowrap}
+#v132Pnl .tw{overflow-x:auto}
+#v132Pnl .em{padding:28px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6}
+@media (max-width:1100px){#v132Pnl .k{grid-template-columns:repeat(4,minmax(0,1fr))}#v132Pnl .g2,#v132Pnl .g3{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){#v132Pnl .k{grid-template-columns:repeat(2,minmax(0,1fr))}body.v132-left #chartp{padding-left:0!important}#v132Left{display:none}}
+body.gfs #pgDecision,body.gfs #pgPnl{display:none!important}
+@media (max-width:760px){body[data-v127] #paneG>#v105EdgeBox:not(.v127-off),body[data-v127] #paneG>#v105RangeBox:not(.v127-off){display:block!important}body[data-v127] #paneG>#paAdxBox:not(.v127-off){display:flex!important;flex-direction:column}}
+
+#v133Pnl{max-width:1380px;margin:0 auto;font-family:var(--font);color:var(--text);display:flex;flex-direction:column;gap:12px}
+#v133Pnl .hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#v133Pnl .hd h2{margin:0 12px 0 0;font-size:18px}
+#v133Pnl .hd button,#v133Pnl .hd a{font:600 12.5px var(--font);padding:7px 12px;border-radius:8px;border:1px solid var(--line2);background:var(--panel);color:var(--text);cursor:pointer;text-decoration:none}
+#v133Pnl .hd button[aria-pressed="true"]{background:#2F7CC0;border-color:#2F7CC0;color:#fff}
+#v133Pnl .hd .v6x{margin-left:auto;font-size:12px;color:var(--muted)}
+#v133Pnl .k{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+#v133Pnl .c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+#v133Pnl .c .l{font-size:11px;letter-spacing:.08em;color:var(--muted)}#v133Pnl .c .v{font-size:21px;font-weight:600}#v133Pnl .c .s{font-size:11.5px;color:var(--muted)}
+#v133Pnl .pos{color:var(--pos,#16c784)}#v133Pnl .neg{color:var(--neg,#f6465d)}
+#v133Pnl .g2{display:grid;grid-template-columns:2fr 1fr;gap:12px}#v133Pnl .g3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#v133Pnl table{width:100%;border-collapse:collapse;font-size:12.5px}#v133Pnl th{text-align:left;font-size:10.5px;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+#v133Pnl td{padding:7px 8px;border-bottom:1px solid var(--line);font-family:var(--mono,monospace);white-space:nowrap}
+#v133Pnl .tw{overflow-x:auto}
+#v133Pnl .em{padding:28px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6}
+@media (max-width:1100px){#v133Pnl .k{grid-template-columns:repeat(4,minmax(0,1fr))}#v133Pnl .g2,#v133Pnl .g3{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){#v133Pnl .k{grid-template-columns:repeat(2,minmax(0,1fr))}body.v132-left #chartp{padding-left:0!important}#v132Left{display:none}}
+</style>
+<script data-module="v132">
+/* v132 · CoinGlass-style desk (16 Oct 2026, preview, not deployed). Chosen by Abhishek from mockup board 11c.
+   · Near-black dark theme by default (new key btc_atm_iv_theme_v132; the theme switch still works).
+   · Master expiry (Cur · Next · N2N, Auto) moved into the BTC chart bar beside the timeframes.
+   · Drawing tools as a slim bar on the left of the chart (select, measure, lines, ray, trend, rectangle, colour, delete) + Alerts.
+   · Decision page (Leading board, tonight's plan, rule check, my trades) and a new P&L page in the top nav; the Trade page is
+     charts only, full width. P&L reads the trades the desk logged from your Delta fills (v99_trades); read-only. */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id),fin=Number.isFinite;
+const LSg=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}};
+const IST=19800000,DAY=86400000,esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dk=ms=>new Date(ms+IST).toISOString().slice(0,10),hm=ms=>new Date(ms+IST).toISOString().slice(11,16),usd=v=>fin(v)?(v<0?'−':'')+'$'+Math.abs(v).toFixed(2):'—';
+/* ---------- master expiry beside the timeframes ---------- */
+function master(){const m=$('v100Master'),tf=$('gTf');if(!m||!tf)return;if(innerWidth<=760){const ph=$('ph89');const l=D.querySelector('#gTop .v132xl');if(l)l.remove();if(ph&&m.previousElementSibling!==ph)ph.after(m);return;}if(m.parentElement!==tf.parentElement||m.previousElementSibling!==tf.nextElementSibling&&m.previousElementSibling?.className!=='v132xl'){
+    let l=tf.parentElement.querySelector('.v132xl');if(!l){l=D.createElement('span');l.className='v132xl';l.textContent='EXPIRY';}tf.after(l);l.after(m);}}
+/* ---------- drawing bar on the left ---------- */
+function left(){const cp=$('chartp');if(!cp||innerWidth<=760)return;let L=$('v132Left');
+  if(!L){L=D.createElement('div');L.id='v132Left';L.setAttribute('role','toolbar');L.setAttribute('aria-label','Drawing tools and alerts');cp.appendChild(L);D.body.classList.add('v132-left');}
+  const bar=D.querySelector('.dw-bar');if(bar&&bar.parentElement!==L){if(bar.classList.contains('closed')){const t=bar.querySelector('.dw-tog');if(t)t.click();}L.insertBefore(bar,L.firstChild);}
+  if(!L.querySelector('.v132al')){const a=D.createElement('button');a.type='button';a.className='v132al';a.title='Alerts';a.setAttribute('aria-label','Alerts');
+    a.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20h4"/></svg>';
+    a.addEventListener('click',()=>{const b=[...D.querySelectorAll('#gTop button,#gTools button')].find(x=>/alert/i.test(x.textContent||x.title||''));if(b)b.click();});L.appendChild(a);}}
+/* ---------- pages ---------- */
+const MY=['pgDecision','pgPnl'];
+function pages(){const nav=$('nav'),main=$('pages')||($('pgDesk')&&$('pgDesk').parentElement);if(!nav||!main)return;
+  if(!$('pgDecision')){for(const [id,lab] of [['pgDecision','Decision'],['pgPnl','P&L']]){const s=D.createElement('section');s.className='page';s.id=id;s.setAttribute('aria-label',lab);main.appendChild(s);}
+    const tr=nav.querySelector('[data-page="pgDesk"]');let after=tr;
+    for(const [id,lab] of [['pgDecision','Decision'],['pgPnl','P&L']]){const b=D.createElement('button');b.type='button';b.dataset.page=id;b.dataset.v132='1';b.textContent=lab;after.after(b);after=b;b.addEventListener('click',e=>{e.stopImmediatePropagation();go(id);});}
+    D.addEventListener('click',e=>{const b=e.target.closest('#nav button[data-page],#tabbar button[data-page],#moreSheet button[data-page]');if(b&&!b.dataset.v132)for(const id of MY){const el=$(id);if(el)el.classList.remove('on');}},true);
+    const ms=$('moreSheet');if(ms)for(const [id,lab] of [['pgDecision','Decision'],['pgPnl','P&L analysis']]){const b=D.createElement('button');b.type='button';b.dataset.page=id;b.dataset.v132='1';b.textContent=lab;ms.insertBefore(b,ms.firstChild);b.addEventListener('click',e=>{e.stopImmediatePropagation();ms.hidden=true;go(id);});}
+    D.body.classList.add('v132-pages');}
+  // the decision panels live on the Decision page
+  const dp=$('pgDecision'),L=$('v121Lead'),P=$('v126');if(dp&&L&&L.parentElement!==dp){L.dataset.v132='1';dp.appendChild(L);}if(dp&&P&&(P.parentElement!==dp||P.previousElementSibling!==L)){if(L&&L.parentElement===dp)L.after(P);else dp.appendChild(P);}}
+function go(id){const im=$('v132Ind');if(im)im.hidden=true;for(const p of D.querySelectorAll('#pgDesk,#pgFlow,#pgEvents,#pgSettings,#pgStudy,#pgEvidence,.page'))p.classList.toggle('on',p.id===id);
+  D.querySelectorAll('#nav button,#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.page===id));D.body.dataset.page=id;try{W.scrollTo({top:0});}catch(e){}
+  if(id==='pgPnl')((W.v133&&W.v133.pnl)||pnl)();if(id==='pgDecision'){try{W.v121&&W.v121.tick&&W.v121.tick();W.v126&&W.v126.render&&W.v126.render();}catch(e){}}}
+/* ---------- P&L page ---------- */
+let RANGE='all';
+function trades(){const L=(LSg('v99_trades',[])||[]).filter(x=>x&&x.openedAt);return L.map(x=>{const lots=(x.fills||[]).reduce((a,f)=>a+(f.lots||0),0),cr=(x.fills||[]).reduce((a,f)=>a+(f.cr||0)*(f.lots||0),0);
+  return {t:x.openedAt,c:x.closedAt||null,Kc:x.Kc,Kp:x.Kp,exp:x.exp,lots,cr,lot:x.lot||0.001,pnl:fin(x.pnlUsd)?x.pnlUsd:null};}).sort((a,b)=>a.t-b.t);}
+function pnl(){const host=$('pgPnl');if(!host)return;let el=$('v132Pnl');if(!el){el=D.createElement('div');el.id='v132Pnl';host.appendChild(el);
+    el.addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(b){RANGE=b.dataset.r;pnl();}if(e.target.closest('[data-csv]'))csv();});}
+  const all=trades(),cut=RANGE==='all'?0:Date.now()-(+RANGE)*DAY,T=all.filter(x=>x.t>=cut),C=T.filter(x=>x.pnl!=null);
+  const hd=`<div class="hd"><h2>P&amp;L analysis</h2>${[['7','7D'],['30','30D'],['90','90D'],['all','All']].map(([k,l])=>`<button type="button" data-r="${k}" aria-pressed="${RANGE===k}">${l}</button>`).join('')}<span class="v6x">from your Delta fills · read-only</span><button type="button" data-csv="1">Export CSV</button></div>`;
+  if(!C.length){el.innerHTML=hd+`<div class="c em">No closed trades in this range yet.<br>Connect your Delta key in Settings (read-only): every strangle the desk sees in your fills is logged when it closes, and this page fills in by itself.</div>`;return;}
+  const net=C.reduce((a,x)=>a+x.pnl,0),W1=C.filter(x=>x.pnl>0),L1=C.filter(x=>x.pnl<=0),aw=W1.length?W1.reduce((a,x)=>a+x.pnl,0)/W1.length:null,al=L1.length?L1.reduce((a,x)=>a+x.pnl,0)/L1.length:null;
+  let eq=0,pk=0,dd=0;const pts=C.map(x=>{eq+=x.pnl;pk=Math.max(pk,eq);dd=Math.min(dd,eq-pk);return eq;});
+  const k=[['NET P&amp;L',usd(net),'closed trades',net>=0?'pos':'neg'],['TRADES',C.length,T.length-C.length?`${T.length-C.length} open`:'closed',''],['WIN RATE',Math.round(W1.length/C.length*100)+'%',`${W1.length} won · ${L1.length} lost`,''],
+    ['AVG WIN',usd(aw),'per trade','pos'],['AVG LOSS',usd(al),'per trade','neg'],['MAX DRAWDOWN',usd(dd),'peak to low','neg'],['BEST / WORST',usd(Math.max(...C.map(x=>x.pnl)))+' / '+usd(Math.min(...C.map(x=>x.pnl))),'single trade','']];
+  const Wd=880,Hh=210,lo=Math.min(0,...pts),hi=Math.max(0,...pts),Y=v=>Hh-10-(v-lo)/((hi-lo)||1)*(Hh-20),X=i=>pts.length<2?Wd/2:i*Wd/(pts.length-1);
+  const path=pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+  const svg=`<svg viewBox="0 0 ${Wd} ${Hh}" width="100%" height="${Hh}" preserveAspectRatio="none" role="img" aria-label="Equity curve"><line x1="0" x2="${Wd}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="4 4"/><path d="${path}" fill="none" stroke="#2F7CC0" stroke-width="2"/>${pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${C[i].pnl>=0?'var(--pos,#16c784)':'var(--neg,#f6465d)'}"/>`).join('')}</svg>`;
+  const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],by={};for(const x of C){const d=new Date(x.t+IST).getUTCDay();(by[d]=by[d]||[]).push(x.pnl);}
+  const mx=Math.max(1,...Object.values(by).map(a=>Math.abs(a.reduce((s,v)=>s+v,0))));
+  const wk=[1,2,3,4,5,6,0].filter(d=>by[d]).map(d=>{const s=by[d].reduce((a,v)=>a+v,0),h=Math.round(Math.abs(s)/mx*120);return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;justify-content:flex-end"><span style="font:11px var(--mono,monospace)" class="${s>=0?'pos':'neg'}">${usd(s)}</span><div style="width:30px;height:${Math.max(3,h)}px;border-radius:4px 4px 0 0;background:${s>=0?'var(--pos,#16c784)':'var(--neg,#f6465d)'}"></div><span style="font-size:11.5px;color:var(--muted)">${dn[d]} · ${by[d].length}</span></div>`;}).join('');
+  const rows=C.slice().reverse().map(x=>`<tr><td>${dk(x.t)}</td><td>${hm(x.t)}</td><td>${x.Kc||'—'} C / ${x.Kp||'—'} P</td><td>${x.lots||'—'}</td><td>${x.cr?'$'+Math.round(x.cr):'—'}</td><td>${x.c?dk(x.c)+' '+hm(x.c):'—'}</td><td class="${x.pnl>=0?'pos':'neg'}">${usd(x.pnl)}</td></tr>`).join('');
+  el.innerHTML=hd+`<div class="k">${k.map(([l,v,s,c])=>`<div class="c"><span class="l">${l}</span><span class="v ${c}">${v}</span><span class="s">${s}</span></div>`).join('')}</div>
+   <div class="g2"><div class="c"><span class="l">EQUITY CURVE</span>${svg}</div><div class="c"><span class="l">BY WEEKDAY (ENTRY DAY)</span><div style="display:flex;gap:6px;height:170px;align-items:flex-end">${wk}</div></div></div>
+   <div class="c"><span class="l">TRADES</span><div class="tw"><table><thead><tr><th>NIGHT</th><th>ENTRY</th><th>STRIKES</th><th>LOTS</th><th>CREDIT</th><th>CLOSED</th><th>RESULT</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+   <p style="font-size:11.5px;color:var(--muted);margin:0">Results as the desk logged them at close (mark at close). Fees are included only if Delta reported them in the fills.</p>`;}
+function csv(){const T=trades();const lines=[['entry','closed','expiry','call','put','lots','credit_usd','pnl_usd'].join(',')].concat(T.map(x=>[new Date(x.t).toISOString(),x.c?new Date(x.c).toISOString():'',x.exp||'',x.Kc||'',x.Kp||'',x.lots,x.cr.toFixed(2),x.pnl==null?'':x.pnl.toFixed(2)].join(',')));
+  try{const a=D.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));a.download='suraj-trades.csv';D.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}catch(e){}}
+function tick(){if(D.hidden)return;try{master();left();pages();}catch(e){console.warn('v132',e);}}
+setTimeout(tick,800);setTimeout(tick,2500);setInterval(tick,3000);addEventListener('resize',()=>setTimeout(tick,200));
+W.v132={go,pnl,tick};})();
+</script>
+<style id="v133Css">
+body.v133:not(.v133-gex) #paneG>.pane-head .pane-title em{display:none}
+body.v133 #pgDesk #v110PnlHd{display:none!important}
+/* v133 · clean first screen (CoinGlass style) without full screen */
+body.v133 #pgDesk #v89Rail:not(.v133-moved){display:none!important}
+body.v133 #pgDesk #side2,body.v133 #pgDesk #flowRow,body.v133 #pgDesk .flowrow,body.v133 #freshWarning:not(.v133-moved){display:none!important}
+body.v133:not(.v133-gex) #gxLine,body.v133:not(.v133-gex) #gxSay,body.v133:not(.v133-gex) #paneMetaG,body.v133:not(.v133-gex) #gexProf{display:none!important}
+body.v133 #pgDesk #charts>.chart-toolbar,body.v133 #pgDesk #charts .pane>.pane-head,body.v133 #pgDesk #charts>.chart-foot{display:none!important}
+body.v133 #pgDesk .desk{gap:4px!important;padding-top:4px!important}
+body.v133 #pgDesk #v22Top{margin:0!important}
+body.v133 #pgDesk #volRow{margin-top:0!important}
+body.v133 #pgDesk #charts{padding-top:0!important;border-top:0!important}
+body.v133 #pgDesk #charts .pane.on{gap:2px!important}
+/* Decision page sections */
+#v133Ctx,#v133News{max-width:1380px;margin:14px auto 0}
+#v133Ctx>h3,#v133News>h3{font:600 13px var(--font);letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+#pgDecision #freshWarning{max-width:1380px;margin:0 auto 12px}
+#v133News .page{display:block!important;padding:0!important}
+/* P&L */
+#v133Pnl{max-width:1380px;margin:0 auto;font-family:var(--font);color:var(--text);display:flex;flex-direction:column;gap:12px}
+#v133Pnl .src{font-size:12px;color:var(--muted)}#v133Pnl .err{color:var(--neg,#f6465d)}
+</style>
+<script data-module="v133">
+/* v133 (16 Oct 2026, preview, not deployed) · after Abhishek's review of v132 on his own screen.
+   1. Clean first screen without full screen: the Trade page is the chart platform only and fits the window — BTC chart + the
+      indicators ticked in ƒx Indicators, the picked vol charts right under it sized to fill the screen. Tonight rail, backup
+      notice, dealer-gamma text rows / chips / walls / profile, the vol-chart toolbar and pane heads, the events, flow and
+      positioning panels are off the Trade page. Dealer gamma and Tonight are items in the Indicators menu. BTC chart layers
+      start clean (candles only) once; Layers switches them back.
+   2. Decision page holds the Leading board, plan, rule check, my trades, the backup notice, News & events and market context.
+   3. P&L page = live from Delta: signed /v2/fills (last 90 days, all pages) → realised P&L per contract (sells − buys − fees,
+      expired contracts settled at the Delta BTC index at 17:30 IST) → one row per expiry (strangle), call vs put legs. */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id),fin=Number.isFinite;
+const MIN=60000,HR=3600000,DAY=86400000,IST=19800000;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dk=ms=>new Date(ms+IST).toISOString().slice(0,10),hm=ms=>new Date(ms+IST).toISOString().slice(11,16),usd=v=>fin(v)?(v<0?'−':'')+'$'+Math.abs(v).toFixed(2):'—';
+D.body.classList.add('v133');
+/* ---------- fit the Trade page to the window ---------- */
+function fit(){if(innerWidth<=760||D.body.classList.contains('gfs'))return clear();const top=$('v22Top'),cp=$('chartp'),pg=$('paneG');if(!top||!cp||!pg||!$('pgDesk')||!$('pgDesk').classList.contains('on'))return;
+  const on=(W.v132ind&&W.v132ind.state&&W.v132ind.state())||{};const vols=['iv','rv','vov','dv'].filter(k=>on[k]);
+  const fk=innerWidth+'x'+innerHeight+'|'+JSON.stringify(on);if(fit.k!==fk){fit.k=fk;fit.adj=0;}const y0=top.getBoundingClientRect().top+scrollY,H=Math.max(420,innerHeight-y0-20-(fit.adj||0));   /* v135: was 600, so a 768-px laptop always scrolled */
+  // vol charts first: each gets a fixed, readable strip; the BTC block takes what is left
+  /* v135: the window is shared out so the BTC block and every picked vol chart fit on one screen (1 vol chart ≈ 30 %,
+     2 ≈ 44 %, 3 ≈ 52 %, 4 ≈ 56 % of the height); the page scrolls only when a chart would get too short to read */
+  const nV=vols.length,VG=14;let each=0;if(nV){const share=nV===1?0.30:nV===2?0.44:nV===3?0.52:0.56;each=Math.max(nV>=3?100:130,Math.min(260,Math.round((H*share-8)/nV-VG)));}
+  const volsH=nV?nV*(each+VG)+8:0;
+  const hd=($('gTop')?$('gTop').offsetHeight:34)+($('gBot')?$('gBot').offsetHeight:24)+($('gTabs')&&$('gTabs').offsetHeight||0)+4;
+  const lanes=['cvLane','v105EdgeBox','v105RangeBox'].map($).filter(e=>e&&getComputedStyle(e).display!=='none');
+  const adx=$('paAdxBox'),adxOn=adx&&getComputedStyle(adx).display!=='none';const nL=lanes.length+(adxOn?1:0);
+  // many ticks: the block grows (the page scrolls) instead of clipping a lane
+  const Hb=Math.max(H-volsH,hd+34+200+nL*84);
+  set(cp,'height',Hb+'px');set(cp,'min-height',Hb+'px');set(cp,'max-height',Hb+'px');
+  const ph=Hb-hd;set(pg,'height',ph+'px');set(pg,'min-height',ph+'px');set(pg,'max-height',ph+'px');
+  // indicator lanes share at most ~45 % of the block, so the candles keep the larger part
+  const lh=nL?Math.max(84,Math.min(150,Math.floor((ph-34)*0.40/nL))):0;
+  for(const l of lanes){set(l,'height',lh+'px');set(l,'max-height',lh+'px');set(l,'flex','0 0 auto');set(l,'margin-top','0px');set(l,'margin-bottom','0px');}
+  clearTimeout(fit.c);fit.c=setTimeout(()=>{const over=D.documentElement.scrollHeight-innerHeight;if(over>0&&over<240&&(fit.adj||0)<240&&Hb===H-volsH){fit.adj=(fit.adj||0)+over;fit();}},700);
+  D.querySelectorAll('#charts .pane.on').forEach(p=>{for(const [k,sel] of [['iv',':scope>.chart-box'],['rv',':scope>.rv-box'],['vov',':scope>.vov-box'],['dv',':scope>.dv-box']]){const el=p.querySelector(sel);if(!el)continue;if(on[k]){set(el,'height',each+'px');set(el,'min-height',each+'px');}}});}
+function set(el,p,v){if(el.style.getPropertyValue(p)!==v){el.style.setProperty(p,v,'important');clearTimeout(fit.t);fit.t=setTimeout(()=>{try{W.paRefit&&W.paRefit();W.dispatchEvent(new Event('resize'));}catch(e){}},80);}}
+function clear(){for(const id of ['paneG','chartp','cvLane','v105EdgeBox','v105RangeBox']){const e=$(id);if(e)for(const p of ['height','min-height','max-height','flex'])e.style.removeProperty(p);}D.querySelectorAll('#charts .pane>.chart-box,#charts .pane>.rv-box,#charts .pane>.vov-box,#charts .pane>.dv-box').forEach(e=>{e.style.removeProperty('height');e.style.removeProperty('min-height');});}
+/* ---------- Decision page: notice, news, market context ---------- */
+function moves(){const dp=$('pgDecision');if(!dp)return;
+  const fw=$('freshWarning');if(fw&&fw.parentElement!==dp){fw.classList.add('v133-moved');dp.insertBefore(fw,dp.firstChild);}
+  const ev=$('pgEvents');let nw=$('v133News');if(ev&&!nw){nw=D.createElement('section');nw.id='v133News';nw.innerHTML='<h3>NEWS &amp; EVENTS</h3>';dp.appendChild(nw);}
+  if(ev&&nw&&ev.parentElement!==nw){ev.classList.add('on');nw.appendChild(ev);}
+  for(const b of D.querySelectorAll('#nav [data-page="pgEvents"],#tabbar [data-page="pgEvents"],#moreSheet [data-page="pgEvents"]'))b.style.display='none';
+  const rail=$('v89Rail'),vr=$('volRow');if(rail&&vr&&rail.previousElementSibling!==vr){rail.classList.add('v133-moved');vr.after(rail);}}
+/* ---------- P&L from Delta (live) ---------- */
+const P={rows:null,at:0,err:null,busy:false,range:'90'};
+const parseSym=s=>{const m=/^([CP])-BTC-(\d+(?:\.\d+)?)-(\d{2})(\d{2})(\d{2})$/i.exec(String(s||''));return m?{type:m[1].toUpperCase(),K:+m[2],exp:'20'+m[5]+'-'+m[4]+'-'+m[3]}:null;};
+const ts=v=>{if(v==null)return NaN;if(typeof v==='number')return v>1e14?v/1000:v>1e11?v:v*1000;const n=+v;if(fin(n))return ts(n);return Date.parse(v);};
+const settleMs=exp=>Date.parse(exp+'T12:00:00Z');
+async function settlePx(exp){const t=Math.floor(settleMs(exp)/1000);const u=`https://api.india.delta.exchange/v2/history/candles?resolution=1m&symbol=.DEXBTUSD&start=${t-60}&end=${t+60}`;
+  try{const r=await fetch(u,{cache:'force-cache'});const j=await r.json();const a=(j&&j.result)||[];const c=a.find(x=>+x.time===t)||a[a.length-1];return c?+c.close:null;}catch(e){return null;}}
+async function load(){if(P.busy)return;const A=W.v100&&W.v100.api;if(!A||!A.on()){P.err='nokey';render();return;}if(!W.v100.dget){P.err='This desk build cannot read Delta.';render();return;}
+  P.busy=true;P.err=null;render();
+  try{const since=(Date.now()-90*DAY)*1000;let after=null,all=[];
+    for(let pg=0;pg<30;pg++){const q='contract_types=call_options,put_options&page_size=100&start_time='+since+(after?'&after='+encodeURIComponent(after):'');
+      const res=await W.v100.dget('/v2/fills',q);if(Array.isArray(res))all=all.concat(res);const m=W.v100.dgetMeta&&W.v100.dgetMeta();after=m&&m.after;if(!after||!res||!res.length)break;}
+    // per contract
+    const C=new Map();
+    for(const f of all){const sym=f.product_symbol||(f.product&&f.product.symbol);const s=parseSym(sym);if(!s)continue;const cv=+(f.product&&f.product.contract_value)||+(f.meta_data&&f.meta_data.contract_value)||0.001;
+      const size=Math.abs(+f.size||0),px=+f.price||0,fee=Math.abs(+f.commission||0),t=ts(f.created_at);let c=C.get(sym);if(!c){c={sym,...s,cv,buy:0,sell:0,bv:0,sv:0,fee:0,first:t,last:t,n:0};C.set(sym,c);}
+      if(String(f.side).toLowerCase()==='buy'){c.buy+=size;c.bv+=size*px*cv;}else{c.sell+=size;c.sv+=size*px*cv;}c.fee+=fee;c.n++;if(t<c.first)c.first=t;if(t>c.last)c.last=t;}
+    const now=Date.now(),need=[...new Set([...C.values()].filter(c=>c.sell!==c.buy&&settleMs(c.exp)<now).map(c=>c.exp))];const SP={};for(const e of need)SP[e]=await settlePx(e);
+    for(const c of C.values()){const net=c.buy-c.sell;c.cash=c.sv-c.bv-c.fee;c.open=false;
+      if(net!==0){if(settleMs(c.exp)<now){const S=SP[c.exp];if(fin(S)){const intr=c.type==='C'?Math.max(0,S-c.K):Math.max(0,c.K-S);c.cash+=net*intr*c.cv;c.settled=S;c.closedAt=settleMs(c.exp);}else{c.open=true;c.note='settlement price missing';}}
+        else c.open=true;}else c.closedAt=c.last;}
+    // one row per expiry (the strangle)
+    const by=new Map();for(const c of C.values()){let r=by.get(c.exp);if(!r){r={exp:c.exp,legs:[],first:c.first,closedAt:0,open:false,call:0,put:0,fee:0,credit:0,Kc:null,Kp:null,lots:0};by.set(c.exp,r);}
+      r.legs.push(c);r.first=Math.min(r.first,c.first);r.open=r.open||c.open;r.closedAt=Math.max(r.closedAt,c.closedAt||0);r.fee+=c.fee;r.credit+=c.sv;
+      if(c.type==='C'){r.call+=c.cash;r.Kc=r.Kc?r.Kc+'/'+c.K:c.K;}else{r.put+=c.cash;r.Kp=r.Kp?r.Kp+'/'+c.K:c.K;}r.lots=Math.max(r.lots,c.sell);}
+    P.rows=[...by.values()].map(r=>({...r,pnl:r.call+r.put})).sort((a,b)=>a.first-b.first);P.at=Date.now();P.n=all.length;}
+  catch(e){P.err=String(e&&e.message||e);}finally{P.busy=false;render();}}
+function render(){const host=$('pgPnl');if(!host)return;const old=$('v132Pnl');if(old)old.remove();let el=$('v133Pnl');
+  if(!el){el=D.createElement('div');el.id='v133Pnl';el.className='v132p';host.appendChild(el);el.addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(b){P.range=b.dataset.r;render();}if(e.target.closest('[data-ref]'))load();if(e.target.closest('[data-csv]'))csv();if(e.target.closest('[data-set]'))try{D.querySelector('#nav [data-page="pgSettings"]').click();}catch(x){}});}
+  el.setAttribute('id','v133Pnl');el.classList.add('v133p');
+  const hd=`<div class="hd"><h2>P&amp;L analysis</h2>${[['7','7D'],['30','30D'],['90','90D']].map(([k,l])=>`<button type="button" data-r="${k}" aria-pressed="${P.range===k}">${l}</button>`).join('')}<span class="v6x src">${P.busy?'reading your Delta fills…':P.at?`live from Delta · ${P.n} fills · read ${hm(P.at)} IST`:''}</span><button type="button" data-ref="1">${P.busy?'Reading…':'Refresh'}</button><button type="button" data-csv="1">Export CSV</button></div>`;
+  if(P.err==='nokey'){el.innerHTML=hd+`<div class="c em">Connect your Delta key (read-only) in Settings to see your real P&amp;L.<br><button type="button" data-set="1" style="margin-top:10px">Open Settings</button></div>`;return;}
+  if(P.err){el.innerHTML=hd+`<div class="c em err">Delta did not answer: ${esc(P.err)}</div>`;return;}
+  if(!P.rows){el.innerHTML=hd+`<div class="c em">${P.busy?'Reading your fills from Delta…':'Press Refresh to read your fills from Delta.'}</div>`;return;}
+  const cut=Date.now()-(+P.range)*DAY,R=P.rows.filter(r=>r.first>=cut),C=R.filter(r=>!r.open),O=R.filter(r=>r.open);
+  if(!C.length&&!O.length){el.innerHTML=hd+`<div class="c em">No option trades on Delta in this range.</div>`;return;}
+  const net=C.reduce((a,x)=>a+x.pnl,0),fees=C.reduce((a,x)=>a+x.fee,0),Wn=C.filter(x=>x.pnl>0),Ls=C.filter(x=>x.pnl<=0),aw=Wn.length?Wn.reduce((a,x)=>a+x.pnl,0)/Wn.length:null,al=Ls.length?Ls.reduce((a,x)=>a+x.pnl,0)/Ls.length:null;
+  let eq=0,pk=0,dd=0;const pts=C.map(x=>{eq+=x.pnl;pk=Math.max(pk,eq);dd=Math.min(dd,eq-pk);return eq;});
+  const callT=C.reduce((a,x)=>a+x.call,0),putT=C.reduce((a,x)=>a+x.put,0);
+  const k=[['NET P&amp;L',usd(net),'after fees · closed',net>=0?'pos':'neg'],['TRADES',C.length,O.length?`${O.length} open`:'closed (by expiry)',''],['WIN RATE',C.length?Math.round(Wn.length/C.length*100)+'%':'—',`${Wn.length} won · ${Ls.length} lost`,''],
+    ['AVG WIN',usd(aw),'per trade','pos'],['AVG LOSS',usd(al),'per trade','neg'],['MAX DRAWDOWN',usd(dd),'peak to low','neg'],['FEES PAID',usd(-fees),'Delta commission','']];
+  const Wd=880,Hh=210,lo=Math.min(0,...pts),hi=Math.max(0,...pts),Y=v=>Hh-12-(v-lo)/((hi-lo)||1)*(Hh-24),X=i=>pts.length<2?Wd/2:20+i*(Wd-40)/(pts.length-1);
+  const svg=`<svg viewBox="0 0 ${Wd} ${Hh}" width="100%" height="${Hh}" role="img" aria-label="Equity curve"><line x1="0" x2="${Wd}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--line2)" stroke-dasharray="4 4"/>${pts.length>1?`<path d="${pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="#2F7CC0" stroke-width="2"/>`:''}${pts.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" fill="${C[i].pnl>=0?'var(--pos,#16c784)':'var(--neg,#f6465d)'}"/>`).join('')}</svg>`;
+  const legs=`<div class="c"><span class="l">CALL LEGS vs PUT LEGS</span><div style="display:flex;gap:18px;flex-wrap:wrap"><div><span class="s">Calls</span><div class="v ${callT>=0?'pos':'neg'}">${usd(callT)}</div></div><div><span class="s">Puts</span><div class="v ${putT>=0?'pos':'neg'}">${usd(putT)}</div></div></div><span class="s">after each leg's own fees · backtest so far: calls +28% · puts +7% of leg credit</span></div>`;
+  const rows=R.slice().reverse().map(x=>`<tr><td>${x.exp}</td><td>${dk(x.first)} ${hm(x.first)}</td><td>${x.Kc||'—'} C / ${x.Kp||'—'} P</td><td>${x.lots||'—'}</td><td>$${x.credit.toFixed(2)}</td><td class="${x.call>=0?'pos':'neg'}">${usd(x.call)}</td><td class="${x.put>=0?'pos':'neg'}">${usd(x.put)}</td><td>${usd(-x.fee)}</td><td>${x.open?'open':x.closedAt?dk(x.closedAt)+' '+hm(x.closedAt):'—'}</td><td class="${x.open?'':x.pnl>=0?'pos':'neg'}">${x.open?'open':usd(x.pnl)}</td></tr>`).join('');
+  el.innerHTML=hd+`<div class="k">${k.map(([l,v,s,c])=>`<div class="c"><span class="l">${l}</span><span class="v ${c}">${v}</span><span class="s">${s}</span></div>`).join('')}</div>
+   <div class="g2"><div class="c"><span class="l">EQUITY CURVE · CLOSED TRADES</span>${svg}</div>${legs}</div>
+   <div class="c"><span class="l">TRADES · ONE ROW PER EXPIRY</span><div class="tw"><table><thead><tr><th>EXPIRY</th><th>FIRST FILL (IST)</th><th>STRIKES</th><th>LOTS</th><th>CREDIT</th><th>CALLS</th><th>PUTS</th><th>FEES</th><th>CLOSED</th><th>NET</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+   <p class="src" style="margin:0">From your Delta fills (signed, read-only). Each contract: sells − buys − commission; a contract held to expiry is settled at the Delta BTC index at 17:30 IST (close to, not exactly, Delta's settlement average). Open positions are not counted in the totals.</p>`;}
+function csv(){if(!P.rows)return;const L=[['expiry','first_fill','calls','puts','lots','credit_usd','call_pnl','put_pnl','fees','net','status'].join(',')].concat(P.rows.map(r=>[r.exp,new Date(r.first).toISOString(),r.Kc||'',r.Kp||'',r.lots,r.credit.toFixed(2),r.call.toFixed(2),r.put.toFixed(2),r.fee.toFixed(2),r.pnl.toFixed(2),r.open?'open':'closed'].join(',')));
+  try{const a=D.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='delta-strangles.csv';D.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}catch(e){}}
+function pnl(){render();if(!P.rows&&!P.busy)load();}
+function tick(){if(D.hidden)return;try{moves();fit();}catch(e){console.warn('v133',e);}}
+setTimeout(tick,900);setTimeout(tick,3000);setInterval(tick,3000);addEventListener('resize',()=>setTimeout(fit,150));
+D.addEventListener('click',e=>{if(e.target.closest('#nav [data-page="pgDesk"],#tabbar [data-page="pgDesk"]'))setTimeout(fit,200);},true);
+W.v133={fit,pnl,load,state:()=>P,__test:{parseSym,ts}};})();
+</script>
+<style id="v134Css">
+#v134Pos{max-width:1380px;margin:18px auto 14px;display:flex;flex-direction:column;gap:8px}
+#v134Pos>h3{margin:4px 0 0;font:600 12px/1.2 var(--font);letter-spacing:.08em;color:var(--muted)}
+#v134Pos #v18Trade{margin:0!important}
+body.v133 #pgDesk #v18Trade{display:none!important}
+</style>
+<script data-module="v134">
+/* v134 (16 Oct 2026, preview, not deployed).
+   1. Blinking fixed: the indicator menu and v133.fit() both set the lane heights (190 vs 150 px) and each change fired a
+      resize, ~200 a second. The menu now leaves lane heights to v133.fit().
+   2. Entry check / My position (#v18Trade) moved from the Trade page to the P&L page (top), so Trade is chart only.
+   3. Entry signals on the BTC chart: the tested N2N playbook, replayed on every completed 15-min bar of the last 4 nights
+      with the same code as the live board (v121.read): SELL (IV rule: NY spike, 1.5-6 % off the NY high, 1-2 red 15-m IV
+      candles, not too quiet, events cleared) + ADX 1 h not rising over 3 h and <= 40. EXIT when ADX 1 h turns up (+2 in 3 h)
+      within 12 h, else BOOK at 07:00. A night where the IV rule said SELL but ADX blocked it gets one "ADX ✕" mark.
+      Needs the N2N IV history of that night (Delta backfill) and BTC 1-min bars; nights without them get no marks.
+   4. Chart patterns / Candle patterns / Entry signals are items in the Indicators menu. */
+(function(){'use strict';const W=window,D=document,$=id=>D.getElementById(id);const MIN=6e4,HR=36e5,DAY=864e5,IST=19800;
+const S={on:true,sig:[],at:0,key:''};
+/* ---------- BTC hourly bars and ADX 14 ---------- */
+function hourly(){const M=new Map(),put=b=>{if(!b||!(b.h>0)||!(b.l>0))return;const k=Math.floor(b.t/HR)*HR;let o=M.get(k);if(!o){o={t:k,o:b.o,h:b.h,l:b.l,c:b.c,first:b.t,last:b.t};M.set(k,o);return;}
+    if(b.t<o.first){o.first=b.t;o.o=b.o;}if(b.t>=o.last){o.last=b.t;o.c=b.c;}if(b.h>o.h)o.h=b.h;if(b.l<o.l)o.l=b.l;};
+  try{const L=W.rvIndexLong&&W.rvIndexLong();if(L&&L.bars)for(const b of L.bars.values())put(b);}catch(e){}
+  try{const R=W.rvIndexBars&&W.rvIndexBars();if(R&&R.bars)for(const b of R.bars.values())put(b);}catch(e){}
+  return [...M.values()].sort((a,b)=>a.t-b.t);}
+function adxArr(){const H=hourly();if(H.length<50||typeof adxSeries!=='function')return null;return adxSeries(H,14);}
+function adxAt(A,t){if(!A)return null;let v=null;for(const p of A){if(p.t+HR<=t)v=p.v;else break;}return v;}
+/* ---------- replay the live verdict at time t ---------- */
+function cut(a,tSec){let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m][0]<=tSec)lo=m+1;else hi=m;}return a.slice(0,lo);}
+function readAt(t){const F=W.v121.frame(t),keep={},es=[F.n2n,F.cur];
+  for(const e of es)if(candles[e]){keep[e]=candles[e];candles[e]=cut(keep[e],Math.floor(t/1000));}
+  const kA=rec.lastAtm,k18=W.v18;let R=null;
+  try{rec.lastAtm=null;W.v18=null;R=W.v121.read(t);}catch(e){R=null;}
+  finally{rec.lastAtm=kA;W.v18=k18;for(const e in keep)candles[e]=keep[e];}
+  return R;}
+function compute(){if(!S.on)return;if(!W.v121||!W.v121.read||!W.v121.frame||typeof candles==='undefined'||typeof rec==='undefined')return;
+  const now=Date.now(),A=adxArr(),out=[],nights=new Set();
+  for(let d=0;d<4;d++){const F=W.v121.frame(now-d*DAY);if(nights.has(F.base))continue;nights.add(F.base);
+    if(!candles[F.n2n]||!candles[F.n2n].length)continue;
+    const Q=15*MIN,t0=Math.ceil((F.open+60*MIN)/Q)*Q,t1=Math.min(F.end,now);let entry=null,blocked=null;
+    for(let t=t0;t<=t1;t+=Q){const R=readAt(t);if(!R||!R.verdict)continue;const v=R.verdict.v||'';
+      const ivOk=/^SELL/.test(v)||/^LATE · HALF/.test(v);if(!ivOk)continue;
+      const a=adxAt(A,t),a3=adxAt(A,t-3*HR),adxOk=a==null||a3==null?null:(a<=40&&a<=a3);
+      if(adxOk===false){if(!blocked)blocked={t,a,a3};continue;}
+      entry={t,v,a,size:R.size,d:R.dPut<R.delta?'C '+R.delta.toFixed(2)+'/P '+R.dPut.toFixed(2):R.delta.toFixed(2)+'Δ',adx:adxOk};break;}
+    if(entry){out.push({t:entry.t,k:'sell',txt:'SELL '+(/^LATE/.test(entry.v)?'LATE·HALF':entry.size)+' '+entry.d+(entry.adx==null?' · ADX ?':'')});
+      let ex=null;for(let t=entry.t+15*MIN;t<=Math.min(F.exit,now);t+=15*MIN){if(t<=entry.t+12*HR){const a=adxAt(A,t),a3=adxAt(A,t-3*HR);if(a!=null&&a3!=null&&a-a3>=2){ex={t,txt:'EXIT · ADX ↑'};break;}}}
+      if(!ex&&F.exit<=now)ex={t:F.exit,txt:'BOOK 07:00'};if(ex)out.push({t:ex.t,k:'exit',txt:ex.txt});}
+    else if(blocked)out.push({t:blocked.t,k:'skip',txt:'ADX ✕ no sell'});}
+  S.sig=out;S.at=now;const key=JSON.stringify(out);if(key!==S.key){S.key=key;try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}}
+/* ---------- markers for the BTC chart (called by the price-action layer) ---------- */
+function marks(bars){if(!S.on||!S.sig.length||!bars||!bars.length)return[];const up=getComputedStyle(D.body).getPropertyValue('--c-up').trim()||'#26A69A',dn=getComputedStyle(D.body).getPropertyValue('--c-dn').trim()||'#EF5350';
+  const out=[];for(const s of S.sig){const tc=Math.floor(s.t/1000)+IST;if(tc<bars[0].time)continue;let lo=0,hi=bars.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(bars[m].time<=tc)lo=m;else hi=m-1;}
+    const time=bars[lo].time;
+    if(s.k==='sell')out.push({time,position:'aboveBar',shape:'arrowDown',color:up,text:s.txt,size:1.2});
+    else if(s.k==='exit')out.push({time,position:'belowBar',shape:'arrowUp',color:dn,text:s.txt,size:1.2});
+    else out.push({time,position:'aboveBar',shape:'circle',color:'#E3AE45',text:s.txt,size:0.8});}
+  return out;}
+function enable(v){if(S.on===v)return;S.on=v;if(v)try{compute();}catch(e){}try{W.paSetMarkers&&W.paSetMarkers();}catch(e){}}
+/* ---------- Entry check / My position → P&L page ---------- */
+function moveTrade(){const t=$('v18Trade'),pg=$('pgPnl');if(!t||!pg)return;let box=$('v134Pos');
+  if(!box){box=D.createElement('section');box.id='v134Pos';box.innerHTML='<h3>OPEN POSITION · ENTRY CHECK — live Delta marks; with no trade open this is a what-if for a new strangle, not your P&amp;L</h3>';pg.appendChild(box);}
+  const p=$('v133Pnl');if(p&&p.parentElement===pg&&p.nextElementSibling!==box)p.after(box);
+  if(t.parentElement!==box){t.dataset.v134='1';box.appendChild(t);}}
+function run(){try{moveTrade();}catch(e){}try{compute();}catch(e){console.warn('v134 signals',e);}}
+setTimeout(run,4000);setTimeout(run,15000);setTimeout(run,45000);setInterval(()=>{if(!D.hidden)run();},5*MIN);setInterval(()=>{try{moveTrade();}catch(e){}},3000);
+W.v134sig={marks,enable,compute,state:()=>S,__test:{readAt,adxArr,hourly}};})();
+</script>
+
+<style id="v135Css">
+/* v135 · one time axis: IV · RV · VoV · DVOL sit exactly under the BTC chart (same left edge, same width, same price-axis width) */
+body.v135 #charts .pane>.chart-box>[id^="chart"],body.v135 #charts .pane .rv-chart,body.v135 #charts .pane .vov-chart,body.v135 #charts .pane .dv-chart{box-sizing:border-box}
+.v135x{position:absolute;left:0;top:0;width:1px;will-change:transform;pointer-events:none;z-index:7;background:repeating-linear-gradient(to bottom,var(--muted,#8a8f98) 0 4px,transparent 4px 8px);opacity:.55;display:none}
+</style>
+<script data-module="v135">
+/* v135 (16 Oct 2026, preview, not deployed) · one time axis for the BTC chart and the vol charts.
+   Before: IV led RV / VoV / DVOL, the BTC chart led its own lanes, and the two groups were only pulled together once a second
+   by bar number (IV and BTC carry different bar lists, so the same bar number is a different time) — the vol charts sat
+   hours off the BTC chart, on a different zoom, and 35 px to the left (the drawing bar).
+   Now:
+   · the BTC chart is the master. Every pan / zoom of it moves IV, RV, VoV and DVOL to the SAME TIME WINDOW at once (time → bar
+     maps built from each chart's own bars, extrapolated past the ends), in the same frame;
+   · drag or zoom any vol chart and the BTC chart (and with it every other chart) follows it;
+   · the vol charts get the BTC chart's left edge and width and one shared price-axis width, so a time sits at the same pixel
+     on every chart, and one dashed hairline runs through all of them under the cursor;
+   · the old pairwise followers (IV → RV / VoV / DVOL, the 0.4 s VoV re-aligner, the IV auto-framing and v128's per-chart fit)
+     stand down while this is on; zoom − + Fit on a vol chart act on the BTC chart.
+   window.__v135lock is the switch (localStorage v135_lock = '0' turns it off; applies on reload). */
+(function(){'use strict';const W=window,D=document;
+let ON=true;try{ON=localStorage.getItem('v135_lock')!=='0';}catch(e){}
+W.__v135lock=ON;if(!ON){W.v135={on:false};return;}
+D.body.classList.add('v135');
+const R=()=>W.__lwcReg;
+function master(){try{return W.paChart?W.paChart():null;}catch(e){return null;}}
+function masterEl(){return D.getElementById('chartG');}
+const vis=el=>!!el&&el.isConnected&&el.offsetParent!==null&&el.clientWidth>0&&el.clientHeight>0;
+function P(){try{return typeof panes!=='undefined'?panes:null;}catch(e){return null;}}
+/* ---------- the charts that follow ---------- */
+const FC={at:-1e9,list:[]};
+function followers(fresh){const now=performance.now();if(!fresh&&now-FC.at<500)return FC.list;const out=[],ps=P();FC.at=now;FC.list=out;if(!ps)return out;   // cached ½ s: a visibility check forces a page layout
+  for(const p of ps){if(!p)continue;const i=p.i;
+    const add=(ch,id,k)=>{if(!ch)return;const el=D.getElementById(id);if(vis(el))out.push({ch,el,k,p});};
+    add(p.chart,'chart'+i,'iv');if(p.rvMode==='panel')add(p.rvChart,'rvChart'+i,'rv');add(p.vovChart,'vovChart'+i,'vov');
+    const dv=W.__dvCharts&&W.__dvCharts[i];if(dv)add(dv.chart,'dvChart'+i,'dv');}
+  return out;}
+/* ---------- time ↔ bar number, per chart ---------- */
+const MAP=new WeakMap();
+function entry(ch){const r=R();if(!r)return null;for(const e of r.charts)if(e.chart===ch)return e;return null;}
+function tmap(ch){const e=entry(ch);if(!e)return null;const r=R(),cut=r.on&&r.cut?r.cut:(a=>a);
+  let sig='';const lists=[];for(const s of e.series){const f=cut(s.full||[]);if(!f.length)continue;lists.push(f);sig+=f.length+':'+f[0].time+':'+f[f.length-1].time+'|';}
+  let m=MAP.get(ch);if(m&&m.sig===sig)return m;
+  let n=0;for(const f of lists)n+=f.length;const A=new Float64Array(n);let k=0;
+  for(const f of lists)for(let i=0;i<f.length;i++){const t=f[i].time;if(typeof t==='number')A[k++]=t;}
+  const S=A.subarray(0,k).sort();let u=0;for(let i=0;i<S.length;i++)if(i===0||S[i]!==S[u-1])S[u++]=S[i];
+  const T=S.slice(0,u);
+  const med=(a,b)=>{const g=[];for(let i=Math.max(1,a);i<Math.min(T.length,b);i++)g.push(T[i]-T[i-1]);g.sort((x,y)=>x-y);return g.length?g[g.length>>1]:60;};
+  m={sig,T,s0:med(1,40),s1:med(T.length-60,T.length)};MAP.set(ch,m);return m;}
+/* holes in a vol chart's own bars (history still loading, a gap in the recording) squeeze time, because the chart places
+   bars by count, not by clock. Each vol chart gets an invisible bar every step from its first to its last bar, so a time
+   always sits at the same place as on the BTC chart. */
+function fillGaps(f){const ch=f.ch,e=entry(ch);if(!e)return;const r=R(),cut=r.on&&r.cut?r.cut:(a=>a);
+  let T0=Infinity,Tn=-Infinity,n=0,step=0;
+  for(const s of e.series){if(s.s.__v135ws)continue;const F=cut(s.full||[]);if(F.length<3)continue;const a=F[0].time,b=F[F.length-1].time;if(typeof a!=='number')continue;
+    if(a<T0)T0=a;if(b>Tn)Tn=b;n=Math.max(n,F.length);const g=[];for(let i=Math.max(1,F.length-40);i<F.length;i++)g.push(F[i].time-F[i-1].time);g.sort((x,y)=>x-y);const st=g[g.length>>1];if(st>0&&(!step||st<step))step=st;}
+  if(!(step>0)||!isFinite(T0)||!isFinite(Tn))return;const cnt=Math.floor((Tn-T0)/step)+1;if(cnt>200000)return;
+  const key=T0+'|'+Tn+'|'+step;if(ch.__v135gk===key)return;const G=ch.__v135g;
+  if(!ch.__v135ws){try{ch.__v135ws=ch.addLineSeries({priceScaleId:'v135ws',lineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,visible:true});ch.__v135ws.__v135ws=1;ch.priceScale('v135ws').applyOptions({visible:false});}catch(x){return;}}
+  ch.__v135gk=key;
+  if(G&&G.step===step&&G.T0<=T0&&Tn>G.Tn&&(Tn-G.Tn)%step===0&&(Tn-G.Tn)/step<50){try{for(let t=G.Tn+step;t<=Tn;t+=step)ch.__v135ws.update({time:t});G.Tn=Tn;}catch(x){}MAP.delete(ch);return;}   // a new bar: append
+  const d=new Array(cnt);for(let i=0;i<cnt;i++)d[i]={time:Tn-(cnt-1-i)*step};
+  try{ch.__v135ws.setData(d);ch.__v135g={T0:Tn-(cnt-1)*step,Tn,step};}catch(x){}MAP.delete(ch);}
+function idxOf(m,t){const T=m.T,n=T.length;if(!n)return null;if(t<=T[0])return (t-T[0])/m.s0;if(t>=T[n-1])return n-1+(t-T[n-1])/m.s1;
+  let a=0,b=n-1;while(b-a>1){const c=(a+b)>>1;if(T[c]<=t)a=c;else b=c;}return a+(t-T[a])/(T[b]-T[a]);}
+function timeOf(m,L){const T=m.T,n=T.length;if(!n)return null;if(L<=0)return T[0]+L*m.s0;if(L>=n-1)return T[n-1]+(L-(n-1))*m.s1;
+  const a=Math.floor(L),f=L-a;return T[a]+(T[a+1]-T[a])*f;}
+/* src's visible window (by time) onto dst */
+function push(src,dst){try{const ms=tmap(src),md=tmap(dst);if(!ms||!md||ms.T.length<2||md.T.length<2)return false;
+    const r=src.timeScale().getVisibleLogicalRange();if(!r)return false;
+    const a=timeOf(ms,r.from),b=timeOf(ms,r.to);if(a==null||b==null||!(b>a))return false;
+    const want={from:idxOf(md,a),to:idxOf(md,b)};if(!(want.to>want.from))return false;
+    const ts=dst.timeScale(),cur=ts.getVisibleLogicalRange();
+    if(cur&&Math.abs(cur.from-want.from)<0.02&&Math.abs(cur.to-want.to)<0.02)return true;
+    // bars per pixel can go far below the chart's own minimum when the BTC chart shows days of a 1-minute IV chart
+    const px=Math.max(1,dst.timeScale().width()||1),bs=px/Math.max(1e-6,want.to-want.from);
+    if(bs<((dst.__v135mbs)||0.5)){dst.__v135mbs=Math.max(0.001,bs*0.5);try{dst.applyOptions({timeScale:{minBarSpacing:dst.__v135mbs}});}catch(e){}}
+    ts.setVisibleLogicalRange(want);return true;}catch(e){return false;}}
+/* ---------- who leads ---------- */
+const LEAD={ch:null,until:0,down:false};
+function leader(){if(LEAD.ch&&(LEAD.down||performance.now()<LEAD.until))return LEAD.ch;return null;}
+function chartAt(target){if(!target||!target.closest)return null;
+  if(target.closest('.v128z,button,select,input,a'))return null;
+  for(const f of followers()){const box=f.el.parentElement||f.el;if(box.contains(target))return f.ch;}
+  if(target.closest('#chartp'))return master();return null;}
+for(const ev of ['pointerdown','touchstart'])addEventListener(ev,e=>{const c=chartAt(e.target);LEAD.ch=c;LEAD.down=!!c;LEAD.until=0;},{passive:true,capture:true});
+for(const ev of ['pointerup','pointercancel','touchend','touchcancel'])addEventListener(ev,()=>{if(LEAD.down){LEAD.down=false;LEAD.until=performance.now()+1600;}},{passive:true,capture:true});   // touch glide
+addEventListener('wheel',e=>{const c=chartAt(e.target);if(c){LEAD.ch=c;LEAD.until=performance.now()+450;}},{passive:true,capture:true});
+/* ---------- moving together ---------- */
+let inPush=false;
+function fromMaster(skip){const m=master();if(!m)return;inPush=true;try{for(const f of followers()){if(f.ch===skip)continue;push(m,f.ch);growIv(f);}}finally{inPush=false;}}
+function growIv(f){if(f.k!=='iv')return;const p=f.p;p.userMoved=true;   // the core's own framing stays off; the BTC chart frames
+  try{const r=f.ch.timeScale().getVisibleLogicalRange();if(r&&r.from<30&&p.total>p.cap&&!p.capBusy){p.capBusy=true;setTimeout(()=>{p.capBusy=false;p.cap=p.total;try{renderPane(p.i);}catch(e){}fromMaster();},60);}}catch(e){}}
+const hooked=new WeakSet();let mraf=0;
+function hook(){const m=master();if(m&&!hooked.has(m)){hooked.add(m);m.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(!mraf)mraf=requestAnimationFrame(()=>{mraf=0;const l=leader();fromMaster(l&&l!==m?l:null);});});}   // once a frame, however many moves the mouse sent
+  for(const f of followers()){if(hooked.has(f.ch))continue;hooked.add(f.ch);const ch=f.ch;
+    ch.timeScale().subscribeVisibleLogicalRangeChange(()=>{if(inPush)return;const m2=master();if(!m2)return;
+      if(leader()===ch){push(ch,m2);}            // you are moving this chart: the BTC chart (and so every chart) follows
+      else queueResync();});}}                    // someone else moved it (new data, a re-frame): back onto the BTC window
+let rq=0;function queueResync(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;const l=leader();if(l&&l!==master()){const m=master();if(m)push(l,m);}fromMaster(l);});}
+/* ---------- same left edge, same width, same price axis ---------- */
+function geometry(){const mEl=masterEl(),m=master();if(!vis(mEl)||!m)return;const F=followers();if(!F.length)return;
+  // one price-axis width for the BTC chart and every vol chart
+  let w=0;const all=[m].concat(F.map(f=>f.ch));if(geometry.vw!==innerWidth){geometry.vw=innerWidth;for(const c of all)c.__v135psw=0;}for(const c of all){try{w=Math.max(w,c.priceScale('right').width()||0);}catch(e){}}w=Math.ceil(Math.min(Math.max(w,64),130));
+  for(const c of all){axisWrap(c);c.__v135psw=w;try{const o=c.options().rightPriceScale||{};if(o.minimumWidth!==w)c.__v135ao({rightPriceScale:{minimumWidth:w}});}catch(e){}}
+  const mr=mEl.getBoundingClientRect();
+  for(const f of F){const el=f.el,r=el.getBoundingClientRect(),cs=el.style;
+    const ml=parseFloat(cs.getPropertyValue('margin-left'))||0,mrg=parseFloat(cs.getPropertyValue('margin-right'))||0;
+    const nl=Math.round(ml+(mr.left-r.left)),nr=Math.round(mrg+(r.right-mr.right));
+    if(Math.abs(nl-ml)>=1||Math.abs(nr-mrg)>=1){
+      const L=Math.max(-24,nl),Rr=Math.max(-24,nr);   /* a few px past the card's padding is fine when the BTC chart is the wider one */cs.setProperty('margin-left',L+'px','important');cs.setProperty('margin-right',Rr+'px','important');cs.setProperty('width',`calc(100% - ${L+Rr}px)`,'important');}}}
+/* ---------- one time axis, under the bottom vol chart (the others' own code keeps setting theirs: their setting is overridden) ---------- */
+function axisWrap(ch){if(ch.__v135ao)return ch.__v135ao;const ao=ch.applyOptions.bind(ch);ch.__v135ao=ao;
+  ch.applyOptions=function(o){if(o&&o.timeScale&&('visible' in o.timeScale)&&ch.__v135axis!=null)o=Object.assign({},o,{timeScale:Object.assign({},o.timeScale,{visible:ch.__v135axis})});
+    // a smaller price-axis width from an older layer would shift this chart's candles sideways until the next tick
+    if(o&&o.rightPriceScale&&o.rightPriceScale.minimumWidth!=null&&ch.__v135psw&&o.rightPriceScale.minimumWidth<ch.__v135psw)o=Object.assign({},o,{rightPriceScale:Object.assign({},o.rightPriceScale,{minimumWidth:ch.__v135psw})});
+    return ao(o);};return ao;}
+function axes(F){let low=null,lb=-1e9;for(const f of F){const b=f.el.getBoundingClientRect().bottom;if(b>lb){lb=b;low=f;}}
+  for(const f of F){const ao=axisWrap(f.ch),want=f===low;let cur=null;try{cur=f.ch.options().timeScale.visible;}catch(e){}
+    if(f.ch.__v135axis!==want||cur!==want){f.ch.__v135axis=want;try{ao({timeScale:{visible:want,timeVisible:true,secondsVisible:false}});}catch(e){}}}}
+/* ---------- one hairline through every chart ---------- */
+let hair=null;function hairEl(){if(!hair||!hair.isConnected){hair=D.createElement('div');hair.className='v135x';hair.setAttribute('aria-hidden','true');D.body.appendChild(hair);}return hair;}
+let hx=null;const HG={at:-1e9};
+// page geometry for the hairline, read at most every ½ s (reading it on every mouse move forced a page layout)
+function hairGeo(){const now=performance.now();if(now-HG.at<500)return HG;HG.at=now;HG.ok=false;const mEl=masterEl(),m=master();if(!vis(mEl)||!m)return HG;const F=followers();if(!F.length)return HG;
+  const mr=mEl.getBoundingClientRect();let ps=0;try{ps=m.priceScale('right').width()||0;}catch(e){}let bot=mr.bottom;for(const f of F){const r=f.el.getBoundingClientRect();bot=Math.max(bot,r.bottom);}
+  Object.assign(HG,{ok:true,l:mr.left+scrollX,r:mr.right-ps+scrollX,top:mr.bottom+scrollY,h:Math.max(0,bot-mr.bottom)});return HG;}
+function hairAt(clientX){const h=hairEl();if(clientX==null){if(h.style.display!=='none')h.style.display='none';return;}const G=hairGeo();const px=clientX+scrollX;
+  if(!G.ok||px<G.l||px>G.r){if(h.style.display!=='none')h.style.display='none';return;}
+  h.style.transform=`translate(${Math.round(px)}px,${Math.round(G.top)}px)`;const hh=Math.round(G.h)+'px';if(h.style.height!==hh)h.style.height=hh;if(h.style.display!=='block')h.style.display='block';}
+let hraf=0,hpend=undefined;function hairSoon(x){hpend=x;if(!hraf)hraf=requestAnimationFrame(()=>{hraf=0;hairAt(hpend);});}
+addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const c=chartAt(e.target);if(!c){if(hx!==null){hx=null;hairSoon(null);}return;}hx=e.clientX;hairSoon(hx);},{passive:true});   // one update a frame
+addEventListener('scroll',()=>{if(hx!=null)hairAt(null);hx=null;},{passive:true});
+/* ---------- crosshair: the vol charts join the BTC group (v83), and snap to their own nearest bar ---------- */
+/* ---------- legends: an identical rewrite is skipped (they were rebuilt several times per mouse move, each one a page layout) ---------- */
+const IH=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+function dedupe(el){if(!el||el.__v135d||!IH)return;el.__v135d=1;
+  Object.defineProperty(el,'innerHTML',{configurable:true,get(){return IH.get.call(this);},
+    set(v){v=String(v);if(v===this.__lh&&IH.get.call(this)===this.__ls)return;IH.set.call(this,v);this.__lh=v;this.__ls=IH.get.call(this);}});}
+function legends(){D.querySelectorAll('#legendG,#paAdxLeg,#v105EdgeBox>.aa-leg,#v105RangeBox>.aa-leg,[id^="legend"],[id^="rvLeg"],[id^="vovLeg"],[id^="dvLeg"]').forEach(dedupe);}
+/* ---------- loop ---------- */
+function tick(){if(D.hidden)return;try{legends();followers(true);for(const f of followers())fillGaps(f);hook();geometry();axes(followers());if(!leader())fromMaster(null);}catch(e){console.warn('v135',e);}}
+setTimeout(tick,1200);setTimeout(tick,3000);setInterval(tick,1000);
+addEventListener('resize',()=>setTimeout(tick,120));
+try{new ResizeObserver(()=>{requestAnimationFrame(()=>{try{geometry();fromMaster(null);}catch(e){}});}).observe(D.documentElement);}catch(e){}
+W.v135={on:true,followers,push,tmap,idxOf,timeOf,geometry,sync:()=>fromMaster(null),leader};})();
 </script>
 
 </body>
